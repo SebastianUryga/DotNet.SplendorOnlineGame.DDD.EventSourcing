@@ -1,19 +1,24 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Splendor.Application.Commands;
 using Splendor.Application.Queries;
+using Splendor.Application.Common.Interfaces;
 
 namespace Splendor.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("games")]
 public class GamesController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly ICurrentUserService _currentUserService;
 
-    public GamesController(IMediator mediator)
+    public GamesController(IMediator mediator, Splendor.Application.Common.Interfaces.ICurrentUserService currentUserService)
     {
         _mediator = mediator;
+        _currentUserService = currentUserService;
     }
 
     /// <summary>
@@ -26,7 +31,10 @@ public class GamesController : ControllerBase
     [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateGame([FromBody] CreateGameCommand command)
     {
-        var gameId = await _mediator.Send(command);
+        var userId = _currentUserService.UserId;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        var gameId = await _mediator.Send(command with { OwnerId = userId });
         return CreatedAtAction(nameof(GetGame), new { gameId }, new { id = gameId });
     }
 
@@ -43,7 +51,11 @@ public class GamesController : ControllerBase
     public async Task<IActionResult> JoinGame(Guid gameId, [FromBody] JoinGameCommand command)
     {
         if (gameId != command.GameId) return BadRequest("GameId mismatch");
-        await _mediator.Send(command);
+        
+        var userId = _currentUserService.UserId;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        await _mediator.Send(command with { OwnerId = userId });
         return Ok();
     }
 
@@ -56,7 +68,10 @@ public class GamesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> StartGame(Guid gameId)
     {
-        await _mediator.Send(new StartGameCommand(gameId));
+        var userId = _currentUserService.UserId;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        await _mediator.Send(new StartGameCommand(gameId, userId));
         return Ok();
     }
 
@@ -73,7 +88,12 @@ public class GamesController : ControllerBase
     public async Task<IActionResult> TakeGems(Guid gameId, [FromBody] TakeGemsCommand command)
     {
          if (gameId != command.GameId) return BadRequest("GameId mismatch");
-        await _mediator.Send(command);
+
+        var userId = _currentUserService.UserId;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        // Pass 'userId' as the OwnerId, but keep 'PlayerId' from the command body
+        await _mediator.Send(command with { OwnerId = userId });
         return Ok();
     }
 
@@ -126,5 +146,20 @@ public class GamesController : ControllerBase
         var actions = await _mediator.Send(new GetAvailableActionsQuery(gameId));
         if (actions == null) return NotFound();
         return Ok(actions);
+    }
+    /// <summary>
+    /// Retrieves the current version of the game state.
+    /// Useful for lightweight polling to check for updates.
+    /// </summary>
+    /// <param name="gameId">The unique identifier of the game.</param>
+    /// <returns>The version number.</returns>
+    [HttpGet("{gameId}/version")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetVersion(Guid gameId)
+    {
+        var version = await _mediator.Send(new GetGameVersionQuery(gameId));
+        if (version == null) return NotFound();
+        return Ok(new { Version = version });
     }
 }

@@ -27,15 +27,25 @@ public class GameReadModelProjector : IGameReadModelProjector
                     _context.GameViews.Add(new GameView 
                     { 
                         Id = e.GameId, 
+                        Version = 1,
                         Status = "Created",
                         CurrentPlayerId = null
                     });
                     break;
 
                 case PlayerJoined e:
+                    // PlayerJoined usually happens before game starts, but could happen anytime if we allowed it
+                    // We need to fetch the game view to add player and update version
+                     var gameJoin = await _context.GameViews.Include(g => g.Players).FirstOrDefaultAsync(g => g.Id == e.GameId, cancellationToken);
+                     if (gameJoin != null)
+                     {
+                        gameJoin.Version++;
+                     }
+
                     _context.PlayerViews.Add(new PlayerView 
                     { 
-                        Id = e.PlayerId, 
+                        Id = e.PlayerId,     
+                        OwnerId = e.OwnerId, // String
                         Name = e.Name,
                         GameViewId = e.GameId
                     });
@@ -45,6 +55,7 @@ public class GameReadModelProjector : IGameReadModelProjector
                     var gameStarted = await _context.GameViews.FindAsync(new object[] { e.GameId }, cancellationToken);
                     if (gameStarted != null)
                     {
+                        gameStarted.Version++;
                         gameStarted.Status = "Started";
                         gameStarted.MarketGems = new Splendor.Domain.ValueObjects.GemCollection(4, 4, 4, 4, 4, 5);
                     }
@@ -52,7 +63,11 @@ public class GameReadModelProjector : IGameReadModelProjector
 
                 case TurnStarted e:
                      var gameTurn = await _context.GameViews.FindAsync(new object[] { e.GameId }, cancellationToken);
-                     if (gameTurn != null) gameTurn.CurrentPlayerId = e.PlayerId;
+                     if (gameTurn != null) 
+                     {
+                        gameTurn.Version++;
+                        gameTurn.CurrentPlayerId = e.PlayerId;
+                     }
                      break;
 
                 case GemsTaken e:
@@ -65,6 +80,7 @@ public class GameReadModelProjector : IGameReadModelProjector
                     var gameGems = await _context.GameViews.FindAsync(new object[] { e.GameId }, cancellationToken);
                     if (gameGems != null)
                     {
+                        gameGems.Version++;
                         gameGems.MarketGems -= e.Gems;
                     }
                     break;

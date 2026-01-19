@@ -4,7 +4,7 @@ using Splendor.Domain.Aggregates;
 
 namespace Splendor.Application.Commands;
 
-public record JoinGameCommand(Guid GameId, Guid PlayerId, string Name) : IRequest;
+public record JoinGameCommand(Guid GameId, string OwnerId, string Name) : IAuthoredCommand, IRequest;
 
 public class JoinGameCommandHandler : IRequestHandler<JoinGameCommand>
 {
@@ -22,7 +22,7 @@ public class JoinGameCommandHandler : IRequestHandler<JoinGameCommand>
         var game = await _eventStore.LoadAsync<Game>(request.GameId, cancellationToken);
         if (game == null) throw new Exception("Game not found");
 
-        var events = game.JoinGame(request.PlayerId, request.Name);
+        var events = game.JoinGame(request.OwnerId, request.Name);
 
         await _eventStore.AppendAsync(request.GameId, events, cancellationToken);
         await _eventStore.SaveChangesAsync(cancellationToken);

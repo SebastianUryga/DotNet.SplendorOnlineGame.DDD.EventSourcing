@@ -8,6 +8,7 @@ using Testcontainers.PostgreSql;
 using Splendor.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Marten;
+using Microsoft.AspNetCore.Authentication;
 
 namespace Splendor.IntegrationTests;
 
@@ -42,6 +43,18 @@ public class SplendorApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 options.Events.StreamIdentity = Marten.Events.StreamIdentity.AsGuid;
                 options.Projections.Add<Splendor.Infrastructure.Projections.GameProjection>(Marten.Events.Projections.ProjectionLifecycle.Inline);
             }).UseLightweightSessions();
+
+            // Bypass Auth using TestAuthHandler
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = "Test";
+                options.DefaultChallengeScheme = "Test";
+                options.DefaultScheme = "Test";
+            })
+            .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", options => { });
+
+            services.RemoveAll(typeof(Splendor.Application.Common.Interfaces.ICurrentUserService));
+            services.AddScoped<Splendor.Application.Common.Interfaces.ICurrentUserService, TestCurrentUserService>();
         });
     }
 

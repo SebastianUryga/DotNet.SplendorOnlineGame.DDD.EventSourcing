@@ -4,7 +4,7 @@ using Splendor.Domain.Aggregates;
 
 namespace Splendor.Application.Commands;
 
-public record StartGameCommand(Guid GameId) : IRequest;
+public record StartGameCommand(Guid GameId, string OwnerId) : IAuthoredCommand, IRequest;
 
 public class StartGameCommandHandler : IRequestHandler<StartGameCommand>
 {
@@ -22,7 +22,7 @@ public class StartGameCommandHandler : IRequestHandler<StartGameCommand>
         var game = await _eventStore.LoadAsync<Game>(request.GameId, cancellationToken);
         if (game == null) throw new Exception("Game not found");
 
-        var events = game.StartGame();
+        var events = game.StartGame(request.OwnerId);
 
         // 1. Write to Event Store (Source of Truth)
         await _eventStore.AppendAsync(request.GameId, events, cancellationToken);

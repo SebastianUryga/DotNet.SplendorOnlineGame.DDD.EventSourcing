@@ -33,7 +33,7 @@ public class BasicTests : IClassFixture<SplendorApiFactory>
     {
         // Arrange
         var client = _factory.CreateClient();
-        var content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+        var content = new StringContent("{\"OwnerId\":\"test-user-id\"}", System.Text.Encoding.UTF8, "application/json");
 
         // Act
         var response = await client.PostAsync("/games", content);

@@ -4,13 +4,15 @@ namespace Splendor.Domain.Entities;
 
 public class Player
 {
-    public Guid Id { get; set; }
+    public string Id { get; set; }
+    public string OwnerId { get; set; }
     public string Name { get; set; }
     public GemCollection Gems { get; set; } = GemCollection.Empty;
 
-    public Player(Guid id, string name)
+    public Player(string id, string ownerId, string name)
     {
         Id = id;
+        OwnerId = ownerId;
         Name = name;
     }
     

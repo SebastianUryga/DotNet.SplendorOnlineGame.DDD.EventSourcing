@@ -4,7 +4,7 @@ using Splendor.Domain.Events;
 
 namespace Splendor.Application.Commands;
 
-public record CreateGameCommand(Guid CreatorId) : IRequest<Guid>;
+public record CreateGameCommand(string OwnerId) : IAuthoredCommand, IRequest<Guid>;
 
 public class CreateGameCommandHandler : IRequestHandler<CreateGameCommand, Guid>
 {
@@ -23,7 +23,7 @@ public class CreateGameCommandHandler : IRequestHandler<CreateGameCommand, Guid>
         var timestamp = DateTimeOffset.UtcNow;
         var events = new List<object>
         {
-            new GameCreated(gameId, request.CreatorId, timestamp)
+            new GameCreated(gameId, request.OwnerId, timestamp)
         };
 
         await _eventStore.AppendAsync(gameId, events, cancellationToken);
