@@ -1,6 +1,6 @@
 # EventSource.BoardGamesArena
 
-**EventSource.BoardGamesArena** is a professional-grade backend for a multi-game platform. Built with **.NET**, it serves as a practical implementation of **Domain-Driven Design (DDD)**, **Event Sourcing**, and **CQRS**.
+**EventSource.BoardGamesArena** is a full-stack board game platform featuring a **.NET** backend and **Angular** frontend. It serves as a practical implementation of **Domain-Driven Design (DDD)**, **Event Sourcing**, and **CQRS**.
 
 > [!NOTE]
 > **Status:** Work in progress – the project starts with a minimal, playable rule set and evolves incrementally.
@@ -16,7 +16,8 @@ This project was created for **educational purposes** to gain hands-on experienc
 ## Roadmap
 
 This project is designed to evolve into a full-scale board game arena:
-- **[ ] User Management**: Authentication and authorization system.
+- **[x] User Management**: JWT authentication via Auth0.
+- **[x] Web Frontend**: Angular SPA with game UI, lobby, and real-time updates.
 - **[ ] Player Profiles**: Statistics, rankings, and game history across different titles.
 - **[ ] Multiple Game Support**: Leveraging the event-sourced core to add new games (e.g., Azul, 7 Wonders) alongside the initial Splendor implementation.
 - **[ ] Matchmaking**: Join queues and game lobbies.
@@ -52,19 +53,29 @@ Reliability is ensured through integration tests that use real database instance
 
 ### Prerequisites
 - .NET 6 SDK
+- Node.js 18+ and npm
 - Docker Desktop (for running the services and integration tests)
 
 ### Running Locally
-1. Ensure Docker is running.
-2. Build the solution:
+
+1. **Start infrastructure** (PostgreSQL & SQL Server):
    ```bash
-   dotnet build
+   docker-compose up -d
    ```
-3. Run the API:
+
+2. **Run the API**:
    ```bash
    dotnet run --project Splendor.Api
    ```
-4. Access Swagger UI at `http://localhost:5200/swagger`.
+   Access Swagger UI at `http://localhost:5081/swagger`.
+
+3. **Run the Frontend**:
+   ```bash
+   cd Splendor.Web
+   npm install
+   ng serve
+   ```
+   Access the app at `http://localhost:4200`.
 
 ### Running Tests
 To run the full suite of integration tests:
@@ -72,8 +83,10 @@ To run the full suite of integration tests:
 dotnet test
 ```
 
-## 🛠 Tech Stack
-- **Web**: ASP.NET Core 6, Swagger/OpenAPI
+## Tech Stack
+- **Frontend**: Angular 16 (standalone components)
+- **Backend**: ASP.NET Core 6, Swagger/OpenAPI
+- **Authentication**: JWT (Auth0)
 - **Messaging**: MediatR
 - **Event Store**: Marten (PostgreSQL)
 - **Read Models**: EF Core (SQL Server)
