@@ -1,9 +1,20 @@
-# EventSource.BoardGamesArena
+# SplendorOnlineGame
 
-**EventSource.BoardGamesArena** is a full-stack board game platform featuring a **.NET** backend and **Angular** frontend. It serves as a practical implementation of **Domain-Driven Design (DDD)**, **Event Sourcing**, and **CQRS**.
+**SplendorOnlineGame** is a full-stack implementation of the popular board game Splendor, featuring a **.NET** backend and **Angular** frontend. Built as a practical showcase of **Domain-Driven Design (DDD)**, **Event Sourcing**, and **CQRS**.
 
 > [!NOTE]
 > **Status:** Work in progress – the project starts with a minimal, playable rule set and evolves incrementally.
+
+## Demo
+
+### Games List
+![Games List](docs/screenshots/games-list.png)
+
+### Game Lobby
+![Game Lobby](docs/screenshots/lobby.png)
+
+### Gameplay
+![Gameplay](docs/screenshots/gameplay.png)
 
 ## Project Goals & Context
 

@@ -1,7 +1,7 @@
 # CLAUDE.md - Kontekst projektu Splendor
 
 ## Opis projektu
-Implementacja gry planszowej **Splendor** jako część platformy EventSource.BoardGamesArena.
+Implementacja gry planszowej **Splendor** jako część platformy SplendorOnlineGame.
 Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 
 ## Architektura
