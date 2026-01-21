@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Splendor.Application.Commands;
 using Splendor.Application.Queries;
 using Splendor.Application.Common.Interfaces;
+using Splendor.Application.ReadModels;
+
 
 namespace Splendor.Api.Controllers;
 
@@ -15,11 +17,12 @@ public class GamesController : ControllerBase
     private readonly IMediator _mediator;
     private readonly ICurrentUserService _currentUserService;
 
-    public GamesController(IMediator mediator, Splendor.Application.Common.Interfaces.ICurrentUserService currentUserService)
+    public GamesController(IMediator mediator, ICurrentUserService currentUserService)
     {
         _mediator = mediator;
         _currentUserService = currentUserService;
     }
+
 
     /// <summary>
     /// Creates a new game instance.
@@ -134,8 +137,35 @@ public class GamesController : ControllerBase
     }
 
     /// <summary>
+    /// Retrieves a list of all game cards definitions.
+    /// </summary>
+    /// <returns>A list of card definitions.</returns>
+    [HttpGet("/cards")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(IReadOnlyList<Splendor.Domain.ValueObjects.Card>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCards()
+    {
+        var cards = await _mediator.Send(new GetCardsQuery());
+        return Ok(cards);
+    }
+
+    /// <summary>
+    /// Retrieves a list of all games.
+    /// </summary>
+    /// <returns>A list of game summaries.</returns>
+    [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<GameSummaryDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetGames()
+    {
+        var games = await _mediator.Send(new GetGamesQuery());
+        return Ok(games);
+    }
+
+
+    /// <summary>
     /// Retrieves the current state of a game.
     /// </summary>
+
     /// <param name="gameId">The unique identifier of the game.</param>
     /// <returns>The game read model.</returns>
     /// <response code="200">Returns the game state.</response>

@@ -8,9 +8,12 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
+│                     Splendor.Web                            │
+│  Angular 16 (standalone), Port: 4200                        │
+├─────────────────────────────────────────────────────────────┤
 │                     Splendor.Api                            │
 │  Controllers, Middleware, Program.cs                        │
-│  Port: 5200, Swagger: /swagger                              │
+│  Port: 5081, Swagger: /swagger                              │
 ├─────────────────────────────────────────────────────────────┤
 │                  Splendor.Application                       │
 │  Commands (MediatR), Queries, ReadModels                    │
@@ -24,6 +27,7 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 ```
 
 ### Tech Stack
+- **Frontend**: Angular 16 (standalone components), czysty CSS
 - **Event Store**: Marten (PostgreSQL) - zapis eventów
 - **Read Models**: EF Core (SQL Server) - projekcje do odczytu
 - **CQRS**: MediatR - obsługa komend i zapytań
@@ -62,9 +66,21 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 ### API Layer
 | Plik | Opis |
 |------|------|
-| `Api/Controllers/GamesController.cs` | REST API dla gier |
-| `Api/Program.cs` | Konfiguracja aplikacji |
-| `Api/Middleware/` | Custom middleware |
+| `Api/Controllers/GamesController.cs` | REST API dla gier i kart |
+| `Api/Program.cs` | Konfiguracja aplikacji (CORS, JWT, etc.) |
+| `Api/Middleware/` | Custom middleware (ExceptionHandling) |
+
+### Frontend (Splendor.Web)
+| Plik | Opis |
+|------|------|
+| `src/app/core/services/auth.service.ts` | Zarządzanie JWT tokenem (localStorage) |
+| `src/app/core/services/game.service.ts` | Komunikacja z API + cache kart |
+| `src/app/core/interceptors/auth.interceptor.ts` | Dodaje Bearer token do requestów |
+| `src/app/pages/games-list/` | Lista gier + tworzenie nowej |
+| `src/app/pages/lobby/` | Lobby gry (dołączanie, start) |
+| `src/app/pages/game/` | Widok rozgrywki (rynek gemów, karty, gracze) |
+| `src/app/models/` | Interfejsy TS (GameView, GemCollection, Card, requests) |
+| `src/environments/environment.ts` | Konfiguracja API URL |
 
 ## Model danych
 
@@ -101,30 +117,52 @@ record GemCollection(int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx,
 6. `TurnEnded` - koniec tury
 7. Powrót do punktu 4 (następny gracz)
 
+## API Endpoints
+
+| Metoda | Endpoint | Opis |
+|--------|----------|------|
+| GET | `/games` | Lista wszystkich gier |
+| POST | `/games` | Tworzenie nowej gry |
+| GET | `/games/{id}` | Stan gry (GameView) |
+| POST | `/games/{id}/players` | Dołączanie gracza |
+| POST | `/games/{id}/start` | Start gry |
+| POST | `/games/{id}/actions/take-gems` | Pobieranie gemów |
+| POST | `/games/{id}/actions/buy-card` | Kupowanie karty |
+| GET | `/games/{id}/version` | Wersja gry (do pollingu) |
+| GET | `/cards` | Definicje wszystkich kart |
+
 ## Komendy
 
-### Budowanie
+### Backend
 ```bash
+# Budowanie
 dotnet build
-```
 
-### Uruchamianie
-```bash
-# Wymaga Docker (PostgreSQL + SQL Server)
+# Uruchamianie (wymaga Docker)
 docker-compose up -d
 dotnet run --project Splendor.Api
-```
 
-### Testy
-```bash
+# Testy
 dotnet test
-```
 
-### Migracje EF
-```bash
+# Migracje EF
 cd Splendor.Infrastructure
 dotnet ef migrations add <NazwaMigracji> --startup-project ../Splendor.Api
-dotnet ef database update --startup-project ../Splendor.Api
+```
+
+### Frontend
+```bash
+cd Splendor.Web
+
+# Instalacja zależności
+npm install
+
+# Uruchamianie (dev)
+ng serve
+# lub
+npm start
+
+# Aplikacja dostępna na http://localhost:4200
 ```
 
 ## Aktualny stan (co jest zaimplementowane)
@@ -135,16 +173,21 @@ dotnet ef database update --startup-project ../Splendor.Api
 - [x] Agregat Game z podstawowymi eventami
 - [x] Komendy: CreateGame, JoinGame, StartGame, TakeGems, BuyCard
 - [x] Read model GameView z projekcją
-- [x] REST API z Swagger
+- [x] REST API z Swagger + CORS
 - [x] Testy integracyjne z Testcontainers
 - [x] Rozdzielenie OwnerId (użytkownik) od PlayerId (gracz w grze)
 - [x] System kart (definicje, rynek, talie)
 - [x] Kupowanie kart z bonusami
 - [x] Autentykacja JWT (Auth0) + ICurrentUserService
 - [x] Middleware obsługi wyjątków (ExceptionHandlingMiddleware)
+- [x] Endpoint GET /cards (definicje kart z backendu)
+- [x] Endpoint GET /games (lista gier)
+- [x] Frontend Angular (lista gier, lobby, widok rozgrywki)
+- [x] Polling wersji gry (auto-refresh)
+- [x] Walidacja reguł gemów w UI (3 różne lub 2 takie same przy >=4)
 
 ### Do zrobienia
-- [ ] Pełna walidacja reguł pobierania gemów
+- [ ] Pełna walidacja reguł pobierania gemów (backend)
 - [ ] Rezerwacja kart
 - [ ] Noble tiles (arystokraci)
 - [ ] Warunek zakończenia gry (15 punktów)
