@@ -58,6 +58,12 @@ public class GameReadModelProjector : IGameReadModelProjector
                         gameStarted.Version++;
                         gameStarted.Status = "Started";
                         gameStarted.MarketGems = new Splendor.Domain.ValueObjects.GemCollection(4, 4, 4, 4, 4, 5);
+                        gameStarted.Market1 = e.Market1.ToList();
+                        gameStarted.Market2 = e.Market2.ToList();
+                        gameStarted.Market3 = e.Market3.ToList();
+                        gameStarted.Deck1Count = e.Deck1.Count;
+                        gameStarted.Deck2Count = e.Deck2.Count;
+                        gameStarted.Deck3Count = e.Deck3.Count;
                     }
                     break;
 
@@ -76,7 +82,7 @@ public class GameReadModelProjector : IGameReadModelProjector
                     {
                         player.Gems += e.Gems;
                     }
-                    
+
                     var gameGems = await _context.GameViews.FindAsync(new object[] { e.GameId }, cancellationToken);
                     if (gameGems != null)
                     {
@@ -84,9 +90,62 @@ public class GameReadModelProjector : IGameReadModelProjector
                         gameGems.MarketGems -= e.Gems;
                     }
                     break;
+
+                case CardPurchased e:
+                    var buyingPlayer = await _context.PlayerViews.FindAsync(new object[] { e.PlayerId }, cancellationToken);
+                    if (buyingPlayer != null)
+                    {
+                        buyingPlayer.OwnedCardIds.Add(e.CardId);
+                        buyingPlayer.Gems -= e.PaidGems;
+                    }
+
+                    var gameCard = await _context.GameViews.FindAsync(new object[] { e.GameId }, cancellationToken);
+                    if (gameCard != null)
+                    {
+                        gameCard.Version++;
+                        gameCard.MarketGems += e.PaidGems;
+                        var card = Splendor.Domain.CardDefinitions.GetById(e.CardId);
+                        if (card != null)
+                        {
+                            GetMarketForLevel(gameCard, card.Level).Remove(e.CardId);
+                        }
+                    }
+                    break;
+
+                case CardRevealed e:
+                    var gameReveal = await _context.GameViews.FindAsync(new object[] { e.GameId }, cancellationToken);
+                    if (gameReveal != null)
+                    {
+                        gameReveal.Version++;
+                        GetMarketForLevel(gameReveal, e.Level).Add(e.CardId);
+                        DecrementDeckCount(gameReveal, e.Level);
+                    }
+                    break;
             }
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    private List<string> GetMarketForLevel(GameView game, int level)
+    {
+        return level switch
+        {
+            1 => game.Market1,
+            2 => game.Market2,
+            3 => game.Market3,
+            _ => throw new ArgumentException($"Invalid market level: {level}")
+        };
+    }
+
+    private void DecrementDeckCount(GameView game, int level)
+    {
+        switch (level)
+        {
+            case 1: game.Deck1Count--; break;
+            case 2: game.Deck2Count--; break;
+            case 3: game.Deck3Count--; break;
+            default: throw new ArgumentException($"Invalid deck level: {level}");
+        }
     }
 }

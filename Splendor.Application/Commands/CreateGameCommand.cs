@@ -4,7 +4,10 @@ using Splendor.Domain.Events;
 
 namespace Splendor.Application.Commands;
 
-public record CreateGameCommand(string OwnerId) : IAuthoredCommand, IRequest<Guid>;
+public record CreateGameCommand : IAuthoredCommand, IRequest<Guid>
+{
+    public string OwnerId { get; init; } = string.Empty;
+}
 
 public class CreateGameCommandHandler : IRequestHandler<CreateGameCommand, Guid>
 {

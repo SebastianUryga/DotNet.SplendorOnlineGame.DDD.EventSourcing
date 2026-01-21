@@ -15,9 +15,6 @@ namespace Splendor.Infrastructure.Migrations
                 name: "FK_PlayerViews_GameViews_GameViewId",
                 table: "PlayerViews");
 
-            migrationBuilder.DropPrimaryKey(
-                name: "PK_PlayerViews",
-                table: "PlayerViews");
 
             migrationBuilder.AlterColumn<Guid>(
                 name: "GameViewId",
@@ -34,11 +31,6 @@ namespace Splendor.Infrastructure.Migrations
                 nullable: false,
                 oldClrType: typeof(Guid),
                 oldType: "uniqueidentifier");
-
-            migrationBuilder.AddPrimaryKey(
-                name: "PK_PlayerViews",
-                table: "PlayerViews",
-                column: "Id");
 
             migrationBuilder.AlterColumn<string>(
                 name: "CurrentPlayerId",

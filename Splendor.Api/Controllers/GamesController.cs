@@ -29,12 +29,12 @@ public class GamesController : ControllerBase
     /// <response code="201">Returns the newly created game ID.</response>
     [HttpPost]
     [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
-    public async Task<IActionResult> CreateGame([FromBody] CreateGameCommand command)
+    public async Task<IActionResult> CreateGame([FromBody] CreateGameRequest request)
     {
         var userId = _currentUserService.UserId;
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-        var gameId = await _mediator.Send(command with { OwnerId = userId });
+        var gameId = await _mediator.Send(new CreateGameCommand { OwnerId = userId });
         return CreatedAtAction(nameof(GetGame), new { gameId }, new { id = gameId });
     }
 
@@ -42,20 +42,23 @@ public class GamesController : ControllerBase
     /// Joins a player to an existing game.
     /// </summary>
     /// <param name="gameId">The unique identifier of the game.</param>
-    /// <param name="command">The player details.</param>
+    /// <param name="request">The player details.</param>
     /// <response code="200">If the player successfully joined the game.</response>
     /// <response code="400">If there is a GameId mismatch or business logic failure.</response>
     [HttpPost("{gameId}/players")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> JoinGame(Guid gameId, [FromBody] JoinGameCommand command)
+    public async Task<IActionResult> JoinGame(Guid gameId, [FromBody] JoinGameRequest request)
     {
-        if (gameId != command.GameId) return BadRequest("GameId mismatch");
-        
         var userId = _currentUserService.UserId;
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-        await _mediator.Send(command with { OwnerId = userId });
+        await _mediator.Send(new JoinGameCommand 
+        { 
+            GameId = gameId, 
+            OwnerId = userId, 
+            Name = request.Name 
+        });
         return Ok();
     }
 
@@ -66,12 +69,12 @@ public class GamesController : ControllerBase
     /// <response code="200">If the game started successfully.</response>
     [HttpPost("{gameId}/start")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> StartGame(Guid gameId)
+    public async Task<IActionResult> StartGame(Guid gameId, [FromBody] StartGameRequest request)
     {
         var userId = _currentUserService.UserId;
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-        await _mediator.Send(new StartGameCommand(gameId, userId));
+        await _mediator.Send(new StartGameCommand { GameId = gameId, OwnerId = userId });
         return Ok();
     }
 
@@ -79,21 +82,54 @@ public class GamesController : ControllerBase
     /// Takes gems from the market for a player.
     /// </summary>
     /// <param name="gameId">The unique identifier of the game.</param>
-    /// <param name="command">The gem selection details.</param>
+    /// <param name="request">The gem selection details.</param>
     /// <response code="200">If the gems were successfully taken.</response>
     /// <response code="400">If there is a GameId mismatch or invalid gem combination.</response>
     [HttpPost("{gameId}/actions/take-gems")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> TakeGems(Guid gameId, [FromBody] TakeGemsCommand command)
+    public async Task<IActionResult> TakeGems(Guid gameId, [FromBody] TakeGemsRequest request)
     {
-         if (gameId != command.GameId) return BadRequest("GameId mismatch");
-
         var userId = _currentUserService.UserId;
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-        // Pass 'userId' as the OwnerId, but keep 'PlayerId' from the command body
-        await _mediator.Send(command with { OwnerId = userId });
+        await _mediator.Send(new TakeGemsCommand 
+        { 
+            GameId = gameId,
+            OwnerId = userId,
+            PlayerId = request.PlayerId,
+            Diamond = request.Diamond,
+            Sapphire = request.Sapphire,
+            Emerald = request.Emerald,
+            Ruby = request.Ruby,
+            Onyx = request.Onyx,
+            Gold = request.Gold
+        });
+        return Ok();
+    }
+
+    /// <summary>
+    /// Purchases a card from the market for a player.
+    /// </summary>
+    /// <param name="gameId">The unique identifier of the game.</param>
+    /// <param name="request">The purchase details.</param>
+    /// <response code="200">If the card was successfully purchased.</response>
+    /// <response code="400">If the card cannot be purchased or player mismatch.</response>
+    [HttpPost("{gameId}/actions/buy-card")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> BuyCard(Guid gameId, [FromBody] BuyCardRequest request)
+    {
+        var userId = _currentUserService.UserId;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        await _mediator.Send(new BuyCardCommand 
+        { 
+            GameId = gameId,
+            OwnerId = userId,
+            PlayerId = request.PlayerId,
+            CardId = request.CardId
+        });
         return Ok();
     }
 
@@ -163,3 +199,17 @@ public class GamesController : ControllerBase
         return Ok(new { Version = version });
     }
 }
+
+public record CreateGameRequest();
+public record JoinGameRequest(string Name);
+public record StartGameRequest();
+public record TakeGemsRequest(
+    string PlayerId,
+    int Diamond,
+    int Sapphire,
+    int Emerald,
+    int Ruby,
+    int Onyx,
+    int Gold);
+
+public record BuyCardRequest(string PlayerId, string CardId);

@@ -5,7 +5,18 @@ using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Application.Commands;
 
-public record TakeGemsCommand(Guid GameId, string OwnerId, string PlayerId, int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx, int Gold) : IAuthoredCommand, IRequest;
+public record TakeGemsCommand : IAuthoredCommand, IRequest
+{
+    public Guid GameId { get; init; }
+    public string OwnerId { get; init; } = string.Empty;
+    public string PlayerId { get; init; } = string.Empty;
+    public int Diamond { get; init; }
+    public int Sapphire { get; init; }
+    public int Emerald { get; init; }
+    public int Ruby { get; init; }
+    public int Onyx { get; init; }
+    public int Gold { get; init; }
+}
 
 public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
 {
@@ -26,7 +37,7 @@ public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
         // Map DTO gems to ValueObject
         var gems = new GemCollection(request.Diamond, request.Sapphire, request.Emerald, request.Ruby, request.Onyx, request.Gold);
 
-        var events = game.TakeGems(request.OwnerId, request.PlayerId, gems);
+        var events = game.TakeGems(request.OwnerId, request.PlayerId, gems).ToList();
 
         await _eventStore.AppendAsync(request.GameId, events, cancellationToken);
         await _eventStore.SaveChangesAsync(cancellationToken);

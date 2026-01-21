@@ -4,30 +4,31 @@ using Splendor.Domain.Aggregates;
 
 namespace Splendor.Application.Commands;
 
-public record JoinGameCommand : IAuthoredCommand, IRequest
+public record BuyCardCommand : IAuthoredCommand, IRequest
 {
     public Guid GameId { get; init; }
     public string OwnerId { get; init; } = string.Empty;
-    public string Name { get; init; } = string.Empty;
+    public string PlayerId { get; init; } = string.Empty;
+    public string CardId { get; init; } = string.Empty;
 }
 
-public class JoinGameCommandHandler : IRequestHandler<JoinGameCommand>
+public class BuyCardCommandHandler : IRequestHandler<BuyCardCommand>
 {
     private readonly IEventStore _eventStore;
     private readonly IGameReadModelProjector _projector;
 
-    public JoinGameCommandHandler(IEventStore eventStore, IGameReadModelProjector projector)
+    public BuyCardCommandHandler(IEventStore eventStore, IGameReadModelProjector projector)
     {
         _eventStore = eventStore;
         _projector = projector;
     }
 
-    public async Task Handle(JoinGameCommand request, CancellationToken cancellationToken)
+    public async Task Handle(BuyCardCommand request, CancellationToken cancellationToken)
     {
         var game = await _eventStore.LoadAsync<Game>(request.GameId, cancellationToken);
         if (game == null) throw new Exception("Game not found");
 
-        var events = game.JoinGame(request.OwnerId, request.Name).ToList();
+        var events = game.BuyCard(request.OwnerId, request.PlayerId, request.CardId).ToList();
 
         await _eventStore.AppendAsync(request.GameId, events, cancellationToken);
         await _eventStore.SaveChangesAsync(cancellationToken);

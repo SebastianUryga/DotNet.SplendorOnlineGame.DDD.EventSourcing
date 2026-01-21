@@ -67,6 +67,8 @@ builder.Services.AddScoped<Splendor.Application.Common.Interfaces.ICurrentUserSe
 
 var app = builder.Build();
 
+app.UseMiddleware<Splendor.Api.Middleware.ExceptionHandlingMiddleware>();
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
