@@ -4,7 +4,8 @@ import { ActivatedRoute, RouterModule } from '@angular/router';
 import { GameService } from '../../core/services/game.service';
 import { GameView, PlayerView } from '../../models/game-view.model';
 import { GemCollection, EMPTY_GEMS } from '../../models/gem-collection.model';
-import { interval, Subscription, startWith, switchMap, filter } from 'rxjs';
+import { interval, Subscription, startWith, switchMap, filter, firstValueFrom } from 'rxjs';
+import { SignalRService } from '../../core/services/signalr.service';
 
 
 
@@ -176,29 +177,36 @@ export class GameComponent implements OnInit, OnDestroy {
   selectedGems: any = { diamond: 0, sapphire: 0, emerald: 0, ruby: 0, onyx: 0 };
   gemTypes = ['diamond', 'sapphire', 'emerald', 'ruby', 'onyx', 'gold'];
   gemTypesExcludeGold = ['diamond', 'sapphire', 'emerald', 'ruby', 'onyx'];
-  private pollSub!: Subscription;
+  private signalrSubscription?: Subscription;
 
-  constructor(private route: ActivatedRoute, private gameService: GameService) { }
+  constructor(
+    private route: ActivatedRoute,
+    private gameService: GameService,
+    private signalRService: SignalRService
+  ) { }
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     this.gameId = this.route.snapshot.paramMap.get('id')!;
-    this.startPolling();
+
+    // Connect to SignalR
+    await this.signalRService.connect();
+    await this.signalRService.joinGame(this.gameId);
+
+    // Listen for updates
+    this.signalrSubscription = this.signalRService.gameUpdated$
+      .subscribe(gameView => {
+        this.game = gameView;
+      });
+
+    // Initial load
+    this.refresh();
   }
 
   ngOnDestroy(): void {
-    if (this.pollSub) this.pollSub.unsubscribe();
+    this.signalrSubscription?.unsubscribe();
+    this.signalRService.leaveGame(this.gameId);
   }
 
-  startPolling(): void {
-    this.pollSub = interval(2000).pipe(
-      startWith(0),
-      switchMap(() => this.gameService.getVersion(this.gameId)),
-      filter(v => !this.game || v !== this.game.version),
-      switchMap(() => this.gameService.getGame(this.gameId))
-    ).subscribe(game => {
-      this.game = game;
-    });
-  }
 
   getCurrentPlayerName(): string {
     const p = this.game?.players.find(x => x.id === this.game?.currentPlayerId);

@@ -14,17 +14,17 @@ public class BasicTests : IClassFixture<SplendorApiFactory>
     }
 
     [Fact]
-    public async Task Get_Swagger_ReturnsSuccessAndCorrectContentType()
+    public async Task Get_Cards_ReturnsSuccessAndCorrectContentType()
     {
         // Arrange
         var client = _factory.CreateClient();
 
         // Act
-        var response = await client.GetAsync("/swagger/index.html");
+        var response = await client.GetAsync("/cards");
 
         // Assert
         response.EnsureSuccessStatusCode();
-        Assert.Equal("text/html; charset=utf-8", 
+        Assert.Equal("application/json; charset=utf-8", 
             response.Content.Headers.ContentType?.ToString());
     }
 

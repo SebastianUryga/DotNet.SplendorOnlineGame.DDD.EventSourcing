@@ -16,6 +16,7 @@ namespace Splendor.Infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Version = table.Column<long>(type: "bigint", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     MarketGems_Diamond = table.Column<int>(type: "int", nullable: false),
                     MarketGems_Sapphire = table.Column<int>(type: "int", nullable: false),
@@ -23,7 +24,13 @@ namespace Splendor.Infrastructure.Migrations
                     MarketGems_Ruby = table.Column<int>(type: "int", nullable: false),
                     MarketGems_Onyx = table.Column<int>(type: "int", nullable: false),
                     MarketGems_Gold = table.Column<int>(type: "int", nullable: false),
-                    CurrentPlayerId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
+                    CurrentPlayerId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Market1 = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Market2 = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Market3 = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Deck1Count = table.Column<int>(type: "int", nullable: false),
+                    Deck2Count = table.Column<int>(type: "int", nullable: false),
+                    Deck3Count = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -34,7 +41,8 @@ namespace Splendor.Infrastructure.Migrations
                 name: "PlayerViews",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    OwnerId = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Gems_Diamond = table.Column<int>(type: "int", nullable: false),
                     Gems_Sapphire = table.Column<int>(type: "int", nullable: false),
@@ -42,6 +50,7 @@ namespace Splendor.Infrastructure.Migrations
                     Gems_Ruby = table.Column<int>(type: "int", nullable: false),
                     Gems_Onyx = table.Column<int>(type: "int", nullable: false),
                     Gems_Gold = table.Column<int>(type: "int", nullable: false),
+                    OwnedCardIds = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     GameViewId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
                 },
                 constraints: table =>

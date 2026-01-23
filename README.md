@@ -28,7 +28,7 @@ This project was created for **educational purposes** to gain hands-on experienc
 
 This project is designed to evolve into a full-scale board game arena:
 - **[x] User Management**: JWT authentication via Auth0.
-- **[x] Web Frontend**: Angular SPA with game UI, lobby, and real-time updates.
+- **[x] Web Frontend**: Angular SPA with game UI, lobby, and real-time updates (SignalR + RabbitMQ).
 - **[ ] Player Profiles**: Statistics, rankings, and game history across different titles.
 - **[ ] Multiple Game Support**: Leveraging the event-sourced core to add new games (e.g., Azul, 7 Wonders) alongside the initial Splendor implementation.
 - **[ ] Matchmaking**: Join queues and game lobbies.
@@ -55,7 +55,18 @@ We separate the "write" side from the "read" side to optimize performance and sc
 While the write side uses PostgreSQL, the query side uses **SQL Server** via **Entity Framework Core**.
 - This allows for complex querying and reporting without impacting the event store's performance.
 
-### 4. Integration Testing with Testcontainers
+### 4. Real-time Updates with RabbitMQ + SignalR
+The application uses an event-driven architecture for real-time game updates:
+- **Marten Subscriptions** listen for domain events and publish messages to RabbitMQ.
+- **MassTransit** provides the messaging abstraction over RabbitMQ.
+- **SignalR** pushes game state updates to connected clients via WebSocket.
+- Players see opponent actions instantly without polling.
+
+```
+Domain Event → Marten Subscription → RabbitMQ → Consumer → SignalR Hub → WebSocket → Angular
+```
+
+### 5. Integration Testing with Testcontainers
 Reliability is ensured through integration tests that use real database instances:
 - **Testcontainers** automatically starts ephemeral Docker containers (PostgreSQL & SQL Server) for each test run.
 - **WebApplicationFactory** provides in-memory API testing, ensuring the entire stack (Controller -> MediatR -> Marten -> SQL Server) works as expected.
@@ -69,10 +80,11 @@ Reliability is ensured through integration tests that use real database instance
 
 ### Running Locally
 
-1. **Start infrastructure** (PostgreSQL & SQL Server):
+1. **Start infrastructure** (PostgreSQL, SQL Server & RabbitMQ):
    ```bash
    docker-compose up -d
    ```
+   - RabbitMQ Management UI: http://localhost:15672 (guest/guest)
 
 2. **Run the API**:
    ```bash
@@ -98,7 +110,8 @@ dotnet test
 - **Frontend**: Angular 16 (standalone components)
 - **Backend**: ASP.NET Core 6, Swagger/OpenAPI
 - **Authentication**: JWT (Auth0)
-- **Messaging**: MediatR
+- **CQRS**: MediatR
 - **Event Store**: Marten (PostgreSQL)
 - **Read Models**: EF Core (SQL Server)
+- **Real-time**: SignalR, MassTransit, RabbitMQ
 - **Testing**: xUnit, Testcontainers, FluentAssertions

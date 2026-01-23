@@ -9,6 +9,7 @@ using Splendor.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Marten;
 using Microsoft.AspNetCore.Authentication;
+using MassTransit;
 
 namespace Splendor.IntegrationTests;
 
@@ -25,6 +26,8 @@ public class SplendorApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseEnvironment("Testing");
+
         builder.ConfigureTestServices(services =>
         {
             // Remove real databases
@@ -55,6 +58,15 @@ public class SplendorApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
             services.RemoveAll(typeof(Splendor.Application.Common.Interfaces.ICurrentUserService));
             services.AddScoped<Splendor.Application.Common.Interfaces.ICurrentUserService, TestCurrentUserService>();
+
+            // MassTransit - InMemory for tests (no RabbitMQ needed)
+            services.AddMassTransit(x =>
+            {
+                x.UsingInMemory((context, cfg) =>
+                {
+                    cfg.ConfigureEndpoints(context);
+                });
+            });
         });
     }
 

@@ -12,8 +12,8 @@ using Splendor.Infrastructure.Persistence;
 namespace Splendor.Infrastructure.Migrations
 {
     [DbContext(typeof(ReadModelsContext))]
-    [Migration("20260115150833_UpdatePlayerIdToString")]
-    partial class UpdatePlayerIdToString
+    [Migration("20260123135919_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -34,9 +34,33 @@ namespace Splendor.Infrastructure.Migrations
                     b.Property<string>("CurrentPlayerId")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("Deck1Count")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Deck2Count")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Deck3Count")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Market1")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Market2")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Market3")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("bigint");
 
                     b.HasKey("Id");
 
@@ -52,6 +76,14 @@ namespace Splendor.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OwnedCardIds")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OwnerId")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 

@@ -3,6 +3,9 @@ using Splendor.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi.Models;
+using MassTransit;
+using Splendor.Api.Consumers;
+using Splendor.Api.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,9 +16,11 @@ builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
         policy.WithOrigins(builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>())
               .AllowAnyHeader()
-              .AllowAnyMethod());
+              .AllowAnyMethod()
+              .AllowCredentials());
 
 });
+builder.Services.AddSignalR();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -71,6 +76,26 @@ builder.Services
         options.Audience = builder.Configuration["Auth0:Audience"];
     });
 
+// MassTransit - only configure RabbitMQ outside of test environment
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddMassTransit(x =>
+    {
+        x.AddConsumer<GameUpdatedConsumer>();
+
+        x.UsingRabbitMq((context, cfg) =>
+        {
+            cfg.Host("localhost", "/", h =>
+            {
+                h.Username("guest");
+                h.Password("guest");
+            });
+
+            cfg.ConfigureEndpoints(context);
+        });
+    });
+}
+
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<Splendor.Application.Common.Interfaces.ICurrentUserService, Splendor.Api.Services.CurrentUserService>();
 
@@ -81,15 +106,14 @@ app.UseMiddleware<Splendor.Api.Middleware.ExceptionHandlingMiddleware>();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    
     app.UseSwagger();
     app.UseSwaggerUI();
+}
 
-    using (var scope = app.Services.CreateScope())
-    {
-        var db = scope.ServiceProvider.GetRequiredService<Splendor.Infrastructure.Persistence.ReadModelsContext>();
-        db.Database.Migrate();
-    }
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<Splendor.Infrastructure.Persistence.ReadModelsContext>();
+    db.Database.EnsureCreated();
 }
 
 if (!app.Environment.IsDevelopment())
@@ -104,6 +128,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<GameHub>("/hubs/game");
 
 app.Run();
 

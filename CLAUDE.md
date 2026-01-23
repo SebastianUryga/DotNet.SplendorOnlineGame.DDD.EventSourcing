@@ -1,5 +1,8 @@
 # CLAUDE.md - Kontekst projektu Splendor
 
+## Preferencje użytkownika
+- **Oszczędzanie tokenów**: Przed edycją plików najpierw pokaż planowane zmiany w całości i zapytaj o akceptację. Nie rób wielu małych edycji - grupuj zmiany.
+
 ## Opis projektu
 Implementacja gry planszowej **Splendor** jako część platformy SplendorOnlineGame.
 Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
@@ -69,6 +72,20 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 | `Api/Controllers/GamesController.cs` | REST API dla gier i kart |
 | `Api/Program.cs` | Konfiguracja aplikacji (CORS, JWT, etc.) |
 | `Api/Middleware/` | Custom middleware (ExceptionHandling) |
+
+### Integration Tests
+| Plik | Opis |
+|------|------|
+| `IntegrationTests/SplendorApiFactory.cs` | WebApplicationFactory - konfiguracja testów z Testcontainers |
+| `IntegrationTests/BasicTests.cs` | Podstawowe testy API (Swagger, Create Game) |
+| `IntegrationTests/TestAuthHandler.cs` | Fake authentication handler dla testów |
+| `IntegrationTests/TestCurrentUserService.cs` | Mock ICurrentUserService dla testów |
+
+#### Konfiguracja testów
+- **PostgreSQL** (Testcontainers) - dla Marten Event Store
+- **SQL Server** (Testcontainers) - dla EF Core Read Models
+- **Auth bypass** - `TestAuthHandler` omija JWT, `TestCurrentUserService` zwraca stałego użytkownika
+- **Inline projections** - w testach projekcje są synchroniczne (bez AsyncDaemon)
 
 ### Frontend (Splendor.Web)
 | Plik | Opis |
@@ -187,11 +204,19 @@ npm start
 - [x] Walidacja reguł gemów w UI (3 różne lub 2 takie same przy >=4)
 
 ### Do zrobienia
-- [ ] Pełna walidacja reguł pobierania gemów (backend)
+
+**Backend:**
+- [ ] Pełna walidacja reguł pobierania gemów
 - [ ] Rezerwacja kart
 - [ ] Noble tiles (arystokraci)
 - [ ] Warunek zakończenia gry (15 punktów)
 - [ ] Pełna lista kart (90 zamiast MVP subset)
+
+**Frontend:**
+- [ ] Nazywanie gry (przy tworzeniu)
+- [ ] Wyświetlanie nazw graczy w games-list
+- [ ] Total gems dla gracza w gameplay view
+- [ ] Wyświetlanie zakupionych kart wg koloru (analogicznie do żetonów, z nagłówkiem "Cards")
 
 ## Konwencje kodu
 

@@ -1,9 +1,12 @@
 using Marten;
+using Marten.Events.Daemon.Resiliency;
 using Microsoft.Extensions.DependencyInjection;
 using Splendor.Application.Common.Interfaces;
 using Splendor.Domain.Aggregates;
 using Splendor.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Marten.Events.Projections;
+using Splendor.Infrastructure.Events;
 
 namespace Splendor.Infrastructure;
 
@@ -24,7 +27,9 @@ public static class DependencyInjection
             // Projections
             options.Projections.Add<Splendor.Infrastructure.Projections.GameProjection>(Marten.Events.Projections.ProjectionLifecycle.Inline);
         })
-        .UseLightweightSessions();
+        .UseLightweightSessions()
+        .AddAsyncDaemon(DaemonMode.HotCold)
+        .AddSubscriptionWithServices<GameEventPublisher>(ServiceLifetime.Scoped);
         
         services.AddScoped<IEventStore, MartenEventStore>();
 
