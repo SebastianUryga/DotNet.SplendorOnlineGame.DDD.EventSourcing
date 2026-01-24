@@ -12,12 +12,10 @@ public record CreateGameCommand : IAuthoredCommand, IRequest<Guid>
 public class CreateGameCommandHandler : IRequestHandler<CreateGameCommand, Guid>
 {
     private readonly IEventStore _eventStore;
-    private readonly IGameReadModelProjector _projector;
 
-    public CreateGameCommandHandler(IEventStore eventStore, IGameReadModelProjector projector)
+    public CreateGameCommandHandler(IEventStore eventStore)
     {
         _eventStore = eventStore;
-        _projector = projector;
     }
 
     public async Task<Guid> Handle(CreateGameCommand request, CancellationToken cancellationToken)
@@ -31,8 +29,6 @@ public class CreateGameCommandHandler : IRequestHandler<CreateGameCommand, Guid>
 
         await _eventStore.AppendAsync(gameId, events, cancellationToken);
         await _eventStore.SaveChangesAsync(cancellationToken);
-
-        await _projector.ProjectAsync(events, cancellationToken);
 
         return gameId;
     }

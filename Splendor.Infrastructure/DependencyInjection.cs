@@ -7,6 +7,7 @@ using Splendor.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Marten.Events.Projections;
 using Splendor.Infrastructure.Events;
+using Splendor.Infrastructure.Projections;
 
 namespace Splendor.Infrastructure;
 
@@ -17,27 +18,27 @@ public static class DependencyInjection
         services.AddMarten(options =>
         {
             options.Connection(martenConnectionString);
-            
+
             // Allow re-creating database (DEV only)
             options.AutoCreateSchemaObjects = Weasel.Core.AutoCreate.All;
 
             // Events configuration
             options.Events.StreamIdentity = Marten.Events.StreamIdentity.AsGuid;
-            
+
             // Projections
-            options.Projections.Add<Splendor.Infrastructure.Projections.GameProjection>(Marten.Events.Projections.ProjectionLifecycle.Inline);
+            options.Projections.Add<GameProjection>(ProjectionLifecycle.Inline);
         })
         .UseLightweightSessions()
         .AddAsyncDaemon(DaemonMode.HotCold)
-        .AddSubscriptionWithServices<GameEventPublisher>(ServiceLifetime.Scoped);
-        
+        .AddSubscriptionWithServices<GameEventPublisher>(ServiceLifetime.Scoped)
+        .AddSubscriptionWithServices<GameReadModelSubscription>(ServiceLifetime.Scoped);
+
         services.AddScoped<IEventStore, MartenEventStore>();
 
         services.AddDbContext<ReadModelsContext>(options =>
             options.UseSqlServer(readModelsConnectionString));
 
         services.AddScoped<IReadModelsContext>(provider => provider.GetRequiredService<ReadModelsContext>());
-        services.AddScoped<IGameReadModelProjector, Splendor.Infrastructure.Projections.GameReadModelProjector>();
 
         return services;
     }
