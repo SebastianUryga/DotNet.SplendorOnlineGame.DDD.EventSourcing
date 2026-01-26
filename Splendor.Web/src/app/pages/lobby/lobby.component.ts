@@ -2,9 +2,10 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { GameService } from '../../core/services/game.service';
+import { SignalRService } from '../../core/services/signalr.service';
 import { GameView } from '../../models/game-view.model';
-import { interval, Subscription, startWith, switchMap } from 'rxjs';
 
 @Component({
     selector: 'app-lobby',
@@ -71,36 +72,35 @@ export class LobbyComponent implements OnInit, OnDestroy {
     game: GameView | null = null;
     playerName: string = '';
     isJoined: boolean = false;
-    private pollSub!: Subscription;
+    private signalrSubscription?: Subscription;
 
     constructor(
         private route: ActivatedRoute,
         private router: Router,
-        private gameService: GameService
+        private gameService: GameService,
+        private signalRService: SignalRService
     ) { }
 
-    ngOnInit(): void {
+    async ngOnInit(): Promise<void> {
         this.gameId = this.route.snapshot.paramMap.get('id')!;
-        this.startPolling();
+
+        await this.signalRService.connect();
+        await this.signalRService.joinGame(this.gameId);
+
+        this.signalrSubscription = this.signalRService.gameUpdated$
+            .subscribe(gameView => {
+                this.game = gameView;
+                if (gameView.status === 'Started') {
+                    this.router.navigate(['/games', this.gameId, 'play']);
+                }
+            });
+
+        this.refresh();
     }
 
     ngOnDestroy(): void {
-        if (this.pollSub) this.pollSub.unsubscribe();
-    }
-
-    startPolling(): void {
-        this.pollSub = interval(2000).pipe(
-            startWith(0),
-            switchMap(() => this.gameService.getGame(this.gameId))
-        ).subscribe({
-            next: (game) => {
-                this.game = game;
-                if (game.status === 'InProgress') {
-                    this.router.navigate(['/games', this.gameId, 'play']);
-                }
-            },
-            error: (err) => console.error('Poll error', err)
-        });
+        this.signalrSubscription?.unsubscribe();
+        this.signalRService.leaveGame(this.gameId);
     }
 
     join(): void {
