@@ -15,12 +15,10 @@ public record BuyCardCommand : IAuthoredCommand, IRequest
 public class BuyCardCommandHandler : IRequestHandler<BuyCardCommand>
 {
     private readonly IEventStore _eventStore;
-    private readonly IGameReadModelProjector _projector;
 
-    public BuyCardCommandHandler(IEventStore eventStore, IGameReadModelProjector projector)
+    public BuyCardCommandHandler(IEventStore eventStore)
     {
         _eventStore = eventStore;
-        _projector = projector;
     }
 
     public async Task Handle(BuyCardCommand request, CancellationToken cancellationToken)
@@ -32,7 +30,5 @@ public class BuyCardCommandHandler : IRequestHandler<BuyCardCommand>
 
         await _eventStore.AppendAsync(request.GameId, events, cancellationToken);
         await _eventStore.SaveChangesAsync(cancellationToken);
-
-        await _projector.ProjectAsync(events, cancellationToken);
     }
 }

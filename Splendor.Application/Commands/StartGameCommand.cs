@@ -20,12 +20,10 @@ public record StartGameCommand : IAuthoredCommand, IRequest
 public class StartGameCommandHandler : IRequestHandler<StartGameCommand>
 {
     private readonly IEventStore _eventStore;
-    private readonly IGameReadModelProjector _projector;
 
-    public StartGameCommandHandler(IEventStore eventStore, IGameReadModelProjector projector)
+    public StartGameCommandHandler(IEventStore eventStore)
     {
         _eventStore = eventStore;
-        _projector = projector;
     }
 
     public async Task Handle(StartGameCommand request, CancellationToken cancellationToken)
@@ -35,11 +33,7 @@ public class StartGameCommandHandler : IRequestHandler<StartGameCommand>
 
         var events = game.StartGame(request.OwnerId).ToList();
 
-        // 1. Write to Event Store (Source of Truth)
         await _eventStore.AppendAsync(request.GameId, events, cancellationToken);
         await _eventStore.SaveChangesAsync(cancellationToken);
-
-        // 2. Sync to Read Model (SQL Server)
-        await _projector.ProjectAsync(events, cancellationToken);
     }
 }

@@ -14,12 +14,10 @@ public record JoinGameCommand : IAuthoredCommand, IRequest
 public class JoinGameCommandHandler : IRequestHandler<JoinGameCommand>
 {
     private readonly IEventStore _eventStore;
-    private readonly IGameReadModelProjector _projector;
 
-    public JoinGameCommandHandler(IEventStore eventStore, IGameReadModelProjector projector)
+    public JoinGameCommandHandler(IEventStore eventStore)
     {
         _eventStore = eventStore;
-        _projector = projector;
     }
 
     public async Task Handle(JoinGameCommand request, CancellationToken cancellationToken)
@@ -31,7 +29,5 @@ public class JoinGameCommandHandler : IRequestHandler<JoinGameCommand>
 
         await _eventStore.AppendAsync(request.GameId, events, cancellationToken);
         await _eventStore.SaveChangesAsync(cancellationToken);
-
-        await _projector.ProjectAsync(events, cancellationToken);
     }
 }
