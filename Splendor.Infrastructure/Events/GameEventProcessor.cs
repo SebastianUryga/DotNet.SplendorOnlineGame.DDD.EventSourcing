@@ -3,21 +3,20 @@ using Marten.Events;
 using Marten.Events.Daemon;
 using Marten.Events.Daemon.Internals;
 using Marten.Subscriptions;
-using MassTransit;
-using Splendor.Application.Messages;
+using Microsoft.Extensions.DependencyInjection;
+using Splendor.Infrastructure.Persistence;
 using Splendor.Domain.Events;
 
 namespace Splendor.Infrastructure.Events;
 
-public class GameEventPublisher : SubscriptionBase
+public class GameEventProcessor : SubscriptionBase
 {
-    private readonly IPublishEndpoint _publishEndpoint;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public GameEventPublisher(IPublishEndpoint publishEndpoint)
+    public GameEventProcessor(IServiceScopeFactory scopeFactory)
     {
-        _publishEndpoint = publishEndpoint;
+        _scopeFactory = scopeFactory;
 
-        // Filter only game events
         IncludeType<GameCreated>();
         IncludeType<PlayerJoined>();
         IncludeType<GameStarted>();
@@ -32,17 +31,19 @@ public class GameEventPublisher : SubscriptionBase
         EventRange page,
         ISubscriptionController controller,
         IDocumentOperations operations,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
+        using var scope = _scopeFactory.CreateScope();
+        var projector = scope.ServiceProvider.GetRequiredService<GameReadModelProjector>();
+        var publisher = scope.ServiceProvider.GetRequiredService<EventPublisher>();
+
         foreach (var @event in page.Events)
         {
-            var message = new GameUpdatedMessage(
-                GameId: @event.StreamId,
-                EventType: @event.EventTypeName,
-                Version: @event.Version
-            );
+            // 1. Update Read Model
+            await projector.ProjectAsync(@event.Data, cancellationToken);
 
-            await _publishEndpoint.Publish(message, ct);
+            // 2. Publish Event Notification
+            await publisher.PublishAsync(@event, cancellationToken);
         }
 
         return NullChangeListener.Instance;

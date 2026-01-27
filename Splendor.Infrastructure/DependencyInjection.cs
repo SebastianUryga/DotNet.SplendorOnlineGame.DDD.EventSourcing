@@ -30,9 +30,16 @@ public static class DependencyInjection
         })
         .UseLightweightSessions()
         .AddAsyncDaemon(DaemonMode.HotCold)
-        .AddSubscriptionWithServices<GameEventPublisher>(ServiceLifetime.Scoped)
-        .AddSubscriptionWithServices<GameReadModelSubscription>(ServiceLifetime.Scoped);
+        .AddSubscriptionWithServices<GameEventProcessor>(ServiceLifetime.Scoped, o =>
+        {
+            // Start the subscription at the most current "high water mark" of the
+            // event store. This effectively makes the subscription a "hot"
+            // observable that only sees events when the subscription is active
+            o.Options.SubscribeFromPresent();
+        });
 
+        services.AddScoped<GameReadModelProjector>();
+        services.AddScoped<EventPublisher>();
         services.AddScoped<IEventStore, MartenEventStore>();
 
         services.AddDbContext<ReadModelsContext>(options =>
