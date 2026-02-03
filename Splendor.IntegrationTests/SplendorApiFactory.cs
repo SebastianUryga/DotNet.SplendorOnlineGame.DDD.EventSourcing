@@ -10,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 using Marten;
 using Microsoft.AspNetCore.Authentication;
 using MassTransit;
+using Marten.Events.Daemon.Resiliency;
+using Splendor.Infrastructure.Events;
 
 namespace Splendor.IntegrationTests;
 

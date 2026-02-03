@@ -81,7 +81,14 @@ if (!builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddMassTransit(x =>
     {
-        x.AddConsumer<GameUpdatedConsumer>();
+        x.AddConsumer<GameUpdatedConsumer>(c =>
+        {
+            c.Options<BatchOptions>(o =>
+            {
+                o.MessageLimit = 100;
+                o.TimeLimit = TimeSpan.FromMilliseconds(100);
+            });
+        });
 
         x.UsingRabbitMq((context, cfg) =>
         {

@@ -4,11 +4,10 @@ using Splendor.Api.Hubs;
 using Splendor.Application.Messages;
 using Splendor.Application.Queries;
 using MediatR;
-using Splendor.Application.ReadModels;
 
 namespace Splendor.Api.Consumers;
 
-public class GameUpdatedConsumer : IConsumer<GameUpdatedMessage>
+public class GameUpdatedConsumer : IConsumer<Batch<GameUpdatedMessage>>
 {
     private readonly IHubContext<GameHub> _hubContext;
     private readonly IMediator _mediator;
@@ -19,19 +18,26 @@ public class GameUpdatedConsumer : IConsumer<GameUpdatedMessage>
         _mediator = mediator;
     }
 
-    public async Task Consume(ConsumeContext<GameUpdatedMessage> context)
+    public async Task Consume(ConsumeContext<Batch<GameUpdatedMessage>> context)
     {
-        var message = context.Message;
+        // Group by GameId to process each game only once per batch
+        var uniqueGames = context.Message
+            .Select(m => m.Message)
+            .GroupBy(m => m.GameId)
+            .Select(g => g.First()); // We just need the ID to trigger a refresh
 
-        // Get latest GameView
-        var gameView = await _mediator.Send(new GetGameQuery(message.GameId));
-
-        if (gameView != null)
+        foreach (var message in uniqueGames)
         {
-            // Send to all clients in the game group
-            await _hubContext.Clients
-                .Group(message.GameId.ToString())
-                .SendAsync("GameUpdated", gameView);
+            // Get latest GameView
+            var gameView = await _mediator.Send(new GetGameQuery(message.GameId));
+
+            if (gameView != null)
+            {
+                // Send to all clients in the game group
+                await _hubContext.Clients
+                    .Group(message.GameId.ToString())
+                    .SendAsync("GameUpdated", gameView);
+            }
         }
     }
 }

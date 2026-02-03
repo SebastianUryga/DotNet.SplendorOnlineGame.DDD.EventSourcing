@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Splendor.Application.Common.Interfaces;
 
 namespace Splendor.Application.Queries;
@@ -16,7 +17,11 @@ public class GetGameVersionQueryHandler : IRequestHandler<GetGameVersionQuery, l
 
     public async Task<long?> Handle(GetGameVersionQuery request, CancellationToken cancellationToken)
     {
-        var game = await _context.GameViews.FindAsync(new object[] { request.GameId }, cancellationToken);
-        return game?.Version;
+        var version = await _context.GameViews
+            .Where(x => x.Id == request.GameId)
+            .Select(x => (long?)x.Version)
+            .FirstOrDefaultAsync(cancellationToken);
+            
+        return version;
     }
 }
