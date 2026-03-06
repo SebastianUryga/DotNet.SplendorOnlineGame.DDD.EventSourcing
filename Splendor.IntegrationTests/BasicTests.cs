@@ -32,7 +32,7 @@ public class BasicTests : IClassFixture<SplendorApiFactory>
     public async Task Create_Game_ReturnsCreatedStatus()
     {
         // Arrange
-        var client = _factory.CreateClient();
+        var client = _factory.CreateAuthenticatedClient();
         var content = new StringContent("{\"OwnerId\":\"test-user-id\"}", System.Text.Encoding.UTF8, "application/json");
 
         // Act

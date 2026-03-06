@@ -196,6 +196,7 @@ export class GameComponent implements OnInit, OnDestroy {
     this.signalrSubscription = this.signalRService.gameUpdated$
       .subscribe(gameView => {
         this.game = gameView;
+        this.gameService.updateGameCache(gameView);
       });
 
     // Initial load

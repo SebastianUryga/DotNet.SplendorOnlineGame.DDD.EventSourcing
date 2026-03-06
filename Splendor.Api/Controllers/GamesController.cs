@@ -173,10 +173,20 @@ public class GamesController : ControllerBase
     [HttpGet("{gameId}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status304NotModified)]
     public async Task<IActionResult> GetGame(Guid gameId)
     {
         var game = await _mediator.Send(new GetGameQuery(gameId));
         if (game == null) return NotFound();
+
+        // ETag/304 Support
+        var etag = $"\"{game.Version}\"";
+        if (Request.Headers.IfNoneMatch.Contains(etag))
+        {
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
+
+        Response.Headers.ETag = etag;
         return Ok(game);
     }
     

@@ -17,7 +17,7 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
 
     public GameFlowTests(SplendorApiFactory factory)
     {
-        _client = factory.CreateClient();
+        _client = factory.CreateAuthenticatedClient();
     }
 
     [Fact]
@@ -29,33 +29,37 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
 
         // 1. User1 creates a game
         Guid gameId;
-        using (TestCurrentUserService.SetUser(user1Id))
+        using (TestUserContext.SetUser(user1Id))
         {
             var response = await _client.PostAsJsonAsync("/games", new { });
             response.StatusCode.Should().Be(HttpStatusCode.Created);
             var json = await response.Content.ReadFromJsonAsync<JsonElement>();
             gameId = json.GetProperty("id").GetGuid();
+            await Task.Delay(200);
         }
 
         // 2. User1 joins as "Alice"
-        using (TestCurrentUserService.SetUser(user1Id))
+        using (TestUserContext.SetUser(user1Id))
         {
             var response = await _client.PostAsJsonAsync($"/games/{gameId}/players", new { Name = "Alice" });
             response.StatusCode.Should().Be(HttpStatusCode.OK);
+            await Task.Delay(200);
         }
 
         // 3. User2 joins as "Bob"
-        using (TestCurrentUserService.SetUser(user2Id))
+        using (TestUserContext.SetUser(user2Id))
         {
             var response = await _client.PostAsJsonAsync($"/games/{gameId}/players", new { Name = "Bob" });
             response.StatusCode.Should().Be(HttpStatusCode.OK);
+            await Task.Delay(200);
         }
 
         // 4. User1 starts the game
-        using (TestCurrentUserService.SetUser(user1Id))
+        using (TestUserContext.SetUser(user1Id))
         {
             var response = await _client.PostAsJsonAsync($"/games/{gameId}/start", new { });
             response.StatusCode.Should().Be(HttpStatusCode.OK);
+            await Task.Delay(200);
         }
 
         // 5. Verify game state after start
@@ -85,7 +89,7 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
                 _ => new { PlayerId = currentPlayer.Id, Diamond = 1, Sapphire = 1, Emerald = 0, Ruby = 0, Onyx = 1, Gold = 0 }
             };
 
-            using (TestCurrentUserService.SetUser(userId))
+            using (TestUserContext.SetUser(userId))
             {
                 var response = await _client.PostAsJsonAsync($"/games/{gameId}/actions/take-gems", gemsToTake);
                 response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -109,7 +113,7 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
         affordableCard.Should().NotBeNull("With 9 gems each, players should be able to afford at least one Level 1 card");
 
         // 9. Buy the card
-        using (TestCurrentUserService.SetUser(buyer.OwnerId))
+        using (TestUserContext.SetUser(buyer.OwnerId))
         {
             var response = await _client.PostAsJsonAsync($"/games/{gameId}/actions/buy-card",
                 new { PlayerId = buyer.Id, CardId = affordableCard!.Id });
@@ -132,7 +136,7 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
         var notCurrentPlayer = game.Players.First(p => p.Id != game.CurrentPlayerId);
 
         // Act - try to take gems as wrong player
-        using (TestCurrentUserService.SetUser(notCurrentPlayer.OwnerId))
+        using (TestUserContext.SetUser(notCurrentPlayer.OwnerId))
         {
             var response = await _client.PostAsJsonAsync($"/games/{gameId}/actions/take-gems",
                 new { PlayerId = notCurrentPlayer.Id, Diamond = 1, Sapphire = 1, Emerald = 1, Ruby = 0, Onyx = 0, Gold = 0 });
@@ -148,20 +152,20 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
         const string user2 = "user-2";
 
         Guid gameId;
-        using (TestCurrentUserService.SetUser(user1))
+        using (TestUserContext.SetUser(user1))
         {
             var response = await _client.PostAsJsonAsync("/games", new { });
             var json = await response.Content.ReadFromJsonAsync<JsonElement>();
             gameId = json.GetProperty("id").GetGuid();
         }
 
-        using (TestCurrentUserService.SetUser(user1))
+        using (TestUserContext.SetUser(user1))
             await _client.PostAsJsonAsync($"/games/{gameId}/players", new { Name = "P1" });
 
-        using (TestCurrentUserService.SetUser(user2))
+        using (TestUserContext.SetUser(user2))
             await _client.PostAsJsonAsync($"/games/{gameId}/players", new { Name = "P2" });
 
-        using (TestCurrentUserService.SetUser(user1))
+        using (TestUserContext.SetUser(user1))
             await _client.PostAsJsonAsync($"/games/{gameId}/start", new { });
 
         return gameId;
@@ -169,6 +173,10 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
 
     private async Task<GameView> GetGame(Guid gameId)
     {
+        // Marten uses async subscriptions to update the read model (SQL Server).
+        // A short delay is needed to ensure projections are completed before we fetch the game state.
+        await Task.Delay(1000);
+
         var response = await _client.GetAsync($"/games/{gameId}");
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<GameView>(JsonOptions))!;

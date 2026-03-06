@@ -58,8 +58,8 @@ public class SplendorApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             })
             .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", options => { });
 
-            services.RemoveAll(typeof(Splendor.Application.Common.Interfaces.ICurrentUserService));
-            services.AddScoped<Splendor.Application.Common.Interfaces.ICurrentUserService, TestCurrentUserService>();
+            // services.RemoveAll(typeof(Splendor.Application.Common.Interfaces.ICurrentUserService));
+            // services.AddScoped<Splendor.Application.Common.Interfaces.ICurrentUserService, TestCurrentUserService>();
 
             // MassTransit - InMemory for tests (no RabbitMQ needed)
             services.AddMassTransit(x =>
@@ -82,5 +82,10 @@ public class SplendorApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     {
         await _postgreSqlContainer.StopAsync();
         await _msSqlContainer.StopAsync();
+    }
+
+    public HttpClient CreateAuthenticatedClient()
+    {
+        return CreateDefaultClient(new TestUserContext.TestUserDelegatingHandler());
     }
 }

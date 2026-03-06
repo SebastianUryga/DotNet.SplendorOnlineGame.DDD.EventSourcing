@@ -2,13 +2,11 @@ using Splendor.Application.Common.Interfaces;
 
 namespace Splendor.IntegrationTests;
 
-public class TestCurrentUserService : ICurrentUserService
+public class TestUserContext
 {
     private static readonly AsyncLocal<string?> _currentUserId = new();
 
     public static string DefaultUserId => "test-user-id";
-
-    public string? UserId => _currentUserId.Value ?? DefaultUserId;
 
     public static IDisposable SetUser(string userId)
     {
@@ -19,5 +17,15 @@ public class TestCurrentUserService : ICurrentUserService
     private class UserScope : IDisposable
     {
         public void Dispose() => _currentUserId.Value = null;
+    }
+
+    public class TestUserDelegatingHandler : DelegatingHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var userId = _currentUserId.Value ?? DefaultUserId;
+            request.Headers.Add("X-Test-User-Id", userId);
+            return base.SendAsync(request, cancellationToken);
+        }
     }
 }
