@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nrefactor: replace manual projector with Marten subscription\n\nReplace explicit IGameReadModelProjector.ProjectAsync\\(\\) calls in command\nhandlers with automatic Marten subscription-based projections to SQL Server.\n\n- Add GameReadModelSubscription for event-driven read model updates\n- Remove IGameReadModelProjector interface and implementation\n- Simplify all command handlers by removing projector dependency\n- Marten AsyncDaemon now handles retry logic and progress tracking\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)"
+    ]
+  }
+}

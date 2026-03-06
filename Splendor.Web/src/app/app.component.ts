@@ -12,8 +12,8 @@ import { AuthService } from './core/services/auth.service';
     <header class="app-header">
       <div class="logo">Splendor Online</div>
       <div class="auth-box">
-        <input [(ngModel)]="token" placeholder="Paste JWT Token here..." class="token-input" (keyup.enter)="saveToken()" />
-        <button (click)="saveToken()" class="btn-save">Set Token</button>
+        <input [(ngModel)]="token" placeholder="Paste JWT Token here..." class="token-input" (keyup.enter)="saveToken()" data-testid="token-input" />
+        <button (click)="saveToken()" class="btn-save" data-testid="set-token-btn">Set Token</button>
         <div class="status-indicator">
           <span class="status-dot" [class.valid]="hasToken"></span>
           <span class="status-text">{{ hasToken ? 'Authenticated' : 'No Token' }}</span>

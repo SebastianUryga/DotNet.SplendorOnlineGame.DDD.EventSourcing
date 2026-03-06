@@ -14,7 +14,7 @@ import { SignalRService } from '../../core/services/signalr.service';
   standalone: true,
   imports: [CommonModule, RouterModule],
   template: `
-    <div class="game-container" *ngIf="game">
+    <div class="game-container" *ngIf="game" data-testid="game-container">
       <!-- Sidebar: Players -->
       <div class="players-sidebar">
         <h2 class="sidebar-title">Players</h2>
@@ -33,7 +33,7 @@ import { SignalRService } from '../../core/services/signalr.service';
             <span class="active-badge" *ngIf="p.id === game.currentPlayerId">Current Turn</span>
           </div>
         </div>
-        <button [routerLink]="['/games']" class="btn-quit">Quit Game</button>
+        <button [routerLink]="['/games']" class="btn-quit" data-testid="quit-game-btn">Quit Game</button>
       </div>
 
       <!-- Main: Market -->
@@ -62,8 +62,8 @@ import { SignalRService } from '../../core/services/signalr.service';
             </div>
           </div>
           <div class="market-actions">
-            <button (click)="takeGems()" [disabled]="!canTakeGems()" class="btn-action">Take Selected Gems</button>
-            <button (click)="resetSelection()" class="btn-reset">Reset</button>
+            <button (click)="takeGems()" [disabled]="!canTakeGems()" class="btn-action" data-testid="take-gems-btn">Take Selected Gems</button>
+            <button (click)="resetSelection()" class="btn-reset" data-testid="reset-gems-btn">Reset</button>
           </div>
         </div>
 
@@ -90,7 +90,7 @@ import { SignalRService } from '../../core/services/signalr.service';
                     </ng-container>
                   </div>
                 </div>
-                <button (click)="buyCard(cardId)" class="btn-buy">Purchase</button>
+                <button (click)="buyCard(cardId)" class="btn-buy" data-testid="buy-card-btn">Purchase</button>
               </div>
             </div>
           </div>

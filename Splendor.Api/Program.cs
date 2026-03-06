@@ -68,16 +68,32 @@ builder.Services.AddInfrastructure(
     builder.Configuration.GetConnectionString("Marten") ?? string.Empty,
     builder.Configuration.GetConnectionString("ReadModels") ?? string.Empty);
 
-builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.Authority = $"https://{builder.Configuration["Auth0:Domain"]}/";
-        options.Audience = builder.Configuration["Auth0:Audience"];
-    });
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services
+        .AddAuthentication("Test")
+        .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, Splendor.Api.Testing.TestAuthHandler>("Test", _ => { });
+}
+else
+{
+    builder.Services
+        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.Authority = $"https://{builder.Configuration["Auth0:Domain"]}/";
+            options.Audience = builder.Configuration["Auth0:Audience"];
+        });
+}
 
-// MassTransit - only configure RabbitMQ outside of test environment
-if (!builder.Environment.IsEnvironment("Testing"))
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddMassTransit(x =>
+    {
+        x.AddConsumer<GameUpdatedConsumer>();
+        x.UsingInMemory((context, cfg) => cfg.ConfigureEndpoints(context));
+    });
+}
+else
 {
     builder.Services.AddMassTransit(x =>
     {
