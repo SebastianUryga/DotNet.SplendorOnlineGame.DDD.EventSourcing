@@ -34,7 +34,7 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 - **Event Store**: Marten (PostgreSQL) - zapis eventów
 - **Read Models**: EF Core (SQL Server) - projekcje do odczytu
 - **CQRS**: MediatR - obsługa komend i zapytań
-- **Testowanie**: xUnit, Testcontainers, FluentAssertions
+- **Testowanie**: xUnit, Testcontainers, FluentAssertions, Selenium WebDriver
 
 ## Kluczowe pliki
 
@@ -78,14 +78,33 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 |------|------|
 | `IntegrationTests/SplendorApiFactory.cs` | WebApplicationFactory - konfiguracja testów z Testcontainers |
 | `IntegrationTests/BasicTests.cs` | Podstawowe testy API (Swagger, Create Game) |
-| `IntegrationTests/TestAuthHandler.cs` | Fake authentication handler dla testów |
-| `IntegrationTests/TestCurrentUserService.cs` | Mock ICurrentUserService dla testów |
+| `IntegrationTests/TestAuthHandler.cs` | Fake authentication handler - czyta X-Test-User-Id header |
+| `IntegrationTests/TestUserContext.cs` | DelegatingHandler ustawiający X-Test-User-Id per request |
 
-#### Konfiguracja testów
+#### Konfiguracja testów integracyjnych
 - **PostgreSQL** (Testcontainers) - dla Marten Event Store
 - **SQL Server** (Testcontainers) - dla EF Core Read Models
-- **Auth bypass** - `TestAuthHandler` omija JWT, `TestCurrentUserService` zwraca stałego użytkownika
-- **Inline projections** - w testach projekcje są synchroniczne (bez AsyncDaemon)
+- **Auth bypass** - `TestAuthHandler` omija JWT, user ID z headera `X-Test-User-Id`
+- **MassTransit InMemory** - bez RabbitMQ, bus działa w pamięci
+
+### UI Tests (Splendor.UITests)
+| Plik | Opis |
+|------|------|
+| `UITests/Infrastructure/TestBase.cs` | Base class - tworzy ChromeDriver, ustawia token przez UI |
+| `UITests/Infrastructure/TestSettings.cs` | Centralna konfiguracja (BaseUrl, TestToken) |
+| `UITests/Infrastructure/DriverFactory.cs` | Fabryka ChromeDriver z auto-dopasowaniem wersji |
+| `UITests/Pages/GamesListPage.cs` | POM dla listy gier |
+| `UITests/Pages/LobbyPage.cs` | POM dla lobby |
+| `UITests/Pages/GamePage.cs` | POM dla widoku rozgrywki |
+| `UITests/Tests/GameFlowTests.cs` | Testy E2E przepływu gry |
+
+#### Konfiguracja UI testów
+- Wymagają uruchomionego API (profil **Testing** w VS) i `ng serve`
+- API w trybie Testing używa `TestAuthHandler` (plik `Api/Testing/TestAuthHandler.cs`)
+- API w trybie Testing używa MassTransit InMemory (SignalR działa bez RabbitMQ)
+- Selektory przez `data-testid` - niezależne od klas CSS i treści
+- `WebDriverManager` auto-pobiera ChromeDriver pasujący do zainstalowanego Chrome
+- Token ustawiany przez istniejący input w nagłówku aplikacji (`app.component.ts`)
 
 ### Frontend (Splendor.Web)
 | Plik | Opis |
@@ -202,6 +221,8 @@ npm start
 - [x] Frontend Angular (lista gier, lobby, widok rozgrywki)
 - [x] Polling wersji gry (auto-refresh)
 - [x] Walidacja reguł gemów w UI (3 różne lub 2 takie same przy >=4)
+- [x] ETag/304 dla GET /games/{id} (cache po stronie klienta)
+- [x] Testy UI Selenium z Page Object Model (Splendor.UITests)
 
 ### Do zrobienia
 
@@ -225,3 +246,4 @@ npm start
 - Metody domenowe zwracają `IEnumerable<IDomainEvent>`
 - Komendy obsługiwane przez MediatR handlery
 - Projekcje Marten aktualizują EF read models
+- Elementy UI testowalne oznaczane atrybutem `data-testid` w szablonach Angular

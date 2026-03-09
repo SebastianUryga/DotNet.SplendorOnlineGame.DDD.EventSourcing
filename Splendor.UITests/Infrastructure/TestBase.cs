@@ -20,7 +20,8 @@ public abstract class TestBase : IDisposable
     private void SetAuthToken()
     {
         Driver.Navigate().GoToUrl(TestSettings.BaseUrl);
-        var input = Wait.Until(d => d.FindElement(By.CssSelector("[data-testid='token-input']")));
+        var initialWait = new WebDriverWait(Driver, TimeSpan.FromSeconds(15));
+        var input = initialWait.Until(d => d.FindElements(By.CssSelector("[data-testid='token-input']")).FirstOrDefault());
         input.SendKeys(TestSettings.TestToken);
         Driver.FindElement(By.CssSelector("[data-testid='set-token-btn']")).Click();
     }

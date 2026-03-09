@@ -15,7 +15,7 @@ public class GamePage
     }
 
     public void WaitForLoad()
-        => _wait.Until(d => d.FindElement(By.CssSelector("[data-testid='game-container']")));
+        => _wait.Until(d => d.FindElements(By.CssSelector("[data-testid='game-container']")).FirstOrDefault());
 
     public bool IsLoaded()
         => _driver.FindElements(By.CssSelector("[data-testid='game-container']")).Count > 0;
@@ -23,7 +23,7 @@ public class GamePage
     public bool IsTakeGemsButtonEnabled()
     {
         var btn = _driver.FindElement(By.CssSelector("[data-testid='take-gems-btn']"));
-        return btn.Enabled && btn.GetAttribute("disabled") == null;
+        return btn.Enabled;
     }
 
     public void ClickQuit()

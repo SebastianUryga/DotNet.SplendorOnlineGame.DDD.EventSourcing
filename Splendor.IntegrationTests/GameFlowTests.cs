@@ -159,14 +159,22 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
             gameId = json.GetProperty("id").GetGuid();
         }
 
+        await Task.Delay(200);
+
         using (TestUserContext.SetUser(user1))
             await _client.PostAsJsonAsync($"/games/{gameId}/players", new { Name = "P1" });
+
+        await Task.Delay(200);
 
         using (TestUserContext.SetUser(user2))
             await _client.PostAsJsonAsync($"/games/{gameId}/players", new { Name = "P2" });
 
+        await Task.Delay(200);
+
         using (TestUserContext.SetUser(user1))
             await _client.PostAsJsonAsync($"/games/{gameId}/start", new { });
+
+        await Task.Delay(200);
 
         return gameId;
     }

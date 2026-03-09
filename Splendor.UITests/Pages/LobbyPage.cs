@@ -1,5 +1,6 @@
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
+using Splendor.UITests.Infrastructure;
 
 namespace Splendor.UITests.Pages;
 
@@ -14,12 +15,18 @@ public class LobbyPage
         _wait = wait;
     }
 
+    public string GetGameId()
+        => _driver.Url.Split('/')[^2]; // /games/{id}/lobby
+
+    public void NavigateTo(string gameId)
+        => _driver.Navigate().GoToUrl(TestSettings.BaseUrl + $"/games/{gameId}/lobby");
+
     public void WaitForLoad()
-        => _wait.Until(d => d.FindElement(By.CssSelector("[data-testid='join-btn']")));
+        => _wait.Until(d => d.FindElements(By.CssSelector("[data-testid='join-btn']")).FirstOrDefault());
 
     public void EnterPlayerName(string name)
     {
-        var input = _wait.Until(d => d.FindElement(By.CssSelector("[data-testid='player-name-input']")));
+        var input = _wait.Until(d => d.FindElements(By.CssSelector("[data-testid='player-name-input']")).FirstOrDefault());
         input.Clear();
         input.SendKeys(name);
     }
@@ -43,6 +50,6 @@ public class LobbyPage
     {
         var btn = _driver.FindElements(By.CssSelector("[data-testid='start-btn']"));
         if (btn.Count == 0) return false;
-        return btn[0].Enabled && btn[0].GetAttribute("disabled") == null;
+        return btn[0].Enabled;
     }
 }

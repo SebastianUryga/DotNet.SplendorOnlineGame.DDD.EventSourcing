@@ -49,26 +49,8 @@ public class SplendorApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 options.Projections.Add<Splendor.Infrastructure.Projections.GameProjection>(Marten.Events.Projections.ProjectionLifecycle.Inline);
             }).UseLightweightSessions();
 
-            // Bypass Auth using TestAuthHandler
-            services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = "Test";
-                options.DefaultChallengeScheme = "Test";
-                options.DefaultScheme = "Test";
-            })
-            .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", options => { });
-
             // services.RemoveAll(typeof(Splendor.Application.Common.Interfaces.ICurrentUserService));
             // services.AddScoped<Splendor.Application.Common.Interfaces.ICurrentUserService, TestCurrentUserService>();
-
-            // MassTransit - InMemory for tests (no RabbitMQ needed)
-            services.AddMassTransit(x =>
-            {
-                x.UsingInMemory((context, cfg) =>
-                {
-                    cfg.ConfigureEndpoints(context);
-                });
-            });
         });
     }
 
