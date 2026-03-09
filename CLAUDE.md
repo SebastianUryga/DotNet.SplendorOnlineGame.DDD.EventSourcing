@@ -93,10 +93,10 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 | `UITests/Infrastructure/TestBase.cs` | Base class - tworzy ChromeDriver, ustawia token przez UI |
 | `UITests/Infrastructure/TestSettings.cs` | Centralna konfiguracja (BaseUrl, TestToken) |
 | `UITests/Infrastructure/DriverFactory.cs` | Fabryka ChromeDriver z auto-dopasowaniem wersji |
-| `UITests/Pages/GamesListPage.cs` | POM dla listy gier |
-| `UITests/Pages/LobbyPage.cs` | POM dla lobby |
+| `UITests/Pages/GamesListPage.cs` | POM dla listy gier - `ClickGame(gameId)` szuka kafelka po prefiksie ID |
+| `UITests/Pages/LobbyPage.cs` | POM dla lobby - `GetGameId()` wyciąga ID z URL, `NavigateTo(gameId)` |
 | `UITests/Pages/GamePage.cs` | POM dla widoku rozgrywki |
-| `UITests/Tests/GameFlowTests.cs` | Testy E2E przepływu gry |
+| `UITests/Tests/GameFlowTests.cs` | Pojedynczy E2E test pokrywający pełny flow gry (lista → lobby → dołączenie 2 graczy → start → rozgrywka) |
 
 #### Konfiguracja UI testów
 - Wymagają uruchomionego API (profil **Testing** w VS) i `ng serve`
@@ -178,8 +178,14 @@ dotnet build
 docker-compose up -d
 dotnet run --project Splendor.Api
 
-# Testy
-dotnet test
+# Uruchamianie w trybie testowym (TestAuthHandler, MassTransit InMemory)
+dotnet run --project Splendor.Api --launch-profile Testing
+
+# Testy integracyjne
+dotnet test Splendor.IntegrationTests
+
+# Testy UI Selenium (wymaga: API w trybie Testing + ng serve)
+dotnet test Splendor.UITests
 
 # Migracje EF
 cd Splendor.Infrastructure

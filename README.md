@@ -101,9 +101,22 @@ Reliability is ensured through integration tests that use real database instance
    Access the app at `http://localhost:4200`.
 
 ### Running Tests
-To run the full suite of integration tests:
+
+**Integration tests** (requires Docker):
 ```bash
-dotnet test
+dotnet test Splendor.IntegrationTests
+```
+
+**UI tests** (requires Chrome, running API and frontend):
+```bash
+# Terminal 1
+dotnet run --project Splendor.Api --launch-profile Testing
+
+# Terminal 2
+cd Splendor.Web && ng serve
+
+# Terminal 3
+dotnet test Splendor.UITests
 ```
 
 ## Tech Stack
@@ -114,4 +127,4 @@ dotnet test
 - **Event Store**: Marten (PostgreSQL)
 - **Read Models**: EF Core (SQL Server)
 - **Real-time**: SignalR, MassTransit, RabbitMQ
-- **Testing**: xUnit, Testcontainers, FluentAssertions
+- **Testing**: xUnit, Testcontainers, FluentAssertions, Selenium (E2E)
