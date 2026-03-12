@@ -1,0 +1,83 @@
+<div class="game-container" *ngIf="game" data-testid="game-container">
+  <!-- Sidebar: Players -->
+  <div class="players-sidebar">
+    <h2 class="sidebar-title">Players</h2>
+    <div *ngFor="let p of game.players" class="player-card" [class.active]="p.id === game.currentPlayerId">
+      <div class="player-header">
+        <h4>{{ p.name }}</h4>
+        <span class="score">{{ calculatePoints(p) }} pts</span>
+      </div>
+      <div class="mini-gems">
+        <div *ngFor="let g of gemTypes" class="mini-gem" [class]="g">
+          {{ getPlayerGemCount(p, g) }}
+        </div>
+      </div>
+      <div class="player-stats">
+        <span>Cards: {{ p.ownedCardIds.length }}</span>
+        <span class="active-badge" *ngIf="p.id === game.currentPlayerId">Current Turn</span>
+      </div>
+    </div>
+    <button [routerLink]="['/games']" class="btn-quit" data-testid="quit-game-btn">Quit Game</button>
+  </div>
+
+  <!-- Main: Market -->
+  <div class="main-board">
+    <div class="header">
+      <h2>Splendor Table</h2>
+      <div class="game-meta">
+        <span>ID: {{ game.id.substring(0,8) }}</span>
+        <span class="version-badge">Version {{ game.version }}</span>
+      </div>
+    </div>
+
+    <!-- Gem Market -->
+    <div class="gem-market">
+      <h3>Gem Market</h3>
+      <div class="gems-row">
+        <div *ngFor="let g of gemTypes" class="market-gem">
+          <div class="gem-token" [class]="g">
+            <span class="market-count">{{ getMarketGemCount(g) }}</span>
+          </div>
+          <div class="selection-controls" *ngIf="g !== 'gold'">
+            <button (click)="removeFromSelection(g)" [disabled]="selectedGems[g] <= 0">-</button>
+            <span class="sel-count">{{ selectedGems[g] || 0 }}</span>
+            <button (click)="addToSelection(g)" [disabled]="getMarketGemCount(g) <= selectedGems[g]">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="market-actions">
+        <button (click)="takeGems()" [disabled]="!canTakeGems()" class="btn-action" data-testid="take-gems-btn">Take Selected Gems</button>
+        <button (click)="resetSelection()" class="btn-reset" data-testid="reset-gems-btn">Reset</button>
+      </div>
+    </div>
+
+    <!-- Card Market -->
+    <div class="card-market">
+      <div *ngFor="let level of [3, 2, 1]" class="market-level">
+        <div class="level-header">
+          <h4>Level {{ level }}</h4>
+          <span class="deck-count">{{ getDeckCount(level) }} in deck</span>
+        </div>
+        <div class="cards-row">
+          <div *ngFor="let cardId of getMarketCards(level)" class="card-item">
+            <div class="card">
+              <div class="card-top">
+                <span class="points" *ngIf="getCardPoints(cardId) > 0">{{ getCardPoints(cardId) }}</span>
+                <div class="bonus-icon" [class]="getCardBonus(cardId)"></div>
+              </div>
+              <div class="card-cost">
+                <ng-container *ngFor="let c of gemTypesExcludeGold">
+                  <div class="cost-token" *ngIf="getCardCostValue(cardId, c) > 0">
+                    <span class="dot" [class]="c"></span>
+                    {{ getCardCostValue(cardId, c) }}
+                  </div>
+                </ng-container>
+              </div>
+            </div>
+            <button (click)="buyCard(cardId)" class="btn-buy" data-testid="buy-card-btn">Purchase</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

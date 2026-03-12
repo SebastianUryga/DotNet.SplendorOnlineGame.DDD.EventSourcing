@@ -8,50 +8,8 @@ import { GameSummary } from '../../models/game-view.model';
     selector: 'app-games-list',
     standalone: true,
     imports: [CommonModule, RouterModule],
-    template: `
-    <div class="container">
-      <h1>Splendor - Games</h1>
-      <button (click)="createNewGame()" class="btn-primary" data-testid="create-game-btn">New Game</button>
-      
-      <div class="games-grid">
-        <div *ngFor="let game of games" class="game-card" data-testid="game-card">
-          <h3>Game {{ game.id.substring(0, 8) }}</h3>
-          <p>Status: <strong>{{ game.status }}</strong></p>
-          <p>Players: {{ game.playerCount }}</p>
-          <button (click)="goToGame(game)" class="btn-secondary" data-testid="open-game-btn">
-            {{ game.status === 'Created' ? 'Join / Lobby' : 'Open Game' }}
-          </button>
-        </div>
-      </div>
-      
-      <div *ngIf="games.length === 0" class="no-games" data-testid="no-games-message">
-        No active games found. Create one to start!
-      </div>
-    </div>
-  `,
-    styles: [`
-    .container { padding: 20px; max-width: 1000px; margin: 0 auto; color: #eee; }
-    h1 { color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
-    .games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; margin-top: 20px; }
-    .game-card { 
-      background: rgba(255, 255, 255, 0.05); 
-      border: 1px solid rgba(255, 255, 255, 0.1); 
-      padding: 20px; 
-      border-radius: 12px;
-      backdrop-filter: blur(5px);
-      transition: transform 0.2s;
-    }
-    .game-card:hover { transform: translateY(-5px); background: rgba(255, 255, 255, 0.08); }
-    .btn-primary { 
-      background: #4a90e2; color: white; border: none; padding: 10px 20px; 
-      border-radius: 6px; cursor: pointer; font-weight: bold;
-    }
-    .btn-secondary { 
-      background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); 
-      padding: 8px 16px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px;
-    }
-    .no-games { margin-top: 40px; text-align: center; opacity: 0.6; }
-  `]
+    templateUrl: './games-list.component.html',
+    styleUrls: ['./games-list.component.css']
 })
 export class GamesListComponent implements OnInit {
     games: GameSummary[] = [];

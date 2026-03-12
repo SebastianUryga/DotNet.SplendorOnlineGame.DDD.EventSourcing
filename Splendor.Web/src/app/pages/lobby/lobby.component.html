@@ -1,0 +1,30 @@
+<div class="container" *ngIf="game">
+  <h1>Game Lobby</h1>
+  <div class="info">
+    <p>Game ID: <span>{{ game.id }}</span></p>
+    <p>Status: <span class="status" data-testid="game-status">{{ game.status }}</span></p>
+  </div>
+
+  <div class="players-list">
+    <h3>Players ({{ game.players.length }})</h3>
+    <div *ngIf="game.players.length === 0" class="empty">No players yet.</div>
+    <ul>
+      <li *ngFor="let player of game.players">
+        <span class="player-name" data-testid="player-name">{{ player.name }}</span>
+        <span class="player-id">{{ player.id }}</span>
+      </li>
+    </ul>
+  </div>
+
+  <div *ngIf="!isJoined && game.status === 'Created'" class="join-form">
+    <input [(ngModel)]="playerName" placeholder="Enter your player name" (keyup.enter)="join()" data-testid="player-name-input" />
+    <button (click)="join()" [disabled]="!playerName" class="btn-join" data-testid="join-btn">Join Game</button>
+  </div>
+
+  <div class="actions">
+    <button (click)="start()" [disabled]="game.players.length < 2" *ngIf="game.status === 'Created'" class="btn-start" data-testid="start-btn">
+      Start Game
+    </button>
+    <button [routerLink]="['/games']" class="btn-back" data-testid="back-to-list-btn">Back to List</button>
+  </div>
+</div>

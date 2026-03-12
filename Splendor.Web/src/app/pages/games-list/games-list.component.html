@@ -1,0 +1,19 @@
+<div class="container">
+  <h1>Splendor - Games</h1>
+  <button (click)="createNewGame()" class="btn-primary" data-testid="create-game-btn">New Game</button>
+
+  <div class="games-grid">
+    <div *ngFor="let game of games" class="game-card" data-testid="game-card">
+      <h3>Game {{ game.id.substring(0, 8) }}</h3>
+      <p>Status: <strong>{{ game.status }}</strong></p>
+      <p>Players: {{ game.playerCount }}</p>
+      <button (click)="goToGame(game)" class="btn-secondary" data-testid="open-game-btn">
+        {{ game.status === 'Created' ? 'Join / Lobby' : 'Open Game' }}
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="games.length === 0" class="no-games" data-testid="no-games-message">
+    No active games found. Create one to start!
+  </div>
+</div>
