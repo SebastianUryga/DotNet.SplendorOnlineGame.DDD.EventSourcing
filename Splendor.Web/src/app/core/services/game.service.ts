@@ -97,4 +97,8 @@ export class GameService {
             map(res => res.version ?? res.Version)
         );
     }
+
+    deleteGame(id: string): Observable<void> {
+        return this.http.delete<void>(`${this.gamesUrl}/${id}`);
+    }
 }

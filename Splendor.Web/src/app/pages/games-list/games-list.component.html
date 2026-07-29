@@ -1,15 +1,24 @@
 <div class="container">
-  <h1>Splendor - Games</h1>
-  <button (click)="createNewGame()" class="btn-primary" data-testid="create-game-btn">New Game</button>
+  <div class="header-section">
+    <h1>Splendor - Games</h1>
+    <button (click)="createNewGame()" class="btn-primary" data-testid="create-game-btn">+ New Game</button>
+  </div>
 
   <div class="games-grid">
     <div *ngFor="let game of games" class="game-card" data-testid="game-card">
-      <h3>Game {{ game.id.substring(0, 8) }}</h3>
-      <p>Status: <strong>{{ game.status }}</strong></p>
-      <p>Players: {{ game.playerCount }}</p>
-      <button (click)="goToGame(game)" class="btn-secondary" data-testid="open-game-btn">
-        {{ game.status === 'Created' ? 'Join / Lobby' : 'Open Game' }}
-      </button>
+      <div class="card-header">
+        <h3>Game #{{ game.id.substring(0, 8) }}</h3>
+        <span class="status-badge" [class]="game.status.toLowerCase()">{{ game.status }}</span>
+      </div>
+      <p class="players-info">Players: <strong>{{ game.playerCount }}</strong> / 4</p>
+      <div class="card-actions">
+        <button (click)="goToGame(game)" class="btn-secondary" data-testid="open-game-btn">
+          {{ game.status === 'Created' ? 'Join / Lobby' : 'Open Game' }}
+        </button>
+        <button (click)="deleteGame(game, $event)" class="btn-danger" data-testid="delete-game-btn">
+          Delete
+        </button>
+      </div>
     </div>
   </div>
 

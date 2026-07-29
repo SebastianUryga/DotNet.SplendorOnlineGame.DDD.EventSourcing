@@ -25,6 +25,8 @@ public class GameEventProcessor : SubscriptionBase
         IncludeType<CardPurchased>();
         IncludeType<CardRevealed>();
         IncludeType<TurnEnded>();
+        IncludeType<GameFinished>();
+        IncludeType<GameDeleted>();
     }
 
     public override async Task<IChangeListener> ProcessEventsAsync(

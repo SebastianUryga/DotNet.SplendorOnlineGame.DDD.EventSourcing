@@ -58,15 +58,19 @@ public class GameProjection : SingleStreamProjection<GameView>
 
         ProjectEvent<CardPurchased>((view, e) => {
             view.Version++;
+            var card = Splendor.Domain.CardDefinitions.GetById(e.CardId);
             var player = view.Players.FirstOrDefault(x => x.Id == e.PlayerId);
             if (player != null)
             {
                 player.OwnedCardIds.Add(e.CardId);
                 player.Gems -= e.PaidGems;
+                if (card != null)
+                {
+                    player.PrestigePoints += card.PrestigePoints;
+                }
             }
 
             view.MarketGems += e.PaidGems;
-            var card = Splendor.Domain.CardDefinitions.GetById(e.CardId);
             if (card != null)
             {
                 GetMarketForLevel(view, card.Level).Remove(e.CardId);
@@ -77,6 +81,19 @@ public class GameProjection : SingleStreamProjection<GameView>
             view.Version++;
             GetMarketForLevel(view, e.Level).Add(e.CardId);
             DecrementDeckCount(view, e.Level);
+        });
+
+        ProjectEvent<GameFinished>((view, e) => {
+            view.Version++;
+            view.Status = "Finished";
+            view.WinnerId = e.WinnerId;
+            view.WinnerName = e.WinnerName;
+            view.CurrentPlayerId = null;
+        });
+
+        ProjectEvent<GameDeleted>((view, e) => {
+            view.Version++;
+            view.Status = "Deleted";
         });
     }
 

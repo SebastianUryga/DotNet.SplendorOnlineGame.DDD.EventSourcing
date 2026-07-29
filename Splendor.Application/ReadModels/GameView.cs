@@ -10,6 +10,8 @@ public class GameView
     public List<PlayerView> Players { get; set; } = new();
     public GemCollection MarketGems { get; set; } = GemCollection.Empty;
     public string? CurrentPlayerId { get; set; }
+    public string? WinnerId { get; set; }
+    public string? WinnerName { get; set; }
 
     // Card markets (visible cards)
     public List<string> Market1 { get; set; } = new();
@@ -29,5 +31,6 @@ public class PlayerView
     public string Name { get; set; }
     public GemCollection Gems { get; set; } = GemCollection.Empty;
     public List<string> OwnedCardIds { get; set; } = new();
+    public int PrestigePoints { get; set; }
     public Guid? GameViewId { get; set; }
 }

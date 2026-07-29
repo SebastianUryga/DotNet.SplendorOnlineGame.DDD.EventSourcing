@@ -152,13 +152,27 @@ public class GamesController : ControllerBase
     /// <summary>
     /// Retrieves a list of all games.
     /// </summary>
+    /// <param name="includeDeleted">Whether to include deleted games in the result.</param>
     /// <returns>A list of game summaries.</returns>
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<GameSummaryDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetGames()
+    public async Task<IActionResult> GetGames([FromQuery] bool includeDeleted = false)
     {
-        var games = await _mediator.Send(new GetGamesQuery());
+        var games = await _mediator.Send(new GetGamesQuery(includeDeleted));
         return Ok(games);
+    }
+    
+    /// <summary>
+    /// Deletes a game.
+    /// </summary>
+    /// <param name="id">The unique identifier of the game.</param>
+    /// <response code="204">If the game was successfully deleted.</response>
+    [HttpDelete("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeleteGame(Guid id)
+    {
+        await _mediator.Send(new DeleteGameCommand(id));
+        return NoContent();
     }
 
 

@@ -37,4 +37,17 @@ export class GamesListComponent implements OnInit {
             this.router.navigate(['/games', game.id, 'play']);
         }
     }
+
+    deleteGame(game: GameSummary, event: Event): void {
+        event.stopPropagation();
+        this.gameService.deleteGame(game.id).subscribe({
+            next: () => {
+                this.games = this.games.filter(g => g.id !== game.id);
+            },
+            error: (err) => {
+                console.error('Failed to delete game:', err);
+                this.refreshGames();
+            }
+        });
+    }
 }

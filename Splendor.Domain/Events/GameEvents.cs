@@ -11,3 +11,5 @@ public record GemsTaken(Guid GameId, string PlayerId, GemCollection Gems, DateTi
 public record TurnEnded(Guid GameId, string PlayerId, DateTimeOffset Timestamp) : IDomainEvent;
 public record CardPurchased(Guid GameId, string PlayerId, string CardId, GemCollection PaidGems, DateTimeOffset Timestamp) : IDomainEvent;
 public record CardRevealed(Guid GameId, int Level, string CardId, DateTimeOffset Timestamp) : IDomainEvent;
+public record GameFinished(Guid GameId, string WinnerId, string WinnerName, int PrestigePoints, DateTimeOffset Timestamp) : IDomainEvent;
+public record GameDeleted(Guid GameId, DateTimeOffset Timestamp) : IDomainEvent;

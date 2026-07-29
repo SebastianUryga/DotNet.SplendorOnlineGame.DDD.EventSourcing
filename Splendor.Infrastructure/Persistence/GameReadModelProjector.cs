@@ -90,11 +90,18 @@ public class GameReadModelProjector
 
             case CardPurchased e:
                 var buyingPlayer = await _context.PlayerViews.FindAsync(new object[] { e.PlayerId }, ct);
+                var purchasedCard = Splendor.Domain.CardDefinitions.GetById(e.CardId);
+                
                 if (buyingPlayer != null)
                 {
                     buyingPlayer.OwnedCardIds ??= new();
                     buyingPlayer.OwnedCardIds.Add(e.CardId);
                     buyingPlayer.Gems = (buyingPlayer.Gems ?? Splendor.Domain.ValueObjects.GemCollection.Empty) - e.PaidGems;
+                    
+                    if (purchasedCard != null)
+                    {
+                        buyingPlayer.PrestigePoints += purchasedCard.PrestigePoints;
+                    }
                 }
 
                 var gameCard = await _context.GameViews.FindAsync(new object[] { e.GameId }, ct);
@@ -102,10 +109,9 @@ public class GameReadModelProjector
                 {
                     gameCard.Version++;
                     gameCard.MarketGems = (gameCard.MarketGems ?? Splendor.Domain.ValueObjects.GemCollection.Empty) + e.PaidGems;
-                    var card = Splendor.Domain.CardDefinitions.GetById(e.CardId);
-                    if (card != null)
+                    if (purchasedCard != null)
                     {
-                        GetMarketForLevel(gameCard, card.Level).Remove(e.CardId);
+                        GetMarketForLevel(gameCard, purchasedCard.Level).Remove(e.CardId);
                     }
                 }
                 break;
@@ -122,6 +128,27 @@ public class GameReadModelProjector
 
             case TurnEnded:
                 // TurnEnded doesn't update read model (no state change)
+                break;
+
+            case GameFinished e:
+                var gameFinished = await _context.GameViews.FindAsync(new object[] { e.GameId }, ct);
+                if (gameFinished != null)
+                {
+                    gameFinished.Version++;
+                    gameFinished.Status = "Finished";
+                    gameFinished.WinnerId = e.WinnerId;
+                    gameFinished.WinnerName = e.WinnerName;
+                    gameFinished.CurrentPlayerId = null;
+                }
+                break;
+
+            case GameDeleted e:
+                var gameDeleted = await _context.GameViews.FindAsync(new object[] { e.GameId }, ct);
+                if (gameDeleted != null)
+                {
+                    gameDeleted.Version++;
+                    gameDeleted.Status = "Deleted";
+                }
                 break;
         }
 

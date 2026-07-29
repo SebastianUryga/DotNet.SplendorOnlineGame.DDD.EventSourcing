@@ -42,12 +42,12 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 | Plik | Opis |
 |------|------|
 | `Domain/Aggregates/Game.cs` | Główny agregat gry - Apply() dla eventów, metody komend (JoinGame, StartGame, TakeGems, BuyCard) |
-| `Domain/Events/GameEvents.cs` | Wszystkie eventy: GameCreated, PlayerJoined, GameStarted, TurnStarted, GemsTaken, TurnEnded, CardPurchased, CardRevealed |
+| `Domain/Events/GameEvents.cs` | Wszystkie eventy: GameCreated, PlayerJoined, GameStarted, TurnStarted, GemsTaken, TurnEnded, CardPurchased, CardRevealed, GameFinished, GameDeleted |
 | `Domain/Entities/Player.cs` | Encja gracza (Id, OwnerId, Name, Gems, OwnedCardIds) |
 | `Domain/ValueObjects/GemCollection.cs` | Value Object dla kolekcji gemów (Diamond, Sapphire, Emerald, Ruby, Onyx, Gold) |
 | `Domain/ValueObjects/Card.cs` | Value Object karty (Id, Level, BonusType, PrestigePoints, Cost) |
 | `Domain/ValueObjects/GemType.cs` | Enum typów gemów |
-| `Domain/CardDefinitions.cs` | Statyczna definicja kart (MVP: subset, pełna gra ma 90 kart) |
+| `Domain/CardDefinitions.cs` | Statyczna definicja kart (90 kart: 40x L1, 30x L2, 20x L3) |
 
 ### Application Layer
 | Plik | Opis |
@@ -57,6 +57,7 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 | `Application/Commands/StartGameCommand.cs` | Rozpoczęcie gry |
 | `Application/Commands/TakeGemsCommand.cs` | Pobieranie gemów z rynku |
 | `Application/Commands/BuyCardCommand.cs` | Kupowanie karty |
+| `Application/Commands/DeleteGameCommand.cs` | Usuwanie gry |
 | `Application/ReadModels/GameView.cs` | Read model gry (GameView, PlayerView) |
 
 ### Infrastructure Layer
@@ -148,18 +149,19 @@ record GemCollection(int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx,
 3. `GameStarted` - rozpoczęcie (tasowanie talii, setup rynku)
 4. `TurnStarted` - początek tury gracza
 5. Akcja gracza:
-   - `GemsTaken` - pobranie gemów (max 3 różne lub 2 takie same)
+   - `GemsTaken` - pobranie gemów (max 3 różne, 2 takie same przy rynku >= 4 lub 1 złoty)
    - `CardPurchased` + `CardRevealed` - kupno karty
-6. `TurnEnded` - koniec tury
-7. Powrót do punktu 4 (następny gracz)
+6. Gdy gracz osiągnie ≥ 15 punktów prestiżu → `GameFinished` (koniec gry, status `Finished`)
+7. W przeciwnym wypadku `TurnEnded` - koniec tury i powrót do punktu 4 (następny gracz)
 
 ## API Endpoints
 
 | Metoda | Endpoint | Opis |
 |--------|----------|------|
-| GET | `/games` | Lista wszystkich gier |
+| GET | `/games?includeDeleted=false` | Lista gier (z opcjonalnym filtrem `includeDeleted`) |
 | POST | `/games` | Tworzenie nowej gry |
 | GET | `/games/{id}` | Stan gry (GameView) |
+| DELETE | `/games/{id}` | Usuwanie gry (zmiana statusu na `Deleted`) |
 | POST | `/games/{id}/players` | Dołączanie gracza |
 | POST | `/games/{id}/start` | Start gry |
 | POST | `/games/{id}/actions/take-gems` | Pobieranie gemów |

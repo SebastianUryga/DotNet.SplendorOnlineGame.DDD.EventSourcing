@@ -17,14 +17,11 @@ public class GetAvailableActionsQueryHandler : IRequestHandler<GetAvailableActio
 
     public async Task<List<string>?> Handle(GetAvailableActionsQuery request, CancellationToken cancellationToken)
     {
-        // Note: Ideally we should query the ReadModel (GameView) instead of loading the Aggregate, 
-        // but for logic checks (IsStarted, Players count) the Aggregate or a detailed ReadModel is fine.
-        // Using Aggregate here to ensure consistency with domain logic.
         var game = await _eventStore.LoadAsync<Game>(request.GameId, cancellationToken);
         if (game == null) return null;
 
         var actions = new List<string>();
-        if (!game.IsStarted) 
+        if (game.Status == "Created") 
         {
              if (game.Players.Count >= 2) actions.Add("StartGame");
              if (game.Players.Count < 4) actions.Add("JoinGame");

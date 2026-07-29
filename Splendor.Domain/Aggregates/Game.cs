@@ -10,7 +10,7 @@ public class Game
     public Guid Id { get; set; }
     public string CreatorId { get; set; } // Track who created the game
     public List<Player> Players { get; set; } = new();
-    public bool IsStarted { get; set; }
+    public string Status { get; private set; } = "Created";
     public string? CurrentPlayerId { get; set; }
     public GemCollection MarketGems { get; set; } = GemCollection.Empty;
 
@@ -25,6 +25,16 @@ public class Game
     public List<string> Market3 { get; set; } = new();
 
     public Game() { }
+
+    private void EnsureStarted()
+    {
+        if (Status != "Started") throw new InvalidOperationException("Game not started");
+    }
+
+    private void EnsureNotFinished()
+    {
+        if (Status == "Finished") throw new InvalidOperationException("Game is already finished.");
+    }
 
     // -- Event Appliers (Marten uses these to rebuild state) --
 
@@ -41,7 +51,7 @@ public class Game
 
     public void Apply(GameStarted @event)
     {
-        IsStarted = true;
+        Status = "Started";
         MarketGems = new GemCollection(4, 4, 4, 4, 4, 5);
 
         Deck1 = @event.Deck1.ToList();
@@ -60,6 +70,17 @@ public class Game
     public void Apply(TurnStarted @event)
     {
         CurrentPlayerId = @event.PlayerId;
+    }
+
+    public void Apply(GameFinished @event)
+    {
+        Status = "Finished";
+        CurrentPlayerId = null;
+    }
+
+    public void Apply(GameDeleted @event)
+    {
+        Status = "Deleted";
     }
 
     public void Apply(GemsTaken @event)
@@ -103,9 +124,15 @@ public class Game
 
     // -- Command Methods (Behavior) --
 
+    public IEnumerable<IDomainEvent> DeleteGame()
+    {
+        if (Status == "Deleted") throw new InvalidOperationException("Game is already deleted.");
+        yield return new GameDeleted(Id, DateTimeOffset.UtcNow);
+    }
+
     public IEnumerable<IDomainEvent> JoinGame(string ownerId, string name)
     {
-        if (IsStarted) throw new InvalidOperationException("Game already started");
+        EnsureActive();
         if (Players.Count >= 4) throw new InvalidOperationException("Game full");
         
         // Prevent joining with duplicate name for clarity
@@ -119,7 +146,7 @@ public class Game
 
     public IEnumerable<IDomainEvent> StartGame(string initiatorOwnerId)
     {
-        if (IsStarted) throw new InvalidOperationException("Game already started");
+        if (Status != "Created") throw new InvalidOperationException("Game already started");
         if (Players.Count < 2) throw new InvalidOperationException("Need at least 2 players");
 
         bool isCreator = initiatorOwnerId == CreatorId;
@@ -148,7 +175,8 @@ public class Game
 
     public IEnumerable<IDomainEvent> TakeGems(string initiatorOwnerId, string playerId, GemCollection gems)
     {
-        if (!IsStarted) throw new InvalidOperationException("Game not started");
+        EnsureStarted();
+        EnsureNotFinished();
         
         // 1. Find Player
         var player = Players.SingleOrDefault(p => p.Id == playerId);
@@ -160,15 +188,31 @@ public class Game
         // 3. Validate Turn
         if (CurrentPlayerId != player.Id) throw new InvalidOperationException("Not your turn");
 
-        // Basic validation (MVP: just check amounts positive and available)
-        if (gems.Total > 3) throw new InvalidOperationException("Cannot take more than 3 gems");
-        // Check availability
-        if (MarketGems.Diamond < gems.Diamond || MarketGems.Sapphire < gems.Sapphire || // ...)
-            // TODO: Better cleaner validation
-            false) 
+        var colorCounts = new[] { gems.Diamond, gems.Sapphire, gems.Emerald, gems.Ruby, gems.Onyx };
+        var nonZeroColors = colorCounts.Where(c => c > 0).ToList();
+
+        bool isOptionA = gems.Gold == 0 && nonZeroColors.All(c => c == 1) && nonZeroColors.Count >= 1 && nonZeroColors.Count <= 3;
+        bool isOptionB = gems.Gold == 0 && nonZeroColors.Count == 1 && nonZeroColors[0] == 2;
+        bool isOptionC = gems.Gold == 1 && nonZeroColors.Count == 0;
+
+        if (!isOptionA && !isOptionB && !isOptionC)
+            throw new InvalidOperationException("Invalid gem selection.");
+
+        if (isOptionB)
         {
-             // throw ...
+            if (gems.Diamond == 2 && MarketGems.Diamond < 4) throw new InvalidOperationException("Not enough diamonds on market.");
+            if (gems.Sapphire == 2 && MarketGems.Sapphire < 4) throw new InvalidOperationException("Not enough sapphires on market.");
+            if (gems.Emerald == 2 && MarketGems.Emerald < 4) throw new InvalidOperationException("Not enough emeralds on market.");
+            if (gems.Ruby == 2 && MarketGems.Ruby < 4) throw new InvalidOperationException("Not enough rubies on market.");
+            if (gems.Onyx == 2 && MarketGems.Onyx < 4) throw new InvalidOperationException("Not enough onyxes on market.");
         }
+
+        if (MarketGems.Diamond < gems.Diamond) throw new InvalidOperationException("Not enough diamonds on market.");
+        if (MarketGems.Sapphire < gems.Sapphire) throw new InvalidOperationException("Not enough sapphires on market.");
+        if (MarketGems.Emerald < gems.Emerald) throw new InvalidOperationException("Not enough emeralds on market.");
+        if (MarketGems.Ruby < gems.Ruby) throw new InvalidOperationException("Not enough rubies on market.");
+        if (MarketGems.Onyx < gems.Onyx) throw new InvalidOperationException("Not enough onyxes on market.");
+        if (MarketGems.Gold < gems.Gold) throw new InvalidOperationException("Not enough gold on market.");
 
         yield return new GemsTaken(Id, player.Id, gems, DateTimeOffset.UtcNow);
         yield return new TurnEnded(Id, player.Id, DateTimeOffset.UtcNow);
@@ -187,7 +231,8 @@ public class Game
 
     public IEnumerable<IDomainEvent> BuyCard(string initiatorOwnerId, string playerId, string cardId)
     {
-        if (!IsStarted) throw new InvalidOperationException("Game not started");
+        EnsureStarted();
+        EnsureNotFinished();
 
         var player = Players.SingleOrDefault(p => p.Id == playerId);
         if (player == null) throw new InvalidOperationException("Player not found");
@@ -220,8 +265,17 @@ public class Game
             yield return new CardRevealed(Id, card.Level, deck.First(), DateTimeOffset.UtcNow);
         }
 
-        yield return new TurnEnded(Id, player.Id, DateTimeOffset.UtcNow);
-        yield return new TurnStarted(Id, GetNextPlayer(player.Id), DateTimeOffset.UtcNow);
+        int totalPoints = player.OwnedCardIds.Sum(id => CardDefinitions.GetById(id)?.PrestigePoints ?? 0) + card.PrestigePoints;
+
+        if (totalPoints >= 15)
+        {
+            yield return new GameFinished(Id, player.Id, player.Name, totalPoints, DateTimeOffset.UtcNow);
+        }
+        else
+        {
+            yield return new TurnEnded(Id, player.Id, DateTimeOffset.UtcNow);
+            yield return new TurnStarted(Id, GetNextPlayer(player.Id), DateTimeOffset.UtcNow);
+        }
     }
 
     private GemCollection GetPlayerBonuses(Player player)
@@ -298,4 +352,12 @@ public class Game
         3 => Deck3,
         _ => throw new ArgumentException("Invalid level")
     };
+
+    private void EnsureActive()
+    {
+        if (Status == "Started") throw new InvalidOperationException("Game is already started.");
+        if (Status == "Finished") throw new InvalidOperationException("Game is already finished.");
+        if (Status == "Deleted") throw new InvalidOperationException("Game has been deleted.");
+    }
+
 }
