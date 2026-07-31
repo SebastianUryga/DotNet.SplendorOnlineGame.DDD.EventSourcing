@@ -23,6 +23,11 @@ public class MartenEventStore : IEventStore
         return await _session.Events.AggregateStreamAsync<T>(id, token: cancellationToken);
     }
 
+    public async Task<T?> FetchForWriting<T>(Guid id, CancellationToken cancellationToken = default) where T : class, new()
+    {
+        return (await _session.Events.FetchForWriting<T>(id, cancellationToken)).Aggregate;
+    }
+
     public async Task<IReadOnlyList<object>> FetchStreamAsync(Guid streamId, CancellationToken cancellationToken = default)
     {
         var events = await _session.Events.FetchStreamAsync(streamId, token: cancellationToken);
