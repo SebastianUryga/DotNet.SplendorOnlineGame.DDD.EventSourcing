@@ -7,6 +7,27 @@
         <h4>{{ p.name }}</h4>
         <span class="score">{{ calculatePoints(p) }} pts</span>
       </div>
+
+    <!-- Card preview modal -->
+    <div *ngIf="selectedCard" class="card-preview-overlay" (click)="selectedCard = undefined; selectedCardId = null">
+      <div class="card-preview" (click)="$event.stopPropagation()">
+        <div class="card-top">
+          <div>
+            <div class="bonus-icon" [class]="selectedCard?.bonusType"></div>
+            <h3>{{ selectedCard?.prestigePoints }} pts</h3>
+          </div>
+          <button class="btn-small" (click)="selectedCard = undefined; selectedCardId = null">Close</button>
+        </div>
+        <div class="card-cost">
+          <ng-container *ngFor="let c of gemTypesExcludeGold">
+            <div *ngIf="getCardCostValue(selectedCardId || '', c) > 0" class="cost-token">
+              <span class="dot" [class]="c"></span>
+              {{ getCardCostValue(selectedCardId || '', c) }}
+            </div>
+          </ng-container>
+        </div>
+      </div>
+    </div>
       <div class="mini-gems">
         <div *ngFor="let g of gemTypes" class="mini-gem" [class]="g">
           {{ getPlayerGemCount(p, g) }}
@@ -15,6 +36,39 @@
       <div class="player-stats">
         <span>Cards: {{ p.ownedCardIds.length }}</span>
         <span class="active-badge" *ngIf="p.id === game.currentPlayerId">Current Turn</span>
+      </div>
+      <!-- Derived penalties/bonuses from owned cards (inside `player-card`) -->
+      <div class="mini-penalties" *ngIf="p.ownedCardIds && p.ownedCardIds.length > 0">
+        <ng-container *ngFor="let g of gemTypesExcludeGold">
+          <div *ngIf="getOwnedBonusCount(p, g) > 0" class="mini-gem penalty" [class]="g">
+            {{ getOwnedBonusCount(p, g) }}
+          </div>
+        </ng-container>
+      </div>
+
+      <div class="player-reserved" *ngIf="p.reservedCardIds?.length">
+        <h5 class="subheading">Reserved</h5>
+        <div class="reserved-row">
+          <div *ngFor="let cardId of p.reservedCardIds" class="reserved-card">
+            <div class="card-mini">
+              <div class="card-top">
+                <div class="bonus-icon" [class]="getCardBonus(cardId)"></div>
+                <span class="points" *ngIf="getCardPoints(cardId)">{{ getCardPoints(cardId) }}</span>
+              </div>
+              <div class="card-cost-mini">
+                <ng-container *ngFor="let c of gemTypesExcludeGold">
+                  <span class="cost-dot" *ngIf="getCardCostValue(cardId, c) > 0" [class]="c">
+                    {{ getCardCostValue(cardId, c) }}
+                  </span>
+                </ng-container>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn-small" (click)="viewCard(cardId)">View</button>
+              <button *ngIf="p.id === game.currentPlayerId" class="btn-small" (click)="buyCard(cardId)" [disabled]="!canBuyCard(cardId) || game?.isGemReturnPending">Buy</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <button [routerLink]="['/games']" class="btn-quit" data-testid="quit-game-btn">Quit Game</button>
@@ -30,6 +84,16 @@
       </div>
     </div>
 
+    <div *ngIf="game.isGemReturnPending" class="gem-return-banner">
+      <strong>Gem return required.</strong>
+      <span *ngIf="getOverlimitPlayer() as overPlayer">
+        Player <em>{{ overPlayer.name }}</em> must return gems.
+      </span>
+      <span *ngIf="!getOverlimitPlayer()">
+        A player must return excess gems.
+      </span>
+    </div>
+
     <!-- Gem Market -->
     <div class="gem-market">
       <h3>Gem Market</h3>
@@ -41,12 +105,13 @@
           <div class="selection-controls" *ngIf="g !== 'gold'">
             <button (click)="removeFromSelection(g)" [disabled]="selectedGems[g] <= 0">-</button>
             <span class="sel-count">{{ selectedGems[g] || 0 }}</span>
-            <button (click)="addToSelection(g)" [disabled]="getMarketGemCount(g) <= selectedGems[g]">+</button>
+            <button (click)="addToSelection(g)" [disabled]="!game.isGemReturnPending && (getMarketGemCount(g) <= selectedGems[g])">+</button>
           </div>
         </div>
       </div>
       <div class="market-actions">
         <button (click)="takeGems()" [disabled]="!canTakeGems()" class="btn-action" data-testid="take-gems-btn">Take Selected Gems</button>
+        <button (click)="resolveGemLimit()" [disabled]="!game.isGemReturnPending || !(getCurrentPlayer() && getPlayerTotalGems(getCurrentPlayer()) > 10)" class="btn-action btn-return" data-testid="return-gems-btn">Return Selected Gems</button>
         <button (click)="resetSelection()" class="btn-reset" data-testid="reset-gems-btn">Reset</button>
       </div>
     </div>
@@ -74,7 +139,10 @@
                 </ng-container>
               </div>
             </div>
-            <button (click)="buyCard(cardId)" class="btn-buy" data-testid="buy-card-btn">Purchase</button>
+            <div class="card-actions">
+              <button (click)="buyCard(cardId)" class="btn-buy" [disabled]="!canBuyCard(cardId) || game?.isGemReturnPending" data-testid="buy-card-btn">Purchase</button>
+              <button (click)="reserveCard(cardId)" class="btn-reserve" data-testid="reserve-card-btn">Reserve</button>
+            </div>
           </div>
         </div>
       </div>

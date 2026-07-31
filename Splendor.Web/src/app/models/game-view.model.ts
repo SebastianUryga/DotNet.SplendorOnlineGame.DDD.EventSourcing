@@ -6,6 +6,7 @@ export interface PlayerView {
     name: string;
     gems: GemCollection;
     ownedCardIds: string[];
+    reservedCardIds?: string[];
 }
 
 export interface GameView {
@@ -15,6 +16,7 @@ export interface GameView {
     players: PlayerView[];
     marketGems: GemCollection;
     currentPlayerId: string | null;
+    isGemReturnPending?: boolean;
     market1: string[];
     market2: string[];
     market3: string[];

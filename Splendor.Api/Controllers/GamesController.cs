@@ -221,6 +221,25 @@ public class GamesController : ControllerBase
         return Ok(events);
     }
 
+    [HttpPost("{gameId}/actions/reserve-card")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ReserveCard(Guid gameId, [FromBody] ReserveCardRequest request)
+    {
+        var userId = _currentUserService.UserId;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        await _mediator.Send(new ReserveCardCommand
+        {
+            GameId = gameId,
+            OwnerId = userId,
+            PlayerId = request.PlayerId,
+            CardId = request.CardId
+        });
+
+        return Ok();
+    }
+
     /// <summary>
     /// Retrieves the list of actions currently available to the active player.
     /// </summary>
@@ -252,8 +271,36 @@ public class GamesController : ControllerBase
         if (version == null) return NotFound();
         return Ok(new { Version = version });
     }
-}
 
+    /// <summary>
+    /// Resolves gem limit by returning specified gems for a player.
+    /// </summary>
+    [HttpPost("{gameId}/actions/resolve-gem-limit")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResolveGemLimit(Guid gameId, [FromBody] ResolveGemLimitRequest request)
+    {
+        var userId = _currentUserService.UserId;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        await _mediator.Send(new ResolveGemLimitCommand
+        {
+            GameId = gameId,
+            OwnerId = userId,
+            PlayerId = request.PlayerId,
+            Diamond = request.Diamond,
+            Sapphire = request.Sapphire,
+            Emerald = request.Emerald,
+            Ruby = request.Ruby,
+            Onyx = request.Onyx,
+            Gold = request.Gold
+        });
+
+        return Ok();
+    }
+}
+public record ResolveGemLimitRequest(string PlayerId, int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx, int Gold);
+public record ReserveCardRequest(string PlayerId, string CardId);
 public record CreateGameRequest();
 public record JoinGameRequest(string Name);
 public record StartGameRequest();

@@ -13,6 +13,9 @@ public class Game
     public string Status { get; private set; } = "Created";
     public string? CurrentPlayerId { get; set; }
     public GemCollection MarketGems { get; set; } = GemCollection.Empty;
+    // When a player exceeded the gem limit and must return some gems
+    public string? PlayerIdAwaitingGemReturn { get; set; }
+    public int ExcessGemsToReturn { get; set; }
 
     // Card decks (remaining cards to draw)
     public List<string> Deck1 { get; set; } = new();
@@ -67,6 +70,23 @@ public class Game
         }
     }
 
+    public void Apply(CardReserved @event)
+    {
+        var player = Players.FirstOrDefault(p => p.Id == @event.PlayerId);
+        if (player != null)
+        {
+            player.ReservedCardIds ??= new();
+            player.ReservedCardIds.Add(@event.CardId);
+        }
+
+        // Remove card from market if present
+        var card = CardDefinitions.GetById(@event.CardId);
+        if (card != null)
+        {
+            GetMarketForLevel(card.Level).Remove(@event.CardId);
+        }
+    }
+
     public void Apply(TurnStarted @event)
     {
         CurrentPlayerId = @event.PlayerId;
@@ -92,6 +112,29 @@ public class Game
             player.Gems += @event.Gems;
         }
     }
+
+    public void Apply(GemsOverflowDetected @event)
+    {
+        // mark that this player must return excess gems
+        PlayerIdAwaitingGemReturn = @event.PlayerId;
+        ExcessGemsToReturn = @event.ExcessCount;
+        // we also keep current gems reflected by GemsTaken application
+    }
+
+    public void Apply(GemLimitResolved @event)
+    {
+        // apply returned gems to player and return them to market
+        var player = Players.FirstOrDefault(p => p.Id == @event.PlayerId);
+        if (player != null)
+        {
+            player.Gems -= @event.ReturnedGems;
+        }
+
+        MarketGems += @event.ReturnedGems;
+        // clear pending return
+        PlayerIdAwaitingGemReturn = null;
+        ExcessGemsToReturn = 0;
+    }
     
     public void Apply(TurnEnded @event)
     {
@@ -113,6 +156,12 @@ public class Game
         if (card != null)
         {
             GetMarketForLevel(card.Level).Remove(@event.CardId);
+            // If the card was previously reserved by the player, ensure it's removed from their reserved list
+            var ownerPlayer = Players.FirstOrDefault(p => p.Id == @event.PlayerId);
+            if (ownerPlayer != null && ownerPlayer.ReservedCardIds != null && ownerPlayer.ReservedCardIds.Contains(@event.CardId))
+            {
+                ownerPlayer.ReservedCardIds.Remove(@event.CardId);
+            }
         }
     }
 
@@ -177,7 +226,7 @@ public class Game
     {
         EnsureStarted();
         EnsureNotFinished();
-        
+
         // 1. Find Player
         var player = Players.SingleOrDefault(p => p.Id == playerId);
         if (player == null) throw new InvalidOperationException("Player not found in this game");
@@ -187,6 +236,9 @@ public class Game
 
         // 3. Validate Turn
         if (CurrentPlayerId != player.Id) throw new InvalidOperationException("Not your turn");
+
+        if (!string.IsNullOrEmpty(PlayerIdAwaitingGemReturn))
+            throw new InvalidOperationException("A gem overflow resolution is pending. No other actions are allowed until the gem limit is resolved.");
 
         var colorCounts = new[] { gems.Diamond, gems.Sapphire, gems.Emerald, gems.Ruby, gems.Onyx };
         var nonZeroColors = colorCounts.Where(c => c > 0).ToList();
@@ -214,7 +266,21 @@ public class Game
         if (MarketGems.Onyx < gems.Onyx) throw new InvalidOperationException("Not enough onyxes on market.");
         if (MarketGems.Gold < gems.Gold) throw new InvalidOperationException("Not enough gold on market.");
 
+        // Emit GemsTaken first
         yield return new GemsTaken(Id, player.Id, gems, DateTimeOffset.UtcNow);
+
+        // Calculate player's new total after taking
+        var newTotal = player.Gems + gems;
+        if (newTotal.Total > 10)
+        {
+            // Player must return excess gems - emit overflow detected and set pending state
+            var excess = newTotal.Total - 10;
+            yield return new GemsOverflowDetected(Id, player.Id, newTotal, excess, DateTimeOffset.UtcNow);
+            // TurnEnded will be emitted only after player resolves the gem limit via ResolveGemLimit
+            yield break;
+        }
+
+        // Normal flow: end turn and start next
         yield return new TurnEnded(Id, player.Id, DateTimeOffset.UtcNow);
 
         var nextPlayer = GetNextPlayer(player.Id);
@@ -227,6 +293,37 @@ public class Game
         if (idx == -1) return current;
         var nextIdx = (idx + 1) % Players.Count;
         return Players[nextIdx].Id;
+    }
+
+    public IEnumerable<IDomainEvent> ResolveGemLimit(string initiatorOwnerId, string playerId, GemCollection returnedGems)
+    {
+        EnsureStarted();
+        EnsureNotFinished();
+
+        var player = Players.SingleOrDefault(p => p.Id == playerId);
+        if (player == null) throw new InvalidOperationException("Player not found");
+        if (player.OwnerId != initiatorOwnerId) throw new InvalidOperationException("You do not control this player");
+
+        if (PlayerIdAwaitingGemReturn != playerId)
+            throw new InvalidOperationException("No gem return is required for this player");
+
+        // Validate returned gems are actually owned by the player
+        if (returnedGems.Diamond > player.Gems.Diamond) throw new InvalidOperationException("Cannot return more diamonds than owned");
+        if (returnedGems.Sapphire > player.Gems.Sapphire) throw new InvalidOperationException("Cannot return more sapphires than owned");
+        if (returnedGems.Emerald > player.Gems.Emerald) throw new InvalidOperationException("Cannot return more emeralds than owned");
+        if (returnedGems.Ruby > player.Gems.Ruby) throw new InvalidOperationException("Cannot return more rubies than owned");
+        if (returnedGems.Onyx > player.Gems.Onyx) throw new InvalidOperationException("Cannot return more onyxes than owned");
+        if (returnedGems.Gold > player.Gems.Gold) throw new InvalidOperationException("Cannot return more gold than owned");
+
+        var newTotal = player.Gems - returnedGems;
+        if (newTotal.Total > 10) throw new InvalidOperationException("Returned gems do not reduce total to allowed limit");
+
+        yield return new GemLimitResolved(Id, player.Id, returnedGems, DateTimeOffset.UtcNow);
+
+        // After resolving, end turn and start next player
+        yield return new TurnEnded(Id, player.Id, DateTimeOffset.UtcNow);
+        var next = GetNextPlayer(player.Id);
+        yield return new TurnStarted(Id, next, DateTimeOffset.UtcNow);
     }
 
     public IEnumerable<IDomainEvent> BuyCard(string initiatorOwnerId, string playerId, string cardId)
@@ -243,7 +340,11 @@ public class Game
         if (card == null) throw new InvalidOperationException("Card not found");
 
         var market = GetMarketForLevel(card.Level);
-        if (!market.Contains(cardId)) throw new InvalidOperationException("Card not available in market");
+        var isReservedByPlayer = player.ReservedCardIds != null && player.ReservedCardIds.Contains(cardId);
+        if (!market.Contains(cardId) && !isReservedByPlayer) throw new InvalidOperationException("Card not available in market or reserved by player");
+
+        if (!string.IsNullOrEmpty(PlayerIdAwaitingGemReturn))
+            throw new InvalidOperationException("A gem overflow resolution is pending. No other actions are allowed until the gem limit is resolved.");
 
         // Calculate effective cost (subtract bonuses from owned cards)
         var bonuses = GetPlayerBonuses(player);
@@ -256,13 +357,17 @@ public class Game
         // Calculate actual payment (may use gold as wildcards)
         var payment = CalculatePayment(player.Gems, effectiveCost);
 
+        // Emit purchase
         yield return new CardPurchased(Id, player.Id, cardId, payment, DateTimeOffset.UtcNow);
 
-        // Reveal new card from deck
-        var deck = GetDeckForLevel(card.Level);
-        if (deck.Any())
+        // If the card was taken from the market (not a previously reserved card), reveal replacement
+        if (market.Contains(cardId))
         {
-            yield return new CardRevealed(Id, card.Level, deck.First(), DateTimeOffset.UtcNow);
+            var deck = GetDeckForLevel(card.Level);
+            if (deck.Any())
+            {
+                yield return new CardRevealed(Id, card.Level, deck.First(), DateTimeOffset.UtcNow);
+            }
         }
 
         int totalPoints = player.OwnedCardIds.Sum(id => CardDefinitions.GetById(id)?.PrestigePoints ?? 0) + card.PrestigePoints;
@@ -276,6 +381,65 @@ public class Game
             yield return new TurnEnded(Id, player.Id, DateTimeOffset.UtcNow);
             yield return new TurnStarted(Id, GetNextPlayer(player.Id), DateTimeOffset.UtcNow);
         }
+    }
+
+    public IEnumerable<IDomainEvent> ReserveCard(string ownerId, string playerId, string cardId)
+    {
+        EnsureStarted();
+        EnsureNotFinished();
+
+        var player = Players.SingleOrDefault(p => p.Id == playerId);
+        if (player == null) throw new InvalidOperationException("Player not found");
+        if (player.OwnerId != ownerId) throw new InvalidOperationException("You do not control this player");
+        if (CurrentPlayerId != player.Id) throw new InvalidOperationException("Not your turn");
+
+        if (!string.IsNullOrEmpty(PlayerIdAwaitingGemReturn))
+            throw new InvalidOperationException("A gem overflow resolution is pending. No other actions are allowed until the gem limit is resolved.");
+
+        // Ensure player does not have more than 3 reserved cards
+        player.ReservedCardIds ??= new();
+        if (player.ReservedCardIds.Count >= 3) throw new InvalidOperationException("Player already has maximum number of reserved cards (3)");
+
+        var card = CardDefinitions.GetById(cardId);
+        if (card == null) throw new InvalidOperationException("Card not found");
+
+        // Only allow reserving cards that are currently in market
+        var market = GetMarketForLevel(card.Level);
+        if (!market.Contains(cardId)) throw new InvalidOperationException("Card not available in market");
+
+        // If gold available on market, give one gold to player
+        var goldTaken = new GemCollection(0,0,0,0,0,0);
+        if (MarketGems.Gold > 0)
+        {
+            goldTaken = new GemCollection(0,0,0,0,0,1);
+            yield return new GemsTaken(Id, player.Id, goldTaken, DateTimeOffset.UtcNow);
+        }
+
+        // Reserve the card
+        yield return new CardReserved(Id, player.Id, cardId, DateTimeOffset.UtcNow);
+
+        // Reveal new card from deck if available
+        var deck = GetDeckForLevel(card.Level);
+        if (deck.Any())
+        {
+            yield return new CardRevealed(Id, card.Level, deck.First(), DateTimeOffset.UtcNow);
+        }
+
+        // If gold was given, check for overflow
+        if (goldTaken.Gold > 0)
+        {
+            var newTotal = player.Gems + goldTaken;
+            if (newTotal.Total > 10)
+            {
+                var excess = newTotal.Total - 10;
+                yield return new GemsOverflowDetected(Id, player.Id, newTotal, excess, DateTimeOffset.UtcNow);
+                yield break;
+            }
+        }
+
+        // Normal flow: end turn and start next
+        yield return new TurnEnded(Id, player.Id, DateTimeOffset.UtcNow);
+        yield return new TurnStarted(Id, GetNextPlayer(player.Id), DateTimeOffset.UtcNow);
     }
 
     private GemCollection GetPlayerBonuses(Player player)

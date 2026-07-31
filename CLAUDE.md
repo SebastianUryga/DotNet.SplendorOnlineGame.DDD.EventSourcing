@@ -107,6 +107,28 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 - `WebDriverManager` auto-pobiera ChromeDriver pasujący do zainstalowanego Chrome
 - Token ustawiany przez istniejący input w nagłówku aplikacji (`app.component.ts`)
 
+do poprawienia: przez jakis madrzejszy LNM.:
+----
+### Testy jednostkowe i nowe zdarzenia zwrotu gemów (WIP)
+
+- Nowy projekt: `Splendor.UnitTests`
+  - Cel: szybkie testy jednostkowe, które rekonstruują agregat z listy eventów, wywołują metody-komend agregatu i asercują zwrócone eventy.
+  - Dostępne helpery: `TestHelpers.CreateStartedGame()`, `TestHelpers.ApplyHistory()` (używane do przygotowania stanu gry). Uruchamianie: `dotnet test ./Splendor.UnitTests`
+
+- Nowe zdarzenia domenowe (wprowadzono, wiring w toku):
+  - `GemsOverflowDetected` (GameId, PlayerId, CurrentGems, ExcessCount, Timestamp) — emisja gdy `TakeGems` spowoduje, że suma gemów gracza przekroczy limit (10). Agregat przechodzi w stan oczekiwania na zwrot.
+  - `GemLimitResolved` (GameId, PlayerId, ReturnedGems, Timestamp) — emisja gdy gracz zwróci gemy i limit zostanie spełniony. Po tym emitowane jest zakończenie tury / rozpoczęcie następnej.
+
+- Zadania integracyjne / TODO (wymagają ręcznego dokończenia):
+  - Application: zaktualizować `ResolveGemLimitCommand` aby wywoływał `Game.ResolveGemLimit(...)` i zapisywał wszystkie eventy zwrócone przez agregat (w tym TurnEnded/TurnStarted).
+  - DI: zarejestrować nowy handler i pipeline MediatR w `DependencyInjection.cs`.
+  - Projekcje / DB: zaktualizować projekcje Marten i projektory read-modeli, aby obsługiwały `GemsOverflowDetected` i `GemLimitResolved` (oznaczać read-model jako oczekujący zwrot, stosownie aktualizować MarketGems i usuwać flagę oczekiwania).
+  - API / Controller: dodać obsługę endpointu akceptującego Resolve/Return (lub rozszerzyć istniejący przepływ TakeGems), zwracać walidacje/pending state do klienta.
+  - UI: wyświetlić modal po wykryciu overflow, pozwolić użytkownikowi wybrać gemy do zwrotu i wywołać ResolveGemLimit (lub skonsolidowany endpoint), obsłużyć kontynuację tury.
+  - Tests: dodać testy jednostkowe i integracyjne dla ResolveGemLimit oraz przypadków brzegowych (niepoprawny zwrot, konkurencja wersji itp.).
+
+> Uwaga: zmiany są w trakcie pracy — eventy i testy jednostkowe zostały dodane, ale pełne powiązanie z warstwą aplikacji, projekcjami i UI nie jest jeszcze ukończone.
+----
 ### Frontend (Splendor.Web)
 | Plik | Opis |
 |------|------|
@@ -222,6 +244,7 @@ npm start
 - [x] Rozdzielenie OwnerId (użytkownik) od PlayerId (gracz w grze)
 - [x] System kart (definicje, rynek, talie)
 - [x] Kupowanie kart z bonusami
+- [x] Rezerwacja kart (ReserveCard command, CardReserved event, API endpoint, read-model + EF mapping, frontend UI, unit test)
 - [x] Autentykacja JWT (Auth0) + ICurrentUserService
 - [x] Middleware obsługi wyjątków (ExceptionHandlingMiddleware)
 - [x] Endpoint GET /cards (definicje kart z backendu)
@@ -236,7 +259,6 @@ npm start
 
 **Backend:**
 - [ ] Pełna walidacja reguł pobierania gemów
-- [ ] Rezerwacja kart
 - [ ] Noble tiles (arystokraci)
 - [ ] Warunek zakończenia gry (15 punktów)
 - [ ] Pełna lista kart (90 zamiast MVP subset)

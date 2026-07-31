@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterModule } from '@angular/router';
 import { GameService } from '../../core/services/game.service';
 import { GameView, PlayerView } from '../../models/game-view.model';
 import { GemCollection, EMPTY_GEMS } from '../../models/gem-collection.model';
+import { Card } from '../../models/card.model';
 import { interval, Subscription, startWith, switchMap, filter, firstValueFrom } from 'rxjs';
 import { SignalRService } from '../../core/services/signalr.service';
 
@@ -23,6 +24,8 @@ export class GameComponent implements OnInit, OnDestroy {
   gemTypes = ['diamond', 'sapphire', 'emerald', 'ruby', 'onyx', 'gold'];
   gemTypesExcludeGold = ['diamond', 'sapphire', 'emerald', 'ruby', 'onyx'];
   private signalrSubscription?: Subscription;
+  selectedCardId?: string | null = null;
+  selectedCard?: Card | undefined;
 
   constructor(
     private route: ActivatedRoute,
@@ -46,6 +49,50 @@ export class GameComponent implements OnInit, OnDestroy {
 
     // Initial load
     this.refresh();
+    // Preload card definitions for UI (costs, bonuses)
+    this.gameService.getCards().subscribe();
+  }
+
+  viewCard(cardId: string): void {
+    this.selectedCardId = cardId;
+    this.selectedCard = this.gameService.getCard(cardId);
+    // If card not in cache, you may call gameService.getCards() to preload, but keep simple here
+  }
+
+  canBuyCard(cardId: string): boolean {
+    const player = this.getCurrentPlayer();
+    if (!player) return false;
+    if (player.id !== this.game?.currentPlayerId) return false;
+    if (this.game?.isGemReturnPending) return false;
+
+    const card = this.gameService.getCard(cardId);
+    if (!card) return false;
+
+    // build bonuses from owned cards
+    const bonuses = {
+      diamond: this.getOwnedBonusCount(player, 'diamond'),
+      sapphire: this.getOwnedBonusCount(player, 'sapphire'),
+      emerald: this.getOwnedBonusCount(player, 'emerald'),
+      ruby: this.getOwnedBonusCount(player, 'ruby'),
+      onyx: this.getOwnedBonusCount(player, 'onyx'),
+      gold: 0
+    };
+
+    const cost = this.getCardCost(cardId);
+    const effective = {
+      diamond: Math.max(0, (cost as any).diamond - (bonuses.diamond || 0)),
+      sapphire: Math.max(0, (cost as any).sapphire - (bonuses.sapphire || 0)),
+      emerald: Math.max(0, (cost as any).emerald - (bonuses.emerald || 0)),
+      ruby: Math.max(0, (cost as any).ruby - (bonuses.ruby || 0)),
+      onyx: Math.max(0, (cost as any).onyx - (bonuses.onyx || 0)),
+      gold: 0
+    };
+
+    const deficit = this.gemTypesExcludeGold
+      .map((c: any) => Math.max(0, (effective as any)[c] - (this.getPlayerGemCount(player, c) || 0)))
+      .reduce((a: number, b: number) => a + b, 0);
+
+    return deficit <= (this.getPlayerGemCount(player, 'gold') || 0);
   }
 
   ngOnDestroy(): void {
@@ -140,13 +187,46 @@ export class GameComponent implements OnInit, OnDestroy {
     return (p.gems as any)[type] || 0;
   }
 
+  getPlayerTotalGems(p?: PlayerView | null): number {
+    if (!p) return 0;
+    return this.gemTypes.reduce((sum, t) => sum + (this.getPlayerGemCount(p, t) || 0), 0);
+  }
+
+  getCurrentPlayer(): PlayerView | undefined {
+    return this.game?.players.find(p => p.id === this.game?.currentPlayerId);
+  }
+
+  getOverlimitPlayer(): PlayerView | undefined {
+    return this.game?.players.find(p => this.getPlayerTotalGems(p) > 10);
+  }
+
   getCardCostValue(cardId: string, gemType: string): number {
     const cost = this.getCardCost(cardId);
     return cost ? (cost as any)[gemType] : 0;
   }
 
+  resolveGemLimit(): void {
+    const req = {
+      playerId: this.game?.currentPlayerId || '',
+      ...this.selectedGems,
+      gold: 0
+    };
+    this.gameService.resolveGemLimit(this.gameId, req).subscribe(() => {
+      this.resetSelection();
+      this.refresh();
+    });
+  }
+
   calculatePoints(p: PlayerView): number {
     return p.ownedCardIds.reduce((sum, id) => sum + this.getCardPoints(id), 0);
+  }
+
+  // Count how many owned cards give a bonus of the specified gem type
+  getOwnedBonusCount(p: PlayerView, gemType: string): number {
+    if (!p || !p.ownedCardIds || p.ownedCardIds.length === 0) return 0;
+    return p.ownedCardIds.reduce((acc, id) => {
+      return acc + (this.getCardBonus(id) === gemType ? 1 : 0);
+    }, 0);
   }
 
   buyCard(cardId: string): void {
@@ -155,6 +235,16 @@ export class GameComponent implements OnInit, OnDestroy {
       cardId: cardId
     };
     this.gameService.buyCard(this.gameId, req).subscribe(() => {
+      this.refresh();
+    });
+  }
+
+  reserveCard(cardId: string): void {
+    const req = {
+      playerId: this.game?.currentPlayerId || '',
+      cardId: cardId
+    };
+    this.gameService.reserveCard(this.gameId, req).subscribe(() => {
       this.refresh();
     });
   }

@@ -27,6 +27,9 @@ public class GameEventProcessor : SubscriptionBase
         IncludeType<TurnEnded>();
         IncludeType<GameFinished>();
         IncludeType<GameDeleted>();
+        IncludeType<GemLimitResolved>();
+        IncludeType<GemsOverflowDetected>();
+        IncludeType<CardReserved>();
     }
 
     public override async Task<IChangeListener> ProcessEventsAsync(

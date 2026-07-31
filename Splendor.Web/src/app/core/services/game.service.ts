@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map, tap, of } from 'rxjs';
 import { GameSummary, GameView } from '../../models/game-view.model';
-import { BuyCardRequest, JoinGameRequest, TakeGemsRequest } from '../../models/requests.model';
+import { BuyCardRequest, JoinGameRequest, TakeGemsRequest, ResolveGemLimitRequest, ReserveCardRequest } from '../../models/requests.model';
 import { environment } from '../../../environments/environment';
 import { Card } from '../../models/card.model';
 
@@ -90,6 +90,14 @@ export class GameService {
 
     buyCard(id: string, request: BuyCardRequest): Observable<void> {
         return this.http.post<void>(`${this.gamesUrl}/${id}/actions/buy-card`, request);
+    }
+
+    reserveCard(id: string, request: ReserveCardRequest): Observable<void> {
+        return this.http.post<void>(`${this.gamesUrl}/${id}/actions/reserve-card`, request);
+    }
+
+    resolveGemLimit(id: string, request: ResolveGemLimitRequest): Observable<void> {
+        return this.http.post<void>(`${this.gamesUrl}/${id}/actions/resolve-gem-limit`, request);
     }
 
     getVersion(id: string): Observable<number> {

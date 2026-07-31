@@ -13,6 +13,9 @@ public class GameView
     public string? WinnerId { get; set; }
     public string? WinnerName { get; set; }
 
+    // Indicates that a player exceeded the gem limit and must return gems
+    public bool IsGemReturnPending { get; set; } = false;
+
     // Card markets (visible cards)
     public List<string> Market1 { get; set; } = new();
     public List<string> Market2 { get; set; } = new();
@@ -31,6 +34,7 @@ public class PlayerView
     public string Name { get; set; }
     public GemCollection Gems { get; set; } = GemCollection.Empty;
     public List<string> OwnedCardIds { get; set; } = new();
+    public List<string> ReservedCardIds { get; set; } = new();
     public int PrestigePoints { get; set; }
     public Guid? GameViewId { get; set; }
 }

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Splendor.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using Splendor.Infrastructure.Persistence;
 namespace Splendor.Infrastructure.Migrations
 {
     [DbContext(typeof(ReadModelsContext))]
-    partial class ReadModelsContextModelSnapshot : ModelSnapshot
+    [Migration("20260811080507_AddIsGemReturnPendingToGameView")]
+    partial class AddIsGemReturnPendingToGameView
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -95,10 +98,6 @@ namespace Splendor.Infrastructure.Migrations
 
                     b.Property<int>("PrestigePoints")
                         .HasColumnType("int");
-
-                    b.Property<string>("ReservedCardIds")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 

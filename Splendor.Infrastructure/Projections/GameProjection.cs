@@ -56,6 +56,11 @@ public class GameProjection : SingleStreamProjection<GameView>
             if (p != null) p.Gems += e.Gems;
         });
 
+        ProjectEvent<GemsOverflowDetected>((view, e) => {
+            view.Version++;
+            view.IsGemReturnPending = true;
+        });
+
         ProjectEvent<CardPurchased>((view, e) => {
             view.Version++;
             var card = Splendor.Domain.CardDefinitions.GetById(e.CardId);
@@ -68,6 +73,11 @@ public class GameProjection : SingleStreamProjection<GameView>
                 {
                     player.PrestigePoints += card.PrestigePoints;
                 }
+                // Remove from reserved list if the player had reserved this card
+                if (player.ReservedCardIds != null && player.ReservedCardIds.Contains(e.CardId))
+                {
+                    player.ReservedCardIds.Remove(e.CardId);
+                }
             }
 
             view.MarketGems += e.PaidGems;
@@ -77,10 +87,38 @@ public class GameProjection : SingleStreamProjection<GameView>
             }
         });
 
+        ProjectEvent<GemLimitResolved>((view, e) => {
+            view.Version++;
+            var p = view.Players.FirstOrDefault(x => x.Id == e.PlayerId);
+            if (p != null)
+            {
+                p.Gems -= e.ReturnedGems;
+            }
+
+            view.MarketGems += e.ReturnedGems;
+            view.IsGemReturnPending = false;
+        });
+
         ProjectEvent<CardRevealed>((view, e) => {
             view.Version++;
             GetMarketForLevel(view, e.Level).Add(e.CardId);
             DecrementDeckCount(view, e.Level);
+        });
+
+        ProjectEvent<CardReserved>((view, e) => {
+            view.Version++;
+            var player = view.Players.FirstOrDefault(x => x.Id == e.PlayerId);
+            if (player != null)
+            {
+                player.ReservedCardIds ??= new();
+                player.ReservedCardIds.Add(e.CardId);
+            }
+
+            var card = Splendor.Domain.CardDefinitions.GetById(e.CardId);
+            if (card != null)
+            {
+                GetMarketForLevel(view, card.Level).Remove(e.CardId);
+            }
         });
 
         ProjectEvent<GameFinished>((view, e) => {

@@ -88,6 +88,15 @@ public class GameReadModelProjector
                 }
                 break;
 
+            case GemsOverflowDetected e:
+                var gameOverflow = await _context.GameViews.FindAsync(new object[] { e.GameId }, ct);
+                if (gameOverflow != null)
+                {
+                    gameOverflow.Version++;
+                    gameOverflow.IsGemReturnPending = true;
+                }
+                break;
+
             case CardPurchased e:
                 var buyingPlayer = await _context.PlayerViews.FindAsync(new object[] { e.PlayerId }, ct);
                 var purchasedCard = Splendor.Domain.CardDefinitions.GetById(e.CardId);
@@ -102,6 +111,11 @@ public class GameReadModelProjector
                     {
                         buyingPlayer.PrestigePoints += purchasedCard.PrestigePoints;
                     }
+                    // If the card was reserved by this player, remove it from their reserved list
+                    if (buyingPlayer.ReservedCardIds != null && buyingPlayer.ReservedCardIds.Contains(e.CardId))
+                    {
+                        buyingPlayer.ReservedCardIds.Remove(e.CardId);
+                    }
                 }
 
                 var gameCard = await _context.GameViews.FindAsync(new object[] { e.GameId }, ct);
@@ -113,6 +127,42 @@ public class GameReadModelProjector
                     {
                         GetMarketForLevel(gameCard, purchasedCard.Level).Remove(e.CardId);
                     }
+                }
+                break;
+
+            case CardReserved e:
+                var reservingPlayer = await _context.PlayerViews.FindAsync(new object[] { e.PlayerId }, ct);
+                if (reservingPlayer != null)
+                {
+                    reservingPlayer.ReservedCardIds ??= new();
+                    reservingPlayer.ReservedCardIds.Add(e.CardId);
+                }
+
+                var gameReserved = await _context.GameViews.FindAsync(new object[] { e.GameId }, ct);
+                if (gameReserved != null)
+                {
+                    gameReserved.Version++;
+                    var reservedCard = Splendor.Domain.CardDefinitions.GetById(e.CardId);
+                    if (reservedCard != null)
+                    {
+                        GetMarketForLevel(gameReserved, reservedCard.Level).Remove(e.CardId);
+                    }
+                }
+                break;
+
+            case GemLimitResolved e:
+                var returnedPlayer = await _context.PlayerViews.FindAsync(new object[] { e.PlayerId }, ct);
+                if (returnedPlayer != null)
+                {
+                    returnedPlayer.Gems = (returnedPlayer.Gems ?? Splendor.Domain.ValueObjects.GemCollection.Empty) - e.ReturnedGems;
+                }
+
+                var gameResolved = await _context.GameViews.FindAsync(new object[] { e.GameId }, ct);
+                if (gameResolved != null)
+                {
+                    gameResolved.Version++;
+                    gameResolved.MarketGems = (gameResolved.MarketGems ?? Splendor.Domain.ValueObjects.GemCollection.Empty) + e.ReturnedGems;
+                    gameResolved.IsGemReturnPending = false;
                 }
                 break;
 
