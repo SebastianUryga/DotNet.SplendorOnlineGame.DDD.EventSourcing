@@ -48,6 +48,18 @@ public class ReadModelsContext : DbContext, IReadModelsContext
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
                 .Metadata.SetValueComparer(stringListComparer);
+
+            b.Property(x => x.Nobles)
+                 .HasConversion(
+                   v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                   v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
+                 .Metadata.SetValueComparer(stringListComparer);
+
+            b.Property(x => x.EligibleNobleIds)
+                 .HasConversion(
+                   v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                   v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
+                 .Metadata.SetValueComparer(stringListComparer);
         });
 
         modelBuilder.Entity<PlayerView>(b =>
@@ -65,6 +77,11 @@ public class ReadModelsContext : DbContext, IReadModelsContext
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
                 .Metadata.SetValueComparer(stringListComparer);
+            b.Property(x => x.OwnedNobleIds)
+                 .HasConversion(
+                   v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                   v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
+                 .Metadata.SetValueComparer(stringListComparer);
         });
 
         base.OnModelCreating(modelBuilder);

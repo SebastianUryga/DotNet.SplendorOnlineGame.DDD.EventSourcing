@@ -41,6 +41,7 @@ public class GameProjection : SingleStreamProjection<GameView>
              view.Deck1Count = e.Deck1.Count;
              view.Deck2Count = e.Deck2.Count;
              view.Deck3Count = e.Deck3.Count;
+             view.Nobles = e.Nobles.ToList();
              if (view.Players.Any()) view.CurrentPlayerId = view.Players.First().Id;
         });
 
@@ -119,6 +120,26 @@ public class GameProjection : SingleStreamProjection<GameView>
             {
                 GetMarketForLevel(view, card.Level).Remove(e.CardId);
             }
+        });
+
+        ProjectEvent<NobleAcquired>((view, e) => {
+            view.Version++;
+            var player = view.Players.FirstOrDefault(x => x.Id == e.PlayerId);
+            if (player != null)
+            {
+                player.OwnedNobleIds.Add(e.NobleId);
+                player.PrestigePoints += Splendor.Domain.NobleDefinitions.GetById(e.NobleId)?.PrestigePoints ?? 0;
+            }
+
+            view.Nobles.Remove(e.NobleId);
+            view.PlayerIdAwaitingNobleSelection = null;
+            view.EligibleNobleIds.Clear();
+        });
+
+        ProjectEvent<NobleSelectionRequired>((view, e) => {
+            view.Version++;
+            view.PlayerIdAwaitingNobleSelection = e.PlayerId;
+            view.EligibleNobleIds = e.EligibleNobleIds.ToList();
         });
 
         ProjectEvent<GameFinished>((view, e) => {

@@ -1,4 +1,5 @@
 import { GemCollection } from './gem-collection.model';
+import { NobleView } from './noble.model';
 
 export interface PlayerView {
     id: string;
@@ -7,6 +8,7 @@ export interface PlayerView {
     gems: GemCollection;
     ownedCardIds: string[];
     reservedCardIds?: string[];
+    ownedNobleIds?: string[];
 }
 
 export interface GameView {
@@ -23,6 +25,9 @@ export interface GameView {
     deck1Count: number;
     deck2Count: number;
     deck3Count: number;
+    nobles?: string[];
+    playerIdAwaitingNobleSelection?: string;
+    eligibleNobleIds?: string[];
 }
 
 export interface GameSummary {

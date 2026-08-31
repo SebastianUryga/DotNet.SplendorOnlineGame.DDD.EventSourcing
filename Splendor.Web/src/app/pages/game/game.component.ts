@@ -3,10 +3,12 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { GameService } from '../../core/services/game.service';
 import { GameView, PlayerView } from '../../models/game-view.model';
+import { NobleView } from '../../models/noble.model';
 import { GemCollection, EMPTY_GEMS } from '../../models/gem-collection.model';
 import { Card } from '../../models/card.model';
 import { interval, Subscription, startWith, switchMap, filter, firstValueFrom } from 'rxjs';
 import { SignalRService } from '../../core/services/signalr.service';
+import { ChooseNobleRequest } from '../../models/requests.model';
 
 
 
@@ -49,8 +51,9 @@ export class GameComponent implements OnInit, OnDestroy {
 
     // Initial load
     this.refresh();
-    // Preload card definitions for UI (costs, bonuses)
+    // Preload card definitions and noble definitions for UI
     this.gameService.getCards().subscribe();
+    this.gameService.getNobles().subscribe();
   }
 
   viewCard(cardId: string): void {
@@ -166,6 +169,26 @@ export class GameComponent implements OnInit, OnDestroy {
     return 0;
   }
 
+  // Nobles helpers
+  getAvailableNobles(): NobleView[] {
+    const ids = this.game?.nobles || [];
+    const owned = new Set<string>((this.game?.players || []).flatMap(p => p.ownedNobleIds || []));
+    return ids
+      .map(id => this.gameService.getNoble(id))
+      .filter((n): n is NobleView => !!n && !owned.has(n.id));
+  }
+
+  getNoblesForPlayer(p: PlayerView): NobleView[] {
+    const ids = p.ownedNobleIds || [];
+    return ids.map(id => this.gameService.getNoble(id)).filter((n): n is NobleView => !!n);
+  }
+
+  getNobleRequirementValue(nobleId: string, gemType: string): number {
+    const noble = this.gameService.getNoble(nobleId);
+    if (!noble || !noble.requirements) return 0;
+    return (noble.requirements as any)[gemType] || 0;
+  }
+
   getCardPoints(id: string): number {
     const card = this.gameService.getCard(id);
     return (card as any)?.prestigePoints ?? (card as any)?.points ?? 0;
@@ -217,8 +240,18 @@ export class GameComponent implements OnInit, OnDestroy {
     });
   }
 
+  chooseNoble(nobleId: string): void {
+    const req: ChooseNobleRequest = {
+      playerId: this.game?.currentPlayerId || '',
+      nobleId: nobleId
+    };
+    this.gameService.chooseNoble(this.gameId, req).subscribe(() => {
+      this.refresh();
+    });
+  }
+
   calculatePoints(p: PlayerView): number {
-    return p.ownedCardIds.reduce((sum, id) => sum + this.getCardPoints(id), 0);
+    return p.ownedCardIds.reduce((sum, id) => sum + this.getCardPoints(id), 0) + this.getNoblesForPlayer(p).reduce((sum, e) => sum + e.prestigePoints, 0);
   }
 
   // Count how many owned cards give a bonus of the specified gem type

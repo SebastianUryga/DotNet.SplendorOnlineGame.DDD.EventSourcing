@@ -39,4 +39,27 @@ public class GameBuyCardTests
         purchased.CardId.Should().Be(cardId);
         purchased.PaidGems.Should().Be(card.Cost);
     }
+
+    [Fact]
+    public void BuyCard_AcquiresNoble_WhenThePurchaseCompletesItsRequirements()
+    {
+        var (gameId, owner1, _, player1Id, _, history) = TestHelpers.CreateStartedGame();
+
+        TestHelpers.AddPurchasedCardsWithBonus(history, gameId, player1Id, GemType.Diamond, 3);
+        TestHelpers.AddPurchasedCardsWithBonus(history, gameId, player1Id, GemType.Sapphire, 3);
+        TestHelpers.AddPurchasedCardsWithBonus(history, gameId, player1Id, GemType.Emerald, 2);
+
+        var emeraldCard = CardDefinitions.GetLevel(1).Where(card => card.BonusType == GemType.Emerald).Skip(2).First();
+        history.Add(new GemsTaken(gameId, player1Id, emeraldCard.Cost, DateTimeOffset.UtcNow));
+        history.Add(new CardReserved(gameId, player1Id, emeraldCard.Id, DateTimeOffset.UtcNow));
+
+        var game = new Game();
+        TestHelpers.ApplyHistory(game, history);
+
+        var produced = game.BuyCard(owner1, player1Id, emeraldCard.Id).ToList();
+
+        produced.OfType<NobleAcquired>().Should().ContainSingle(e => e.NobleId == "N_01");
+        produced.FindIndex(e => e is NobleAcquired).Should().BeLessThan(produced.FindIndex(e => e is TurnEnded));
+    }
+
 }

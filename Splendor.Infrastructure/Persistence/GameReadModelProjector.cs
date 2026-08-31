@@ -61,6 +61,7 @@ public class GameReadModelProjector
                     gameStarted.Deck1Count = e.Deck1?.Count ?? 0;
                     gameStarted.Deck2Count = e.Deck2?.Count ?? 0;
                     gameStarted.Deck3Count = e.Deck3?.Count ?? 0;
+                    gameStarted.Nobles = e.Nobles?.ToList() ?? new();
                 }
                 break;
 
@@ -147,6 +148,37 @@ public class GameReadModelProjector
                     {
                         GetMarketForLevel(gameReserved, reservedCard.Level).Remove(e.CardId);
                     }
+                }
+                break;
+
+            case NobleAcquired e:
+                var noblePlayer = await _context.PlayerViews.FindAsync(new object[] { e.PlayerId }, ct);
+                if (noblePlayer != null)
+                {
+                    noblePlayer.OwnedNobleIds ??= new();
+                    noblePlayer.OwnedNobleIds.Add(e.NobleId);
+                    noblePlayer.PrestigePoints += Splendor.Domain.NobleDefinitions.GetById(e.NobleId)?.PrestigePoints ?? 0;
+                }
+
+                var nobleGame = await _context.GameViews.FindAsync(new object[] { e.GameId }, ct);
+                if (nobleGame != null)
+                {
+                    nobleGame.Version++;
+                    nobleGame.Nobles ??= new();
+                    nobleGame.Nobles.Remove(e.NobleId);
+                    nobleGame.PlayerIdAwaitingNobleSelection = null;
+                    nobleGame.EligibleNobleIds ??= new();
+                    nobleGame.EligibleNobleIds.Clear();
+                }
+                break;
+
+            case NobleSelectionRequired e:
+                var selectionGame = await _context.GameViews.FindAsync(new object[] { e.GameId }, ct);
+                if (selectionGame != null)
+                {
+                    selectionGame.Version++;
+                    selectionGame.PlayerIdAwaitingNobleSelection = e.PlayerId;
+                    selectionGame.EligibleNobleIds = e.EligibleNobleIds.ToList();
                 }
                 break;
 

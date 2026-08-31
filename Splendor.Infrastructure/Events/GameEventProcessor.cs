@@ -30,6 +30,8 @@ public class GameEventProcessor : SubscriptionBase
         IncludeType<GemLimitResolved>();
         IncludeType<GemsOverflowDetected>();
         IncludeType<CardReserved>();
+        IncludeType<NobleSelectionRequired>();
+        IncludeType<NobleAcquired>();
     }
 
     public override async Task<IChangeListener> ProcessEventsAsync(

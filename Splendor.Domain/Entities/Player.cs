@@ -10,6 +10,7 @@ public class Player
     public GemCollection Gems { get; set; } = GemCollection.Empty;
     public List<string> OwnedCardIds { get; set; } = new();
     public List<string> ReservedCardIds { get; set; } = new();
+    public List<string> OwnedNobleIds { get; set; } = new();
 
     public Player(string id, string ownerId, string name)
     {

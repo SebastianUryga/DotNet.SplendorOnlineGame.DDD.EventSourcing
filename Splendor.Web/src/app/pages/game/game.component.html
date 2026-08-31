@@ -8,26 +8,43 @@
         <span class="score">{{ calculatePoints(p) }} pts</span>
       </div>
 
-    <!-- Card preview modal -->
-    <div *ngIf="selectedCard" class="card-preview-overlay" (click)="selectedCard = undefined; selectedCardId = null">
-      <div class="card-preview" (click)="$event.stopPropagation()">
-        <div class="card-top">
-          <div>
-            <div class="bonus-icon" [class]="selectedCard?.bonusType"></div>
-            <h3>{{ selectedCard?.prestigePoints }} pts</h3>
-          </div>
-          <button class="btn-small" (click)="selectedCard = undefined; selectedCardId = null">Close</button>
-        </div>
-        <div class="card-cost">
-          <ng-container *ngFor="let c of gemTypesExcludeGold">
-            <div *ngIf="getCardCostValue(selectedCardId || '', c) > 0" class="cost-token">
-              <span class="dot" [class]="c"></span>
-              {{ getCardCostValue(selectedCardId || '', c) }}
+      <!-- Card preview modal -->
+      <div *ngIf="selectedCard" class="card-preview-overlay" (click)="selectedCard = undefined; selectedCardId = null">
+        <div class="card-preview" (click)="$event.stopPropagation()">
+          <div class="card-top">
+            <div>
+              <div class="bonus-icon" [class]="selectedCard.bonusType"></div>
+              <h3>{{ selectedCard.prestigePoints }} pts</h3>
             </div>
-          </ng-container>
+            <button class="btn-small" (click)="selectedCard = undefined; selectedCardId = null">Close</button>
+          </div>
+          <div class="card-cost">
+            <ng-container *ngFor="let c of gemTypesExcludeGold">
+              <div *ngIf="getCardCostValue(selectedCardId || '', c) > 0" class="cost-token">
+                <span class="dot" [class]="c"></span>
+                {{ getCardCostValue(selectedCardId || '', c) }}
+              </div>
+            </ng-container>
+          </div>
         </div>
       </div>
-    </div>
+      <!-- Player-owned nobles -->
+      <div class="player-nobles" *ngIf="getNoblesForPlayer(p)?.length">
+        <h5 class="subheading">Nobles</h5>
+        <div class="nobles-row-small">
+          <div *ngFor="let n of getNoblesForPlayer(p)" class="noble-mini">
+            <div class="noble-top">
+              <span class="points">{{ n.prestigePoints }}</span>
+            </div>
+            <div class="noble-reqs">
+              <ng-container *ngFor="let g of gemTypesExcludeGold">
+                <span *ngIf="getNobleRequirementValue(n.id, g) > 0" class="req-dot" [class]="g">{{ getNobleRequirementValue(n.id, g) }}</span>
+              </ng-container>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="mini-gems">
         <div *ngFor="let g of gemTypes" class="mini-gem" [class]="g">
           {{ getPlayerGemCount(p, g) }}
@@ -65,7 +82,7 @@
             </div>
             <div style="display:flex;gap:6px;">
               <button class="btn-small" (click)="viewCard(cardId)">View</button>
-              <button *ngIf="p.id === game.currentPlayerId" class="btn-small" (click)="buyCard(cardId)" [disabled]="!canBuyCard(cardId) || game?.isGemReturnPending">Buy</button>
+              <button *ngIf="p.id === game.currentPlayerId" class="btn-small" (click)="buyCard(cardId)" [disabled]="!canBuyCard(cardId) || game.isGemReturnPending">Buy</button>
             </div>
           </div>
         </div>
@@ -83,7 +100,28 @@
         <span class="version-badge">Version {{ game.version }}</span>
       </div>
     </div>
-
+    <!-- Nobles (available) -->
+    <div *ngIf="getAvailableNobles()?.length" class="nobles-bar">
+      <h3>Nobles</h3>
+      <div class="nobles-row">
+        <div *ngFor="let n of getAvailableNobles()" class="noble-card">
+          <div class="noble-top">
+            <h4>{{ 'Noble ' }}</h4>
+            <span class="points">{{ n.prestigePoints }} pts</span>
+          </div>
+          <div class="noble-reqs">
+            <div *ngFor="let g of gemTypesExcludeGold">
+              <div *ngIf="getNobleRequirementValue(n.id, g) > 0" class="req-token" [ngClass]="g">
+                {{ getNobleRequirementValue(n.id, g) }}
+              </div>
+            </div>
+          </div>
+          <div *ngIf="game.playerIdAwaitingNobleSelection && game.eligibleNobleIds?.includes(n.id)">
+            <button (click)="chooseNoble(n.id)" class="btn-select-noble">Select</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <div *ngIf="game.isGemReturnPending" class="gem-return-banner">
       <strong>Gem return required.</strong>
       <span *ngIf="getOverlimitPlayer() as overPlayer">
@@ -140,7 +178,7 @@
               </div>
             </div>
             <div class="card-actions">
-              <button (click)="buyCard(cardId)" class="btn-buy" [disabled]="!canBuyCard(cardId) || game?.isGemReturnPending" data-testid="buy-card-btn">Purchase</button>
+              <button (click)="buyCard(cardId)" class="btn-buy" [disabled]="!canBuyCard(cardId) || game.isGemReturnPending" data-testid="buy-card-btn">Purchase</button>
               <button (click)="reserveCard(cardId)" class="btn-reserve" data-testid="reserve-card-btn">Reserve</button>
             </div>
           </div>

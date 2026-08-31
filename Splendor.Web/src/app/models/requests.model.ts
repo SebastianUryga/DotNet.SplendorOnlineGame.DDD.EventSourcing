@@ -33,3 +33,8 @@ export interface ResolveGemLimitRequest {
     onyx: number;
     gold: number;
 }
+
+export interface ChooseNobleRequest {
+    playerId: string;
+    nobleId: string;
+}

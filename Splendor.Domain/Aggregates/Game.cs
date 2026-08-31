@@ -27,6 +27,10 @@ public class Game
     public List<string> Market2 { get; set; } = new();
     public List<string> Market3 { get; set; } = new();
 
+    // Nobles selected for this game (ids)
+    public List<string> Nobles { get; set; } = new();
+    public string? PlayerIdAwaitingNobleSelection { get; set; }
+
     public Game() { }
 
     private void EnsureStarted()
@@ -63,6 +67,7 @@ public class Game
         Market1 = @event.Market1.ToList();
         Market2 = @event.Market2.ToList();
         Market3 = @event.Market3.ToList();
+        Nobles = @event.Nobles?.ToList() ?? new();
 
         if (Players.Any())
         {
@@ -171,6 +176,23 @@ public class Game
         GetDeckForLevel(@event.Level).Remove(@event.CardId);
     }
 
+    public void Apply(NobleSelectionRequired @event)
+    {
+        PlayerIdAwaitingNobleSelection = @event.PlayerId;
+    }
+
+    public void Apply(NobleAcquired @event)
+    {
+        var player = Players.FirstOrDefault(p => p.Id == @event.PlayerId);
+        if (player != null)
+        {
+            player.OwnedNobleIds.Add(@event.NobleId);
+        }
+
+        Nobles.Remove(@event.NobleId);
+        PlayerIdAwaitingNobleSelection = null;
+    }
+
     // -- Command Methods (Behavior) --
 
     public IEnumerable<IDomainEvent> DeleteGame()
@@ -218,7 +240,14 @@ public class Game
         var market3 = deck3.Take(4).ToList();
         deck3 = deck3.Skip(4).ToList();
 
-        yield return new GameStarted(Id, deck1, deck2, deck3, market1, market2, market3, DateTimeOffset.UtcNow);
+        // Pick 3 random nobles for this game
+        var nobleIds = new List<string>();
+        var allNobles = NobleDefinitions.AllNobles.Select(n => n.Id).ToList();
+        // shuffle nobles
+        allNobles = allNobles.OrderBy(_ => random.Next()).ToList();
+        nobleIds = allNobles.Take(Math.Min(3, allNobles.Count)).ToList();
+
+        yield return new GameStarted(Id, deck1, deck2, deck3, market1, market2, market3, nobleIds, DateTimeOffset.UtcNow);
         yield return new TurnStarted(Id, Players.First().Id, DateTimeOffset.UtcNow);
     }
 
@@ -239,6 +268,9 @@ public class Game
 
         if (!string.IsNullOrEmpty(PlayerIdAwaitingGemReturn))
             throw new InvalidOperationException("A gem overflow resolution is pending. No other actions are allowed until the gem limit is resolved.");
+
+        if (!string.IsNullOrEmpty(PlayerIdAwaitingNobleSelection))
+            throw new InvalidOperationException("A noble selection is pending. No other actions are allowed until the noble is selected.");
 
         var colorCounts = new[] { gems.Diamond, gems.Sapphire, gems.Emerald, gems.Ruby, gems.Onyx };
         var nonZeroColors = colorCounts.Where(c => c > 0).ToList();
@@ -280,11 +312,10 @@ public class Game
             yield break;
         }
 
-        // Normal flow: end turn and start next
-        yield return new TurnEnded(Id, player.Id, DateTimeOffset.UtcNow);
-
-        var nextPlayer = GetNextPlayer(player.Id);
-        yield return new TurnStarted(Id, nextPlayer, DateTimeOffset.UtcNow);
+        foreach (var @event in CompleteTurn(player))
+        {
+            yield return @event;
+        }
     }
 
     private string GetNextPlayer(string current)
@@ -320,10 +351,10 @@ public class Game
 
         yield return new GemLimitResolved(Id, player.Id, returnedGems, DateTimeOffset.UtcNow);
 
-        // After resolving, end turn and start next player
-        yield return new TurnEnded(Id, player.Id, DateTimeOffset.UtcNow);
-        var next = GetNextPlayer(player.Id);
-        yield return new TurnStarted(Id, next, DateTimeOffset.UtcNow);
+        foreach (var @event in CompleteTurn(player))
+        {
+            yield return @event;
+        }
     }
 
     public IEnumerable<IDomainEvent> BuyCard(string initiatorOwnerId, string playerId, string cardId)
@@ -345,6 +376,9 @@ public class Game
 
         if (!string.IsNullOrEmpty(PlayerIdAwaitingGemReturn))
             throw new InvalidOperationException("A gem overflow resolution is pending. No other actions are allowed until the gem limit is resolved.");
+
+        if (!string.IsNullOrEmpty(PlayerIdAwaitingNobleSelection))
+            throw new InvalidOperationException("A noble selection is pending. No other actions are allowed until the noble is selected.");
 
         // Calculate effective cost (subtract bonuses from owned cards)
         var bonuses = GetPlayerBonuses(player);
@@ -370,16 +404,10 @@ public class Game
             }
         }
 
-        int totalPoints = player.OwnedCardIds.Sum(id => CardDefinitions.GetById(id)?.PrestigePoints ?? 0) + card.PrestigePoints;
-
-        if (totalPoints >= 15)
+        player.OwnedCardIds.Add(cardId);
+        foreach (var @event in CompleteTurn(player))
         {
-            yield return new GameFinished(Id, player.Id, player.Name, totalPoints, DateTimeOffset.UtcNow);
-        }
-        else
-        {
-            yield return new TurnEnded(Id, player.Id, DateTimeOffset.UtcNow);
-            yield return new TurnStarted(Id, GetNextPlayer(player.Id), DateTimeOffset.UtcNow);
+            yield return @event;
         }
     }
 
@@ -395,6 +423,9 @@ public class Game
 
         if (!string.IsNullOrEmpty(PlayerIdAwaitingGemReturn))
             throw new InvalidOperationException("A gem overflow resolution is pending. No other actions are allowed until the gem limit is resolved.");
+
+        if (!string.IsNullOrEmpty(PlayerIdAwaitingNobleSelection))
+            throw new InvalidOperationException("A noble selection is pending. No other actions are allowed until the noble is selected.");
 
         // Ensure player does not have more than 3 reserved cards
         player.ReservedCardIds ??= new();
@@ -437,9 +468,60 @@ public class Game
             }
         }
 
-        // Normal flow: end turn and start next
+        foreach (var @event in CompleteTurn(player))
+        {
+            yield return @event;
+        }
+    }
+
+    private IEnumerable<IDomainEvent> CompleteTurn(Player player)
+    {
+        var eligibleNobles = GetEligibleNobles(player);
+        var acquiredNoble = eligibleNobles.Count == 1 ? eligibleNobles.Single() : null;
+
+        if (eligibleNobles.Count > 1)
+        {
+            yield return new NobleSelectionRequired(Id, player.Id, eligibleNobles.Select(n => n.Id).ToList(), DateTimeOffset.UtcNow);
+            yield break;
+        }
+
+        if (acquiredNoble != null)
+        {
+            yield return new NobleAcquired(Id, player.Id, acquiredNoble.Id, DateTimeOffset.UtcNow);
+        }
+
+        var totalPoints = GetPlayerPrestigePoints(player) + (acquiredNoble?.PrestigePoints ?? 0);
+        if (totalPoints >= 15)
+        {
+            yield return new GameFinished(Id, player.Id, player.Name, totalPoints, DateTimeOffset.UtcNow);
+            yield break;
+        }
+
         yield return new TurnEnded(Id, player.Id, DateTimeOffset.UtcNow);
         yield return new TurnStarted(Id, GetNextPlayer(player.Id), DateTimeOffset.UtcNow);
+    }
+
+    private List<Noble> GetEligibleNobles(Player player)
+    {
+        var bonuses = GetPlayerBonuses(player);
+        return Nobles
+            .Select(NobleDefinitions.GetById)
+            .Where(noble => noble != null && MeetsNobleRequirements(bonuses, noble.Requirements))
+            .Cast<Noble>()
+            .ToList();
+    }
+
+    private static bool MeetsNobleRequirements(GemCollection bonuses, GemCollection requirements) =>
+        bonuses.Diamond >= requirements.Diamond &&
+        bonuses.Sapphire >= requirements.Sapphire &&
+        bonuses.Emerald >= requirements.Emerald &&
+        bonuses.Ruby >= requirements.Ruby &&
+        bonuses.Onyx >= requirements.Onyx;
+
+    private int GetPlayerPrestigePoints(Player player)
+    {
+        return player.OwnedCardIds.Sum(id => CardDefinitions.GetById(id)?.PrestigePoints ?? 0) +
+            player.OwnedNobleIds.Sum(id => NobleDefinitions.GetById(id)?.PrestigePoints ?? 0);
     }
 
     private GemCollection GetPlayerBonuses(Player player)

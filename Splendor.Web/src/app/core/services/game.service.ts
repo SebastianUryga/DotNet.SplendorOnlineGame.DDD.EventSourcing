@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map, tap, of } from 'rxjs';
 import { GameSummary, GameView } from '../../models/game-view.model';
+import { NobleView } from '../../models/noble.model';
 import { BuyCardRequest, JoinGameRequest, TakeGemsRequest, ResolveGemLimitRequest, ReserveCardRequest } from '../../models/requests.model';
 import { environment } from '../../../environments/environment';
 import { Card } from '../../models/card.model';
@@ -13,9 +14,12 @@ import { Card } from '../../models/card.model';
 export class GameService {
     private gamesUrl = `${environment.apiUrl}/games`;
     private cardsUrl = `${environment.apiUrl}/cards`;
+    private noblesUrl = `${environment.apiUrl}/nobles`;
 
     // Cache for card definitions
     private cardsMap: Record<string, Card> = {};
+    // cache for noble definitions
+    private noblesMap: Record<string, NobleView> = {};
     // Cache for game views to support ETag/304
     private gameCache: Record<string, GameView> = {};
 
@@ -33,6 +37,18 @@ export class GameService {
                 cards.forEach(c => this.cardsMap[c.id] = c);
             })
         );
+    }
+
+    getNobles(): Observable<NobleView[]> {
+        return this.http.get<NobleView[]>(this.noblesUrl).pipe(
+            tap(n => {
+                n.forEach(x => this.noblesMap[x.id] = x);
+            })
+        );
+    }
+
+    getNoble(id: string): NobleView | undefined {
+        return this.noblesMap[id];
     }
 
     getCard(id: string): Card | undefined {
@@ -99,6 +115,10 @@ export class GameService {
     resolveGemLimit(id: string, request: ResolveGemLimitRequest): Observable<void> {
         return this.http.post<void>(`${this.gamesUrl}/${id}/actions/resolve-gem-limit`, request);
     }
+
+  chooseNoble(id: string, request: ChooseNobleRequest): Observable<void> {
+    return this.http.post<void>(`${this.gamesUrl}/${id}/actions/choose-noble`, request);
+  }
 
     getVersion(id: string): Observable<number> {
         return this.http.get<any>(`${this.gamesUrl}/${id}/version`).pipe(

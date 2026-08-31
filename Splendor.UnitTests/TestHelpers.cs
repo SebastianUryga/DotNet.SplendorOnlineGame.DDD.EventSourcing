@@ -42,10 +42,18 @@ public static class TestHelpers
             new GameCreated(gameId, owner1, DateTimeOffset.UtcNow),
             new PlayerJoined(gameId, player1Id, owner1, "Alice", DateTimeOffset.UtcNow),
             new PlayerJoined(gameId, player2Id, owner2, "Bob", DateTimeOffset.UtcNow),
-            new GameStarted(gameId, deck1, deck2, deck3, market1, market2, market3, DateTimeOffset.UtcNow),
+            new GameStarted(gameId, deck1, deck2, deck3, market1, market2, market3, NobleDefinitions.AllNobles.Select(n => n.Id).ToList(), DateTimeOffset.UtcNow),
             new TurnStarted(gameId, player1Id, DateTimeOffset.UtcNow)
         };
 
         return (gameId, owner1, owner2, player1Id, player2Id, history);
+    }
+
+    public static void AddPurchasedCardsWithBonus(List<object> history, Guid gameId, string playerId, GemType bonusType, int count)
+    {
+        foreach (var card in CardDefinitions.AllCards.Where(card => card.BonusType == bonusType).Take(count))
+        {
+            history.Add(new CardPurchased(gameId, playerId, card.Id, GemCollection.Empty, DateTimeOffset.UtcNow));
+        }
     }
 }

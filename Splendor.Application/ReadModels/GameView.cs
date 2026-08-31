@@ -21,6 +21,11 @@ public class GameView
     public List<string> Market2 { get; set; } = new();
     public List<string> Market3 { get; set; } = new();
 
+    // Nobles selected for this game (ids)
+    public List<string> Nobles { get; set; } = new();
+    public string? PlayerIdAwaitingNobleSelection { get; set; }
+    public List<string> EligibleNobleIds { get; set; } = new();
+
     // Remaining cards in decks (just count for display)
     public int Deck1Count { get; set; }
     public int Deck2Count { get; set; }
@@ -37,4 +42,5 @@ public class PlayerView
     public List<string> ReservedCardIds { get; set; } = new();
     public int PrestigePoints { get; set; }
     public Guid? GameViewId { get; set; }
+    public List<string> OwnedNobleIds { get; set; } = new();
 }

@@ -34,4 +34,25 @@ public class GameTakeGemsTests
         overflow.ExcessCount.Should().Be(1);
         overflow.PlayerId.Should().Be(player1Id);
     }
+
+    [Fact]
+    public void TakeGems_RequestsNobleChoice_WhenMoreThanOneNobleIsEligible()
+    {
+        var (gameId, owner1, _, player1Id, _, history) = TestHelpers.CreateStartedGame();
+
+        TestHelpers.AddPurchasedCardsWithBonus(history, gameId, player1Id, GemType.Diamond, 4);
+        TestHelpers.AddPurchasedCardsWithBonus(history, gameId, player1Id, GemType.Onyx, 4);
+        TestHelpers.AddPurchasedCardsWithBonus(history, gameId, player1Id, GemType.Sapphire, 4);
+
+        var game = new Game();
+        TestHelpers.ApplyHistory(game, history);
+
+        // no matter what action the player takes, they will now be eligible for two nobles (N_06 and N_07)
+        var produced = game.TakeGems(owner1, player1Id, new GemCollection(1, 1, 1, 0, 0, 0)).ToList();
+
+        var selection = produced.OfType<NobleSelectionRequired>().Single();
+        selection.EligibleNobleIds.Should().BeEquivalentTo("N_06", "N_07");
+        produced.OfType<TurnEnded>().Should().BeEmpty();
+        produced.OfType<NobleAcquired>().Should().BeEmpty();
+    }
 }

@@ -150,6 +150,19 @@ public class GamesController : ControllerBase
     }
 
     /// <summary>
+    /// Retrieves a list of all game nobles.
+    /// </summary>
+    /// <returns>A list of noble definitions.</returns>
+    [HttpGet("/nobles")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(IReadOnlyList<Splendor.Domain.ValueObjects.Noble>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetNobles()
+    {
+        var nobles = await _mediator.Send(new GetNoblesQuery());
+        return Ok(nobles);
+    }
+
+    /// <summary>
     /// Retrieves a list of all games.
     /// </summary>
     /// <param name="includeDeleted">Whether to include deleted games in the result.</param>
@@ -298,6 +311,25 @@ public class GamesController : ControllerBase
 
         return Ok();
     }
+
+    [HttpPost("{gameId}/actions/choose-noble")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ChooseNoble(Guid gameId, [FromBody] ChooseNobleRequest request)
+    {
+        var userId = _currentUserService.UserId;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        await _mediator.Send(new ChooseNobleCommand
+        {
+            GameId = gameId,
+            OwnerId = userId,
+            PlayerId = request.PlayerId,
+            NobleId = request.NobleId
+        });
+
+        return Ok();
+    }
 }
 public record ResolveGemLimitRequest(string PlayerId, int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx, int Gold);
 public record ReserveCardRequest(string PlayerId, string CardId);
@@ -314,3 +346,4 @@ public record TakeGemsRequest(
     int Gold);
 
 public record BuyCardRequest(string PlayerId, string CardId);
+public record ChooseNobleRequest(string PlayerId, string NobleId);
