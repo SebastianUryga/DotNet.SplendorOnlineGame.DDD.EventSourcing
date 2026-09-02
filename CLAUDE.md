@@ -41,13 +41,15 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 ### Domain Layer
 | Plik | Opis |
 |------|------|
-| `Domain/Aggregates/Game.cs` | Główny agregat gry - Apply() dla eventów, metody komend (JoinGame, StartGame, TakeGems, BuyCard) |
-| `Domain/Events/GameEvents.cs` | Wszystkie eventy: GameCreated, PlayerJoined, GameStarted, TurnStarted, GemsTaken, TurnEnded, CardPurchased, CardRevealed, GameFinished, GameDeleted |
-| `Domain/Entities/Player.cs` | Encja gracza (Id, OwnerId, Name, Gems, OwnedCardIds) |
-| `Domain/ValueObjects/GemCollection.cs` | Value Object dla kolekcji gemów (Diamond, Sapphire, Emerald, Ruby, Onyx, Gold) |
-| `Domain/ValueObjects/Card.cs` | Value Object karty (Id, Level, BonusType, PrestigePoints, Cost) |
-| `Domain/ValueObjects/GemType.cs` | Enum typów gemów |
-| `Domain/CardDefinitions.cs` | Statyczna definicja kart (90 kart: 40x L1, 30x L2, 20x L3) |
+| `Domain/Aggregates/Game.cs` | Główny agregat gry: odtwarza stan przez `Apply()`, obsługuje tworzenie i rozpoczęcie gry, tury, pobieranie i zwrot żetonów, zakup oraz rezerwację kart, wybór arystokraty i zakończenie gry. |
+| `Domain/Events/GameEvents.cs` | Zdarzenia domenowe: utworzenie i rozpoczęcie gry, tury, żetony, przekroczenie i rozwiązanie limitu żetonów, zakup/rezerwacja/odsłonięcie kart, arystokraci, zakończenie i usunięcie gry. |
+| `Domain/Entities/Player.cs` | Gracz: identyfikatory, nazwa, żetony, kupione i zarezerwowane karty oraz zdobyci arystokraci. |
+| `Domain/ValueObjects/GemCollection.cs` | Kolekcja żetonów: Diamond, Sapphire, Emerald, Ruby, Onyx i Gold. |
+| `Domain/ValueObjects/Card.cs` | Karta rozwoju: identyfikator, poziom, bonus, punkty prestiżu i koszt. |
+| `Domain/ValueObjects/Noble.cs` | Arystokrata: identyfikator, punkty prestiżu i wymagane bonusy kart. |
+| `Domain/ValueObjects/GemType.cs` | Enum kolorów żetonów i bonusów kart. |
+| `Domain/CardDefinitions.cs` | Statyczne definicje 90 kart: 40 poziomu 1, 30 poziomu 2 i 20 poziomu 3. |
+| `Domain/NobleDefinitions.cs` | Statyczne definicje arystokratów dostępnych w grze. |	
 
 ### Application Layer
 | Plik | Opis |
@@ -58,6 +60,9 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 | `Application/Commands/TakeGemsCommand.cs` | Pobieranie gemów z rynku |
 | `Application/Commands/BuyCardCommand.cs` | Kupowanie karty |
 | `Application/Commands/DeleteGameCommand.cs` | Usuwanie gry |
+| `Application/Commands/ResolveGemLimitCommand.cs` | Rozwiązywanie limitu gemów |
+| `Application/Commands/ReserveCardCommand.cs` | Rezerwacja karty |
+| `Application/Commands/ChooseNobleCommand.cs` | Wybór arystokraty |
 | `Application/ReadModels/GameView.cs` | Read model gry (GameView, PlayerView) |
 
 ### Infrastructure Layer
@@ -107,28 +112,6 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 - `WebDriverManager` auto-pobiera ChromeDriver pasujący do zainstalowanego Chrome
 - Token ustawiany przez istniejący input w nagłówku aplikacji (`app.component.ts`)
 
-do poprawienia: przez jakis madrzejszy LNM.:
-----
-### Testy jednostkowe i nowe zdarzenia zwrotu gemów (WIP)
-
-- Nowy projekt: `Splendor.UnitTests`
-  - Cel: szybkie testy jednostkowe, które rekonstruują agregat z listy eventów, wywołują metody-komend agregatu i asercują zwrócone eventy.
-  - Dostępne helpery: `TestHelpers.CreateStartedGame()`, `TestHelpers.ApplyHistory()` (używane do przygotowania stanu gry). Uruchamianie: `dotnet test ./Splendor.UnitTests`
-
-- Nowe zdarzenia domenowe (wprowadzono, wiring w toku):
-  - `GemsOverflowDetected` (GameId, PlayerId, CurrentGems, ExcessCount, Timestamp) — emisja gdy `TakeGems` spowoduje, że suma gemów gracza przekroczy limit (10). Agregat przechodzi w stan oczekiwania na zwrot.
-  - `GemLimitResolved` (GameId, PlayerId, ReturnedGems, Timestamp) — emisja gdy gracz zwróci gemy i limit zostanie spełniony. Po tym emitowane jest zakończenie tury / rozpoczęcie następnej.
-
-- Zadania integracyjne / TODO (wymagają ręcznego dokończenia):
-  - Application: zaktualizować `ResolveGemLimitCommand` aby wywoływał `Game.ResolveGemLimit(...)` i zapisywał wszystkie eventy zwrócone przez agregat (w tym TurnEnded/TurnStarted).
-  - DI: zarejestrować nowy handler i pipeline MediatR w `DependencyInjection.cs`.
-  - Projekcje / DB: zaktualizować projekcje Marten i projektory read-modeli, aby obsługiwały `GemsOverflowDetected` i `GemLimitResolved` (oznaczać read-model jako oczekujący zwrot, stosownie aktualizować MarketGems i usuwać flagę oczekiwania).
-  - API / Controller: dodać obsługę endpointu akceptującego Resolve/Return (lub rozszerzyć istniejący przepływ TakeGems), zwracać walidacje/pending state do klienta.
-  - UI: wyświetlić modal po wykryciu overflow, pozwolić użytkownikowi wybrać gemy do zwrotu i wywołać ResolveGemLimit (lub skonsolidowany endpoint), obsłużyć kontynuację tury.
-  - Tests: dodać testy jednostkowe i integracyjne dla ResolveGemLimit oraz przypadków brzegowych (niepoprawny zwrot, konkurencja wersji itp.).
-
-> Uwaga: zmiany są w trakcie pracy — eventy i testy jednostkowe zostały dodane, ale pełne powiązanie z warstwą aplikacji, projekcjami i UI nie jest jeszcze ukończone.
-----
 ### Frontend (Splendor.Web)
 | Plik | Opis |
 |------|------|
@@ -176,20 +159,36 @@ record GemCollection(int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx,
 6. Gdy gracz osiągnie ≥ 15 punktów prestiżu → `GameFinished` (koniec gry, status `Finished`)
 7. W przeciwnym wypadku `TurnEnded` - koniec tury i powrót do punktu 4 (następny gracz)
 
+
+
+
 ## API Endpoints
 
 | Metoda | Endpoint | Opis |
-|--------|----------|------|
-| GET | `/games?includeDeleted=false` | Lista gier (z opcjonalnym filtrem `includeDeleted`) |
-| POST | `/games` | Tworzenie nowej gry |
-| GET | `/games/{id}` | Stan gry (GameView) |
-| DELETE | `/games/{id}` | Usuwanie gry (zmiana statusu na `Deleted`) |
+|---|---|---|
+| GET | `/games` | Lista gier |
+| POST | `/games` | Tworzenie gry |
+| GET | `/games/{id}` | Aktualny stan gry |
+| GET | `/games/{id}/history` | Historia zdarzeń gry |
+| DELETE | `/games/{id}` | Usuwanie gry |
 | POST | `/games/{id}/players` | Dołączanie gracza |
-| POST | `/games/{id}/start` | Start gry |
-| POST | `/games/{id}/actions/take-gems` | Pobieranie gemów |
+| POST | `/games/{id}/start` | Rozpoczęcie gry |
+| POST | `/games/{id}/actions/take-gems` | Pobieranie żetonów |
+| POST | `/games/{id}/actions/resolve-gem-limit` | Zwrot nadmiaru żetonów |
 | POST | `/games/{id}/actions/buy-card` | Kupowanie karty |
-| GET | `/games/{id}/version` | Wersja gry (do pollingu) |
-| GET | `/cards` | Definicje wszystkich kart |
+| POST | `/games/{id}/actions/reserve-card` | Rezerwacja karty |
+| POST | `/games/{id}/actions/choose-noble` | Wybór arystokraty |
+| GET | `/games/{id}/available-actions` | Akcje dostępne dla aktywnego gracza |
+| GET | `/games/{id}/version` | Wersja gry |
+| GET | `/cards` | Definicje kart |
+| GET | `/nobles` | Definicje arystokratów |
+
+### Testy
+
+```bash
+dotnet test Splendor.UnitTests
+dotnet test Splendor.IntegrationTests
+dotnet test Splendor.UITests
 
 ## Komendy
 
@@ -231,43 +230,35 @@ npm start
 # Aplikacja dostępna na http://localhost:4200
 ```
 
-## Aktualny stan (co jest zaimplementowane)
+## Aktualny stan
 
-### Zrobione
-- [x] Event Sourcing z Marten
-- [x] CQRS z MediatR
-- [x] Agregat Game z podstawowymi eventami
-- [x] Komendy: CreateGame, JoinGame, StartGame, TakeGems, BuyCard
-- [x] Read model GameView z projekcją
-- [x] REST API z Swagger + CORS
-- [x] Testy integracyjne z Testcontainers
-- [x] Rozdzielenie OwnerId (użytkownik) od PlayerId (gracz w grze)
-- [x] System kart (definicje, rynek, talie)
-- [x] Kupowanie kart z bonusami
-- [x] Rezerwacja kart (ReserveCard command, CardReserved event, API endpoint, read-model + EF mapping, frontend UI, unit test)
-- [x] Autentykacja JWT (Auth0) + ICurrentUserService
-- [x] Middleware obsługi wyjątków (ExceptionHandlingMiddleware)
-- [x] Endpoint GET /cards (definicje kart z backendu)
-- [x] Endpoint GET /games (lista gier)
-- [x] Frontend Angular (lista gier, lobby, widok rozgrywki)
-- [x] Polling wersji gry (auto-refresh)
-- [x] Walidacja reguł gemów w UI (3 różne lub 2 takie same przy >=4)
-- [x] ETag/304 dla GET /games/{id} (cache po stronie klienta)
-- [x] Testy UI Selenium z Page Object Model (Splendor.UITests)
+### Zaimplementowane
+
+- Event Sourcing z Marten oraz CQRS z MediatR.
+- Agregat `Game` z odtwarzaniem stanu przez `Apply(Event)`.
+- Pełna talia Splendor: 90 kart rozwoju na trzech poziomach.
+- Rozgrywka dla 2-4 graczy: tworzenie gry, lobby, dołączanie graczy i tury.
+- Pobieranie żetonów zgodnie z regułami gry:
+  - trzy różne kolory;
+  - dwa żetony tego samego koloru, gdy w rynku są co najmniej cztery;
+  - limit 10 żetonów z obowiązkowym zwrotem nadmiaru.
+- Kupowanie kart z uwzględnieniem stałych bonusów i złotych żetonów jako wildcardów.
+- Rezerwacja kart: maksymalnie trzy na gracza; rezerwacja przyznaje złoty żeton, jeśli jest dostępny.
+- Arystokraci: automatyczne przyznanie jednego dostępnego arystokraty albo wybór, gdy gracz kwalifikuje się do kilku.
+- Zakończenie gry po osiągnięciu co najmniej 15 punktów prestiżu.
+- Read model `GameView`, projekcje Marten i modele odczytu EF Core w SQL Server.
+- REST API, Swagger, JWT/Auth0, SignalR oraz MassTransit/RabbitMQ.
+- ETag/`304 Not Modified` dla `GET /games/{id}` i polling wersji gry.
+- Testy jednostkowe agregatu w `Splendor.UnitTests`.
+- Testy integracyjne z Testcontainers oraz testy UI Selenium z Page Object Model.
+
 
 ### Do zrobienia
-
-**Backend:**
-- [ ] Pełna walidacja reguł pobierania gemów
-- [ ] Noble tiles (arystokraci)
-- [ ] Warunek zakończenia gry (15 punktów)
-- [ ] Pełna lista kart (90 zamiast MVP subset)
 
 **Frontend:**
 - [ ] Nazywanie gry (przy tworzeniu)
 - [ ] Wyświetlanie nazw graczy w games-list
 - [ ] Total gems dla gracza w gameplay view
-- [ ] Wyświetlanie zakupionych kart wg koloru (analogicznie do żetonów, z nagłówkiem "Cards")
 
 ## Konwencje kodu
 
@@ -277,3 +268,4 @@ npm start
 - Komendy obsługiwane przez MediatR handlery
 - Projekcje Marten aktualizują EF read models
 - Elementy UI testowalne oznaczane atrybutem `data-testid` w szablonach Angular
+

@@ -3,7 +3,7 @@
 **SplendorOnlineGame** is a full-stack implementation of the popular board game Splendor, featuring a **.NET** backend and **Angular** frontend. Built as a practical showcase of **Domain-Driven Design (DDD)**, **Event Sourcing**, and **CQRS**.
 
 > [!NOTE]
-> **Status:** Work in progress – the project starts with a minimal, playable rule set and evolves incrementally.
+> **Status:** Playable Splendor implementation with a complete core ruleset. The wider game platform remains under active development.
 
 ## Demo
 
@@ -33,8 +33,8 @@ This project is designed to evolve into a full-scale board game arena:
 - **[ ] Multiple Game Support**: Leveraging the event-sourced core to add new games (e.g., Azul, 7 Wonders) alongside the initial Splendor implementation.
 - **[ ] Matchmaking**: Join queues and game lobbies.
 
-### AI-Powered Development
-This project was developed in a **Pair Programming** session with **AI Agents**. It serves as a showcase of how AI can assist in architectural design, debugging complex environments (Docker/Testcontainers), and implementing robust boilerplate following industry best practices.
+### AI-Assisted Development
+AI coding agents were used as development assistants throughout the project, particularly for exploring implementation approaches, debugging, test development and repetitive coding tasks. Architectural decisions, domain modeling and final implementation choices were reviewed and validated manually.
 
 ## Architecture & Methodologies
 
@@ -74,7 +74,7 @@ Reliability is ensured through integration tests that use real database instance
 ## Getting Started
 
 ### Prerequisites
-- .NET 6 SDK
+- .NET 10 SDK
 - Node.js 18+ and npm
 - Docker Desktop (for running the services and integration tests)
 
@@ -102,6 +102,11 @@ Reliability is ensured through integration tests that use real database instance
 
 ### Running Tests
 
+**Unit tests**:
+```bash
+dotnet test Splendor.UnitTests
+```
+
 **Integration tests** (requires Docker):
 ```bash
 dotnet test Splendor.IntegrationTests
@@ -121,10 +126,10 @@ dotnet test Splendor.UITests
 
 ## Tech Stack
 - **Frontend**: Angular 16 (standalone components)
-- **Backend**: ASP.NET Core 6, Swagger/OpenAPI
+- **Backend**: ASP.NET Core 10, Swagger/OpenAPI
 - **Authentication**: JWT (Auth0)
 - **CQRS**: MediatR
 - **Event Store**: Marten (PostgreSQL)
 - **Read Models**: EF Core (SQL Server)
 - **Real-time**: SignalR, MassTransit, RabbitMQ
-- **Testing**: xUnit, Testcontainers, FluentAssertions, Selenium (E2E)
+- **Testing**: xUnit unit tests, Testcontainers, FluentAssertions, Selenium (E2E)
