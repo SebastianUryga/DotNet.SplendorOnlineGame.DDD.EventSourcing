@@ -1,9 +1,9 @@
 using MassTransit;
 using Microsoft.AspNetCore.SignalR;
 using Splendor.Api.Hubs;
-using Splendor.Application.Messages;
 using Splendor.Application.Queries;
 using MediatR;
+using Splendor.Contracts.Messages;
 
 namespace Splendor.Api.Consumers;
 

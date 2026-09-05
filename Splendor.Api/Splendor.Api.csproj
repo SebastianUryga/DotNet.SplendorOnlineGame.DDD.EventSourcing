@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Splendor.Infrastructure\Splendor.Infrastructure.csproj" />
     <ProjectReference Include="..\Splendor.Application\Splendor.Application.csproj" />
+    <ProjectReference Include="..\Splendor.Contracts\Splendor.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

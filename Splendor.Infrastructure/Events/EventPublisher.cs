@@ -1,7 +1,6 @@
 using Marten.Events;
 using MassTransit;
-using Splendor.Application.Common.Interfaces;
-using Splendor.Application.Messages;
+using Splendor.Contracts.Messages;
 
 namespace Splendor.Infrastructure.Events;
 

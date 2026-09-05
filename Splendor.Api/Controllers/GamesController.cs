@@ -5,6 +5,7 @@ using Splendor.Application.Commands;
 using Splendor.Application.Queries;
 using Splendor.Application.Common.Interfaces;
 using Splendor.Application.ReadModels;
+using Splendor.Contracts.Games;
 
 
 namespace Splendor.Api.Controllers;
@@ -331,19 +332,6 @@ public class GamesController : ControllerBase
         return Ok();
     }
 }
-public record ResolveGemLimitRequest(string PlayerId, int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx, int Gold);
-public record ReserveCardRequest(string PlayerId, string CardId);
 public record CreateGameRequest();
 public record JoinGameRequest(string Name);
 public record StartGameRequest();
-public record TakeGemsRequest(
-    string PlayerId,
-    int Diamond,
-    int Sapphire,
-    int Emerald,
-    int Ruby,
-    int Onyx,
-    int Gold);
-
-public record BuyCardRequest(string PlayerId, string CardId);
-public record ChooseNobleRequest(string PlayerId, string NobleId);
