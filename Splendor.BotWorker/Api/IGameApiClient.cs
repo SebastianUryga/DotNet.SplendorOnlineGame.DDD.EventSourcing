@@ -18,4 +18,8 @@ public interface IGameApiClient
     Task ChooseNobleAsync(Guid gameId, ChooseNobleRequest request, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<Card>> GetCardsAsync(CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Noble>> GetNoblesAsync(CancellationToken cancellationToken);
+
+    Task JoinGameAsync(Guid gameId, JoinGameRequest request, CancellationToken cancellationToken);
 }

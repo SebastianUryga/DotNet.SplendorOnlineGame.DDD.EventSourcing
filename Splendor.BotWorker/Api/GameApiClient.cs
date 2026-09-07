@@ -59,11 +59,22 @@ public sealed class GameApiClient : IGameApiClient
         return PostAsync($"games/{gameId}/actions/choose-noble", request, cancellationToken);
     }
 
+    public Task JoinGameAsync(Guid gameId, JoinGameRequest request, CancellationToken cancellationToken)
+    {
+        return PostAsync($"games/{gameId}/players", request, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Card>> GetCardsAsync(CancellationToken cancellationToken)
     {
         var cards = await _httpClient.GetFromJsonAsync<IReadOnlyList<Card>>("/cards",cancellationToken: cancellationToken);
 
         return cards ?? throw new InvalidOperationException("API returned empty cards response.");
+    }
+
+    public async Task<IReadOnlyList<Noble>> GetNoblesAsync(CancellationToken cancellationToken)
+    {
+        var nobles = await _httpClient.GetFromJsonAsync<IReadOnlyList<Noble>>("/nobles", cancellationToken: cancellationToken);
+        return nobles ?? throw new InvalidOperationException("API returned empty nobles response.");
     }
 
     private async Task PostAsync<T>(string url, T body, CancellationToken cancellationToken)

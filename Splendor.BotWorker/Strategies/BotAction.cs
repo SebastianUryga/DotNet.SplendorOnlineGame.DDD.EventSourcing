@@ -1,4 +1,4 @@
-﻿namespace Splendor.BotWorker;
+﻿namespace Splendor.BotWorker.Strategies;
 
 public abstract record BotAction;
 

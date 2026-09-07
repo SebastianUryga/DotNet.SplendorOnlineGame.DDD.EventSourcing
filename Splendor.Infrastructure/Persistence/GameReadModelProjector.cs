@@ -48,6 +48,14 @@ public class GameReadModelProjector
                 });
                 break;
 
+            case PlayerInvited e:
+                var gameInvite = await _context.GameViews.Include(g => g.Players).FirstOrDefaultAsync(g => g.Id == e.GameId, ct);
+                if (gameInvite != null)
+                {
+                    gameInvite.Version++;
+                }
+                break;
+
             case GameStarted e:
                 var gameStarted = await _context.GameViews.FindAsync(new object[] { e.GameId }, ct);
                 if (gameStarted != null)

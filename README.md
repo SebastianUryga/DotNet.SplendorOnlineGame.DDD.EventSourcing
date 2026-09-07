@@ -29,6 +29,7 @@ This project was created for **educational purposes** to gain hands-on experienc
 This project is designed to evolve into a full-scale board game arena:
 - **[x] User Management**: JWT authentication via Auth0.
 - **[x] Web Frontend**: Angular SPA with game UI, lobby, and real-time updates (SignalR + RabbitMQ).
+- **[x] Bot Player Worker**: An autonomous, API-driven client that can join invited games and play turns through the same REST API as human players.
 - **[ ] Player Profiles**: Statistics, rankings, and game history across different titles.
 - **[ ] Multiple Game Support**: Leveraging the event-sourced core to add new games (e.g., Azul, 7 Wonders) alongside the initial Splendor implementation.
 - **[ ] Matchmaking**: Join queues and game lobbies.
@@ -62,8 +63,12 @@ The application uses an event-driven architecture for real-time game updates:
 - **SignalR** pushes game state updates to connected clients via WebSocket.
 - Players see opponent actions instantly without polling.
 
+The bot worker is an autonomous API client, not an in-process game engine. It authenticates as a regular user, consumes game-update messages, reads the current game view through the REST API, and submits the same legal actions available to human players.
+
 ```
-Domain Event → Marten Subscription → RabbitMQ → Consumer → SignalR Hub → WebSocket → Angular
+Domain Event → Marten Subscription → RabbitMQ
+                                       ├→ SignalR consumer → WebSocket → Angular
+                                       └→ Bot worker → REST API → Game command
 ```
 
 ### 5. Integration Testing with Testcontainers
@@ -92,7 +97,13 @@ Reliability is ensured through integration tests that use real database instance
    ```
    Access Swagger UI at `http://localhost:5081/swagger`.
 
-3. **Run the Frontend**:
+3. **Run the bot worker** (optional):
+   ```bash
+   dotnet run --project Splendor.BotWorker
+   ```
+   The worker requires API, RabbitMQ, and Auth0 configuration. It writes logs to the console and `Splendor.BotWorker/logs/`.
+
+4. **Run the Frontend**:
    ```bash
    cd Splendor.Web
    npm install

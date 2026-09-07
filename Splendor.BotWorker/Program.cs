@@ -1,4 +1,6 @@
 using MassTransit;
+using Serilog;
+using Splendor.BotWorker;
 using Splendor.BotWorker.Api;
 using Splendor.BotWorker.Authentication;
 using Splendor.BotWorker.Cards;
@@ -6,7 +8,14 @@ using Splendor.BotWorker.Messaging;
 using Splendor.BotWorker.Processing;
 using Splendor.BotWorker.Strategies;
 
+
 var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.AddSerilog((services, loggerConfiguration) => loggerConfiguration
+    .ReadFrom.Configuration(builder.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Application", "Splendor.BotWorker"));
 
 builder.Services.AddHttpClient<IGameApiClient, GameApiClient>(client =>
 {
@@ -14,8 +23,8 @@ builder.Services.AddHttpClient<IGameApiClient, GameApiClient>(client =>
 });
 
 builder.Services.AddSingleton<IAccessTokenProvider, Auth0AccessTokenProvider>();
-builder.Services.AddHttpClient<CardDefinitionsProvider>();
-builder.Services.AddSingleton<ICardDefinitionsProvider, CardDefinitionsProvider>();
+builder.Services.AddSingleton<IGameDefinitionsProvider, GameDefinitionsProvider>();
+builder.Services.AddScoped<IBotGameMembershipHandler, BotGameMembershipHandler>();
 builder.Services.AddScoped<IBotTurnProcessor, BotTurnProcessor>();
 builder.Services.AddScoped<IBotStrategy, GreedyBotStrategy>();
 

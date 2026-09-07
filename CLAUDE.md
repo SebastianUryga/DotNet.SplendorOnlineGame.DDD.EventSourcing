@@ -18,6 +18,9 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 │  Controllers, Middleware, Program.cs                        │
 │  Port: 5081, Swagger: /swagger                              │
 ├─────────────────────────────────────────────────────────────┤
+│                  Splendor.BotWorker                          │
+│  MassTransit consumer, API-driven bot client                 │
+├─────────────────────────────────────────────────────────────┤
 │                  Splendor.Application                       │
 │  Commands (MediatR), Queries, ReadModels                    │
 ├─────────────────────────────────────────────────────────────┤
@@ -34,7 +37,14 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 - **Event Store**: Marten (PostgreSQL) - zapis eventów
 - **Read Models**: EF Core (SQL Server) - projekcje do odczytu
 - **CQRS**: MediatR - obsługa komend i zapytań
+- **Bot worker**: MassTransit, strategie ruchów i Serilog (konsola + pliki)
 - **Testowanie**: xUnit, Testcontainers, FluentAssertions, Selenium WebDriver
+
+### Bot worker
+
+`Splendor.BotWorker` jest zewnętrznym, API-driven klientem gry. Uwierzytelnia się jako zwykły użytkownik i wykonuje wszystkie akcje przez REST API; nie odwołuje się bezpośrednio do bazy danych, event store ani warstwy aplikacyjnej.
+
+Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `IBotGameMembershipHandler` obsługuje zaproszenie i dołączenie bota, a `IBotStrategy` wybiera ruch dla aktualnego stanu gry. Logi Serilog trafiają na konsolę oraz do `Splendor.BotWorker/logs/bot-worker-*.log`.
 
 ## Kluczowe pliki
 
@@ -172,6 +182,7 @@ record GemCollection(int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx,
 | GET | `/games/{id}/history` | Historia zdarzeń gry |
 | DELETE | `/games/{id}` | Usuwanie gry |
 | POST | `/games/{id}/players` | Dołączanie gracza |
+| POST | `/games/{id}/invite` | Zapraszanie użytkownika do gry |
 | POST | `/games/{id}/start` | Rozpoczęcie gry |
 | POST | `/games/{id}/actions/take-gems` | Pobieranie żetonów |
 | POST | `/games/{id}/actions/resolve-gem-limit` | Zwrot nadmiaru żetonów |
@@ -260,6 +271,10 @@ npm start
 - [ ] Wyświetlanie nazw graczy w games-list
 - [ ] Total gems dla gracza w gameplay view
 
+**Bot worker:**
+- [ ] Zapewnić odczyt `GameView` co najmniej w wersji wskazanej przez `GameUpdatedMessage`; przy opóźnionej projekcji stosować ograniczone retry/redelivery zamiast wykonywać ruch na starym stanie.
+- [ ] Rozważyć `IBotGameRegistry` jako cache gier i playerów kontrolowanych przez bota; cache nie może być źródłem prawdy i musi umieć odbudować stan po restarcie workera.
+
 ## Konwencje kodu
 
 - Eventy jako `record` w `GameEvents.cs`
@@ -268,4 +283,3 @@ npm start
 - Komendy obsługiwane przez MediatR handlery
 - Projekcje Marten aktualizują EF read models
 - Elementy UI testowalne oznaczane atrybutem `data-testid` w szablonach Angular
-

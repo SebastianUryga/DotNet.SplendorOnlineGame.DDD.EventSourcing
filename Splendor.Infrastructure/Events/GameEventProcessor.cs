@@ -19,6 +19,7 @@ public class GameEventProcessor : SubscriptionBase
 
         IncludeType<GameCreated>();
         IncludeType<PlayerJoined>();
+        IncludeType<PlayerInvited>();
         IncludeType<GameStarted>();
         IncludeType<TurnStarted>();
         IncludeType<GemsTaken>();

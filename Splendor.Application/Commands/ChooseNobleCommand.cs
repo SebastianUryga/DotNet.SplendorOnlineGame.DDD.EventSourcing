@@ -38,9 +38,9 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
 
     private class NobleSelectionState
     {
-        private readonly List<PlayerState> _players = new();
+        private readonly List<PlayerState> _joinedPlayers = new();
         private readonly HashSet<string> _availableNobleIds = new();
-        private string _status = "Created";
+        private string _gameStatus = "Created";
         private string? _currentPlayerId;
         private PendingSelection? _pendingSelection;
 
@@ -57,10 +57,10 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
 
         public IEnumerable<IDomainEvent> ChooseNoble(string ownerId, string playerId, string nobleId)
         {
-            if (_status != "Started") throw new InvalidOperationException("Game is not active");
+            if (_gameStatus != "Started") throw new InvalidOperationException("Game is not active");
             if (_currentPlayerId != playerId) throw new InvalidOperationException("Not your turn");
 
-            var player = _players.SingleOrDefault(player => player.Id == playerId)
+            var player = _joinedPlayers.SingleOrDefault(player => player.Id == playerId)
                 ?? throw new InvalidOperationException("Player not found");
             if (player.OwnerId != ownerId) throw new InvalidOperationException("You do not control this player");
 
@@ -95,33 +95,33 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
             switch (@event)
             {
                 case GameStarted gameStarted:
-                    _status = "Started";
+                    _gameStatus = "Started";
                     _availableNobleIds.Clear();
                     foreach (var nobleId in gameStarted.Nobles) _availableNobleIds.Add(nobleId);
                     break;
                 case PlayerJoined playerJoined:
-                    _players.Add(new PlayerState(playerJoined.PlayerId, playerJoined.OwnerId, playerJoined.Name));
+                    _joinedPlayers.Add(new PlayerState(playerJoined.PlayerId, playerJoined.OwnerId, playerJoined.Name));
                     break;
                 case TurnStarted turnStarted:
                     _currentPlayerId = turnStarted.PlayerId;
                     break;
                 case CardPurchased cardPurchased:
-                    _players.SingleOrDefault(player => player.Id == cardPurchased.PlayerId)?.OwnedCardIds.Add(cardPurchased.CardId);
+                    _joinedPlayers.SingleOrDefault(player => player.Id == cardPurchased.PlayerId)?.OwnedCardIds.Add(cardPurchased.CardId);
                     break;
                 case NobleSelectionRequired selectionRequired:
                     _pendingSelection = new PendingSelection(selectionRequired.GameId, selectionRequired.PlayerId, selectionRequired.EligibleNobleIds);
                     break;
                 case NobleAcquired nobleAcquired:
-                    _players.SingleOrDefault(player => player.Id == nobleAcquired.PlayerId)?.OwnedNobleIds.Add(nobleAcquired.NobleId);
+                    _joinedPlayers.SingleOrDefault(player => player.Id == nobleAcquired.PlayerId)?.OwnedNobleIds.Add(nobleAcquired.NobleId);
                     _availableNobleIds.Remove(nobleAcquired.NobleId);
                     _pendingSelection = null;
                     break;
                 case GameFinished:
-                    _status = "Finished";
+                    _gameStatus = "Finished";
                     _currentPlayerId = null;
                     break;
                 case GameDeleted:
-                    _status = "Deleted";
+                    _gameStatus = "Deleted";
                     _currentPlayerId = null;
                     break;
             }
@@ -129,8 +129,8 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
 
         private string GetNextPlayer(string playerId)
         {
-            var playerIndex = _players.FindIndex(player => player.Id == playerId);
-            return _players[(playerIndex + 1) % _players.Count].Id;
+            var playerIndex = _joinedPlayers.FindIndex(player => player.Id == playerId);
+            return _joinedPlayers[(playerIndex + 1) % _joinedPlayers.Count].Id;
         }
 
         private static bool MeetsRequirements(PlayerState player, GemCollection requirements)

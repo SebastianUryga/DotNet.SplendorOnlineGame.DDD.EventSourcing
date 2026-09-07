@@ -7,10 +7,12 @@ namespace Splendor.BotWorker.Messaging;
 public class BotGameUpdatedConsumer : IConsumer<Batch<GameUpdatedMessage>>
 {
     private readonly IBotTurnProcessor _processor;
+    private readonly IBotGameMembershipHandler _botGameMembershipHandler;
 
-    public BotGameUpdatedConsumer(IBotTurnProcessor processor)
+    public BotGameUpdatedConsumer(IBotTurnProcessor processor, IBotGameMembershipHandler botGameMembershipHandler)
     {
         _processor = processor;
+        _botGameMembershipHandler = botGameMembershipHandler;
     }
 
     public async Task Consume(ConsumeContext<Batch<GameUpdatedMessage>> context)
@@ -22,10 +24,13 @@ public class BotGameUpdatedConsumer : IConsumer<Batch<GameUpdatedMessage>>
 
         foreach (var message in latestMessagesByGame)
         {
-            await _processor.ProcessAsync(
-                message.GameId,
-                message.Version,
-                context.CancellationToken);
+            if (message.EventType == GameEventTypes.PlayerInvited)
+            {
+                await _botGameMembershipHandler.HandleInvitationAsync(message.GameId, context.CancellationToken);
+                continue;
+            }
+
+            await _processor.ProcessAsync(message.GameId, message.Version, context.CancellationToken);
         }
     }
 }

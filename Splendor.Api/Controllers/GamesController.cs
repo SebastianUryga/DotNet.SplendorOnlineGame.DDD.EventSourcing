@@ -67,6 +67,30 @@ public class GamesController : ControllerBase
     }
 
     /// <summary>
+    /// Invites a player to join an existing game.
+    /// </summary>
+    /// <param name="gameId"></param>
+    /// <param name="request"></param>
+    /// <returns></returns>
+    [HttpPost("{gameId}/invite")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> InvitePlayer(Guid gameId, [FromBody] InvitePlayerRequest request)
+    {
+        var userId = _currentUserService.UserId;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        await _mediator.Send(new InvitePlayerCommand
+        {
+            GameId = gameId,
+            OwnerId = userId,
+            InviteeId = request.InviteeId
+        });
+
+        return Ok();
+    }
+
+    /// <summary>
     /// Starts the game after players have joined.
     /// </summary>
     /// <param name="gameId">The unique identifier of the game.</param>
@@ -332,6 +356,4 @@ public class GamesController : ControllerBase
         return Ok();
     }
 }
-public record CreateGameRequest();
-public record JoinGameRequest(string Name);
 public record StartGameRequest();

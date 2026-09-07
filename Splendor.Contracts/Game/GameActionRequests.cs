@@ -29,3 +29,8 @@ public record ResolveGemLimitRequest(
 public record ChooseNobleRequest(
     string PlayerId,
     string NobleId);
+
+public record CreateGameRequest();
+public record JoinGameRequest(string Name);
+public record InvitePlayerRequest(
+    string InviteeId);

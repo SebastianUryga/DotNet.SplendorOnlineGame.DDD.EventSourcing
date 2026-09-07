@@ -31,6 +31,10 @@ public class GameProjection : SingleStreamProjection<GameView>
             });
         });
 
+        ProjectEvent<PlayerInvited>((view, e) => {
+            view.Version++;
+        });
+
         ProjectEvent<GameStarted>((view, e) => {
              view.Version++;
              view.Status = "Started";
