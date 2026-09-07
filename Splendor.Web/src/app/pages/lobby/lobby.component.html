@@ -16,6 +16,14 @@
     </ul>
   </div>
 
+  <!-- Invite input (simple string for invitee id) -->
+  <div *ngIf="isJoined && game.status === 'Created'" class="invite-form">
+    <input [(ngModel)]="inviteeId" placeholder="Invitee user id" (keyup.enter)="invite()" data-testid="invitee-id-input" />
+    <button (click)="invite()" [disabled]="!inviteeId" class="btn-invite" data-testid="invite-btn">
+      Invite Player
+    </button>
+  </div>
+
   <div *ngIf="!isJoined && game.status === 'Created'" class="join-form">
     <input [(ngModel)]="playerName" placeholder="Enter your player name" (keyup.enter)="join()" data-testid="player-name-input" />
     <button (click)="join()" [disabled]="!playerName" class="btn-join" data-testid="join-btn">Join Game</button>

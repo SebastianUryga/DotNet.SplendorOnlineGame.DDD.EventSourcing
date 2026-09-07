@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map, tap, of } from 'rxjs';
 import { GameSummary, GameView } from '../../models/game-view.model';
 import { NobleView } from '../../models/noble.model';
-import { BuyCardRequest, JoinGameRequest, TakeGemsRequest, ResolveGemLimitRequest, ReserveCardRequest } from '../../models/requests.model';
+import { BuyCardRequest, JoinGameRequest, TakeGemsRequest, ResolveGemLimitRequest, ReserveCardRequest, ChooseNobleRequest, InvitePlayerRequest } from '../../models/requests.model';
 import { environment } from '../../../environments/environment';
 import { Card } from '../../models/card.model';
 
@@ -114,10 +114,14 @@ export class GameService {
 
     resolveGemLimit(id: string, request: ResolveGemLimitRequest): Observable<void> {
         return this.http.post<void>(`${this.gamesUrl}/${id}/actions/resolve-gem-limit`, request);
-    }
+  }
 
   chooseNoble(id: string, request: ChooseNobleRequest): Observable<void> {
     return this.http.post<void>(`${this.gamesUrl}/${id}/actions/choose-noble`, request);
+  }
+
+  invitePlayer(id: string, request: InvitePlayerRequest): Observable<void> {
+    return this.http.post<void>(`${this.gamesUrl}/${id}/invite`, request);
   }
 
     getVersion(id: string): Observable<number> {

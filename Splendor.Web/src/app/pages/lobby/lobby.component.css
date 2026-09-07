@@ -9,10 +9,14 @@ li:last-child { border-bottom: none; }
 .player-name { font-weight: bold; }
 .player-id { font-size: 0.8em; opacity: 0.5; font-family: monospace; }
 .join-form { margin: 30px 0; display: flex; gap: 10px; }
+.invite-form {  margin: 20px 0; display: flex; gap: 10px; align-items: center; }
 input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #444; background: #111; color: #fff; }
 button { padding: 12px 24px; border-radius: 8px; cursor: pointer; border: none; font-weight: bold; transition: all 0.2s; }
 .btn-join { background: #4a90e2; color: white; }
 .btn-join:hover:not(:disabled) { background: #357abd; }
+.btn-invite { background: #f39c12; color: white; }
+.btn-invite:hover:not(:disabled) { background: #d87e05; }
+.btn-invite:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-start { background: #27ae60; color: white; }
 .btn-start:hover:not(:disabled) { background: #219150; }
 .btn-start:disabled { opacity: 0.5; cursor: not-allowed; }

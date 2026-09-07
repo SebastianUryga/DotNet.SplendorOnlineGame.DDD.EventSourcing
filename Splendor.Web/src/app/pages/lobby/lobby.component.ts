@@ -15,10 +15,12 @@ import { GameView } from '../../models/game-view.model';
     styleUrls: ['./lobby.component.css']
 })
 export class LobbyComponent implements OnInit, OnDestroy {
-    gameId!: string;
+  gameId!: string;
     game: GameView | null = null;
     playerName: string = '';
     isJoined: boolean = false;
+    inviteeId: string = '';
+
     private signalrSubscription?: Subscription;
 
     constructor(
@@ -66,5 +68,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
     refresh(): void {
         this.gameService.getGame(this.gameId).subscribe(game => this.game = game);
-    }
+  }
+
+  invite(): void {
+    if (!this.inviteeId) return;
+    this.gameService.invitePlayer(this.gameId, { inviteeId: this.inviteeId }).subscribe(() => {
+      this.inviteeId = '';
+      this.refresh();
+    });
+  }
 }

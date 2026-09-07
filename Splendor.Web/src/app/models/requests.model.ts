@@ -4,6 +4,10 @@ export interface JoinGameRequest {
     name: string;
 }
 
+export interface InvitePlayerRequest {
+  inviteeId: string;
+}
+
 export interface TakeGemsRequest {
     playerId: string;
     diamond: number;
