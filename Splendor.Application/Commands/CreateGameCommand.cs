@@ -1,4 +1,5 @@
 using MediatR;
+using Marten;
 using Splendor.Application.Common.Interfaces;
 using Splendor.Domain.Events;
 
@@ -11,24 +12,20 @@ public record CreateGameCommand : IAuthoredCommand, IRequest<Guid>
 
 public class CreateGameCommandHandler : IRequestHandler<CreateGameCommand, Guid>
 {
-    private readonly IEventStore _eventStore;
+    private readonly IDocumentSession _session;
 
-    public CreateGameCommandHandler(IEventStore eventStore)
+    public CreateGameCommandHandler(IDocumentSession session)
     {
-        _eventStore = eventStore;
+        _session = session;
     }
 
-    public async Task<Guid> Handle(CreateGameCommand request, CancellationToken cancellationToken)
+    public async Task<Guid> Handle(CreateGameCommand command, CancellationToken cancellationToken)
     {
         var gameId = Guid.NewGuid();
-        var timestamp = DateTimeOffset.UtcNow;
-        var events = new List<object>
-        {
-            new GameCreated(gameId, request.OwnerId, timestamp)
-        };
+        var @event = new GameCreated(gameId, command.OwnerId, DateTimeOffset.UtcNow);
 
-        await _eventStore.AppendAsync(gameId, events, cancellationToken);
-        await _eventStore.SaveChangesAsync(cancellationToken);
+        _session.Events.StartStream(gameId, @event);
+        await _session.SaveChangesAsync(cancellationToken);
 
         return gameId;
     }

@@ -1,6 +1,11 @@
+using JasperFx.Events.Tags;
+using Marten;
 using MediatR;
-using Splendor.Application.Common.Interfaces;
-using Splendor.Domain.Aggregates;
+using Splendor.Application.DecisionStates;
+using Splendor.Application.Events;
+using Splendor.Domain.Common;
+using Splendor.Domain.Events;
+using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Application.Commands;
 
@@ -8,21 +13,34 @@ public record DeleteGameCommand(Guid GameId) : IRequest;
 
 public class DeleteGameCommandHandler : IRequestHandler<DeleteGameCommand>
 {
-    private readonly IEventStore _eventStore;
+    private readonly IDocumentSession _session;
 
-    public DeleteGameCommandHandler(IEventStore eventStore)
+    public DeleteGameCommandHandler(IDocumentSession session)
     {
-        _eventStore = eventStore;
+        _session = session;
     }
 
-    public async Task Handle(DeleteGameCommand request, CancellationToken cancellationToken)
+    public async Task Handle(DeleteGameCommand command, CancellationToken cancellationToken)
     {
-        var game = await _eventStore.LoadAsync<Game>(request.GameId, cancellationToken);
-        if (game == null) throw new Exception("Game not found");
+        var query = new EventTagQuery()
+            .Or<GameCreated, GameTag>(new GameTag(command.GameId))
+            .Or<GameDeleted, GameTag>(new GameTag(command.GameId));
+        var boundary = await _session.Events.FetchForWritingByTags<DeleteGameDecisionState>(query, cancellationToken);
+        var state = boundary.Aggregate ?? throw new InvalidOperationException("Game not found.");
 
-        var events = game.DeleteGame().ToList();
+        var events = Decide(command, state);
 
-        await _eventStore.AppendAsync(request.GameId, events, cancellationToken);
-        await _eventStore.SaveChangesAsync(cancellationToken);
+        boundary.AppendMany(events.Select(e => _session.TagEvent(e)).ToArray());
+        await _session.SaveChangesAsync(cancellationToken);
+    }
+
+    private static IReadOnlyList<IDomainEvent> Decide(DeleteGameCommand command, DeleteGameDecisionState state)
+    {
+        if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game is already deleted.");
+
+        return new List<IDomainEvent>
+        {
+            new GameDeleted(command.GameId, DateTimeOffset.UtcNow)
+        };
     }
 }

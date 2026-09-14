@@ -1,17 +1,18 @@
+using JasperFx.Events;
+using JasperFx.Events.Projections;
+using Marten;
+using MassTransit;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Testcontainers.MsSql;
-using Testcontainers.PostgreSql;
-using Splendor.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
-using Marten;
-using Microsoft.AspNetCore.Authentication;
-using MassTransit;
-using Marten.Events.Daemon.Resiliency;
+using Splendor.Application.Events;
+using Splendor.Domain.Common;
+using Splendor.Domain.Events;
 using Splendor.Infrastructure.Events;
+using Testcontainers.PostgreSql;
 
 namespace Splendor.IntegrationTests;
 
@@ -20,31 +21,36 @@ public class SplendorApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     private readonly PostgreSqlContainer _postgreSqlContainer = new PostgreSqlBuilder("postgres:latest")
         .Build();
 
-    private readonly MsSqlContainer _msSqlContainer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
-        .WithPassword("Splendor!123")
-        .Build();
-
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
 
         builder.ConfigureTestServices(services =>
         {
-            // Remove real databases
-            services.RemoveAll(typeof(DbContextOptions<ReadModelsContext>));
+            // Remove real database
             services.RemoveAll(typeof(IDocumentStore));
 
-            // Add Test MsSql (EF Core)
-            services.AddDbContext<ReadModelsContext>(options =>
-                options.UseSqlServer(_msSqlContainer.GetConnectionString() + ";TrustServerCertificate=True;"));
 
             // Add Test PostgreSql (Marten)
-            services.AddMarten(options =>
+            services.AddMarten((StoreOptions options) =>
             {
                 options.Connection(_postgreSqlContainer.GetConnectionString());
-                options.AutoCreateSchemaObjects = Weasel.Core.AutoCreate.All;
-                options.Events.StreamIdentity = Marten.Events.StreamIdentity.AsGuid;
-                options.Projections.Add<Splendor.Infrastructure.Projections.GameProjection>(Marten.Events.Projections.ProjectionLifecycle.Inline);
+                options.AutoCreateSchemaObjects = JasperFx.AutoCreate.All;
+
+                // Events configuration
+                options.Events.StreamIdentity = StreamIdentity.AsGuid;
+                options.Events.RegisterTagType<GameTag>("game");
+                options.Events.RegisterTagType<OwnerTag>("owner");
+                options.Events.TagEventsBy(@event => @event switch
+                {
+                    GameCreated created => [new GameTag(created.GameId), new OwnerTag(created.CreatorId)],
+                    PlayerJoined joined => [new GameTag(joined.GameId), new OwnerTag(joined.OwnerId)],
+                    IDomainEvent domainEvent => [new GameTag(domainEvent.GameId)],
+                    _ => []
+                });
+
+                options.Projections.Add<Splendor.Infrastructure.Projections.GameSummaryProjection>(ProjectionLifecycle.Inline);
+                options.Projections.Add<Splendor.Infrastructure.Projections.SplendorBoardProjection>(ProjectionLifecycle.Inline);
             }).UseLightweightSessions();
 
             // services.RemoveAll(typeof(Splendor.Application.Common.Interfaces.ICurrentUserService));
@@ -55,13 +61,11 @@ public class SplendorApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public async Task InitializeAsync()
     {
         await _postgreSqlContainer.StartAsync();
-        await _msSqlContainer.StartAsync();
     }
 
     async Task IAsyncLifetime.DisposeAsync()
     {
         await _postgreSqlContainer.StopAsync();
-        await _msSqlContainer.StopAsync();
     }
 
     public HttpClient CreateAuthenticatedClient()

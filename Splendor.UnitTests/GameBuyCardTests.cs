@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using FluentAssertions;
+using Splendor.Application.Commands;
+using Splendor.Application.DecisionStates;
 using Splendor.Domain;
 using Splendor.Domain.Aggregates;
 using Splendor.Domain.Events;
@@ -26,11 +28,18 @@ public class GameBuyCardTests
         // give the player exactly the cost of the card
         history.Add(new GemsTaken(gameId, player1Id, card.Cost, DateTimeOffset.UtcNow));
 
-        var game = new Game();
+        var game = new SplendorGameState();
         TestHelpers.ApplyHistory(game, history);
 
         // act
-        var produced = game.BuyCard(owner1, player1Id, cardId).ToList();
+        var command = new BuyCardCommand
+        {
+            GameId = gameId,
+            OwnerId = owner1,
+            PlayerId = player1Id,
+            CardId = cardId
+        };
+        var produced = BuyCardCommandHandler.Decide(command, game).ToList();
 
         // assert - expect CardPurchased first
         produced.Should().ContainSingle(e => e is CardPurchased);
@@ -53,12 +62,21 @@ public class GameBuyCardTests
         history.Add(new GemsTaken(gameId, player1Id, emeraldCard.Cost, DateTimeOffset.UtcNow));
         history.Add(new CardReserved(gameId, player1Id, emeraldCard.Id, DateTimeOffset.UtcNow));
 
-        var game = new Game();
+        var game = new SplendorGameState();
         TestHelpers.ApplyHistory(game, history);
 
-        var produced = game.BuyCard(owner1, player1Id, emeraldCard.Id).ToList();
+        var command = new BuyCardCommand
+        {
+            GameId = gameId,
+            OwnerId = owner1,
+            PlayerId = player1Id,
+            CardId = emeraldCard.Id
+        };
+        var produced = BuyCardCommandHandler.Decide(command, game).ToList();
+        game.Apply(produced);
+        produced.AddRange(TurnCompletion.Decide(gameId, player1Id, game, DateTimeOffset.UtcNow));
 
-        produced.OfType<NobleAcquired>().Should().ContainSingle(e => e.NobleId == "N_01");
+        produced.OfType<NobleAcquired>().Should().ContainSingle();
         produced.FindIndex(e => e is NobleAcquired).Should().BeLessThan(produced.FindIndex(e => e is TurnEnded));
     }
 

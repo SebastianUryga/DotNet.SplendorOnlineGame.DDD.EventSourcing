@@ -1,7 +1,6 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
+using Marten;
 using Splendor.Application.ReadModels;
-using Splendor.Application.Common.Interfaces;
 
 namespace Splendor.Application.Queries;
 
@@ -9,16 +8,16 @@ public record GetGamesQuery(bool IncludeDeleted = false) : IRequest<IEnumerable<
 
 public class GetGamesQueryHandler : IRequestHandler<GetGamesQuery, IEnumerable<GameSummaryDto>>
 {
-    private readonly IReadModelsContext _context;
+    private readonly IQuerySession _session;
 
-    public GetGamesQueryHandler(IReadModelsContext context)
+    public GetGamesQueryHandler(IQuerySession session)
     {
-        _context = context;
+        _session = session;
     }
 
     public async Task<IEnumerable<GameSummaryDto>> Handle(GetGamesQuery request, CancellationToken cancellationToken)
     {
-        var query = _context.GameViews.AsQueryable();
+        IQueryable<GameSummaryView> query = _session.Query<GameSummaryView>();
         
         if (!request.IncludeDeleted)
         {
@@ -26,8 +25,7 @@ public class GetGamesQueryHandler : IRequestHandler<GetGamesQuery, IEnumerable<G
         }
 
         return await query
-            .Select(g => new GameSummaryDto(g.Id, g.Status, g.Players.Count))
-            .AsNoTracking()
+            .Select(g => new GameSummaryDto(g.Id, g.Status, g.PlayerCount))
             .ToListAsync(cancellationToken);
     }
 }

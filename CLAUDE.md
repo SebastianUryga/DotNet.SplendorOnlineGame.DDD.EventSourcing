@@ -28,14 +28,14 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 │  Aggregates, Entities, Events, ValueObjects                 │
 ├─────────────────────────────────────────────────────────────┤
 │                 Splendor.Infrastructure                     │
-│  Persistence (Marten/EF), Projections, Migrations           │
+│  Persistence (Marten), Projections                          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### Tech Stack
 - **Frontend**: Angular 16 (standalone components), czysty CSS
 - **Event Store**: Marten (PostgreSQL) - zapis eventów
-- **Read Models**: EF Core (SQL Server) - projekcje do odczytu
+- **Read Models**: dokumenty Marten (PostgreSQL) - projekcje do odczytu
 - **CQRS**: MediatR - obsługa komend i zapytań
 - **Bot worker**: MassTransit, strategie ruchów i Serilog (konsola + pliki)
 - **Testowanie**: xUnit, Testcontainers, FluentAssertions, Selenium WebDriver
@@ -78,9 +78,9 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `IBotGameMembershipHandler` ob
 ### Infrastructure Layer
 | Plik | Opis |
 |------|------|
-| `Infrastructure/Projections/GameProjection.cs` | Marten projection - aktualizuje GameView na podstawie eventów |
-| `Infrastructure/Persistence/ReadModelsContext.cs` | EF Core DbContext dla read models |
-| `Infrastructure/DependencyInjection.cs` | Rejestracja serwisów Marten i EF |
+| `Infrastructure/DependencyInjection.cs` | Rejestracja Marten, projekcji i subskrypcji eventów |
+| `Infrastructure/Projections/GameSummaryProjection.cs` | Marten projection dla listy gier |
+| `Infrastructure/Projections/SplendorBoardProjection.cs` | Marten projection dla planszy Splendor |
 
 ### API Layer
 | Plik | Opis |
@@ -98,8 +98,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `IBotGameMembershipHandler` ob
 | `IntegrationTests/TestUserContext.cs` | DelegatingHandler ustawiający X-Test-User-Id per request |
 
 #### Konfiguracja testów integracyjnych
-- **PostgreSQL** (Testcontainers) - dla Marten Event Store
-- **SQL Server** (Testcontainers) - dla EF Core Read Models
+- **PostgreSQL** (Testcontainers) - dla Marten Event Store i read modeli
 - **Auth bypass** - `TestAuthHandler` omija JWT, user ID z headera `X-Test-User-Id`
 - **MassTransit InMemory** - bez RabbitMQ, bus działa w pamięci
 
@@ -200,6 +199,7 @@ record GemCollection(int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx,
 dotnet test Splendor.UnitTests
 dotnet test Splendor.IntegrationTests
 dotnet test Splendor.UITests
+```
 
 ## Komendy
 
@@ -221,9 +221,6 @@ dotnet test Splendor.IntegrationTests
 # Testy UI Selenium (wymaga: API w trybie Testing + ng serve)
 dotnet test Splendor.UITests
 
-# Migracje EF
-cd Splendor.Infrastructure
-dotnet ef migrations add <NazwaMigracji> --startup-project ../Splendor.Api
 ```
 
 ### Frontend
@@ -257,7 +254,7 @@ npm start
 - Rezerwacja kart: maksymalnie trzy na gracza; rezerwacja przyznaje złoty żeton, jeśli jest dostępny.
 - Arystokraci: automatyczne przyznanie jednego dostępnego arystokraty albo wybór, gdy gracz kwalifikuje się do kilku.
 - Zakończenie gry po osiągnięciu co najmniej 15 punktów prestiżu.
-- Read model `GameView`, projekcje Marten i modele odczytu EF Core w SQL Server.
+- Read modele Marten: `GameSummaryView`, `SplendorBoardView`, `PlayerBoardView`, `UserStatsView`; `GetGameQuery` mapuje planszę do kompatybilnego `GameView`.
 - REST API, Swagger, JWT/Auth0, SignalR oraz MassTransit/RabbitMQ.
 - ETag/`304 Not Modified` dla `GET /games/{id}` i polling wersji gry.
 - Testy jednostkowe agregatu w `Splendor.UnitTests`.
@@ -281,5 +278,5 @@ npm start
 - Agregat stosuje eventy przez metody `Apply(Event)`
 - Metody domenowe zwracają `IEnumerable<IDomainEvent>`
 - Komendy obsługiwane przez MediatR handlery
-- Projekcje Marten aktualizują EF read models
+- Projekcje Marten aktualizują dokumentowe read modele
 - Elementy UI testowalne oznaczane atrybutem `data-testid` w szablonach Angular

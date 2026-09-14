@@ -1,8 +1,7 @@
 using Splendor.Application;
 using Splendor.Infrastructure;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using MassTransit;
 using Splendor.Api.Consumers;
 using Splendor.Api.Hubs;
@@ -26,7 +25,7 @@ builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Splendor API",
         Version = "v1",
@@ -47,26 +46,18 @@ builder.Services.AddSwaggerGen(options =>
         In = ParameterLocation.Header,
         Description = "JWT Authorization header using the Bearer scheme. \r\n\r\n Enter 'Bearer' [space] and then your token in the text input below.\r\n\r\nExample: \"Bearer 1safsfsdfdfd\"",
     });
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            new string[] {}
+            new OpenApiSecuritySchemeReference("Bearer", document, null),
+            new List<string>()
         }
     });
 });
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(
-    builder.Configuration.GetConnectionString("Marten") ?? string.Empty,
-    builder.Configuration.GetConnectionString("ReadModels") ?? string.Empty);
+    builder.Configuration.GetConnectionString("Marten") ?? string.Empty);
 
 if (builder.Environment.IsEnvironment("Testing"))
 {
@@ -131,12 +122,6 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-}
-
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<Splendor.Infrastructure.Persistence.ReadModelsContext>();
-    db.Database.EnsureCreated();
 }
 
 if (!app.Environment.IsDevelopment())

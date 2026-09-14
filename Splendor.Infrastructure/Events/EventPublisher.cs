@@ -1,4 +1,4 @@
-using Marten.Events;
+using JasperFx.Events;
 using MassTransit;
 using Splendor.Contracts.Messages;
 

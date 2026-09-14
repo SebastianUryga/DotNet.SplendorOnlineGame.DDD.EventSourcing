@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+	<ProjectReference Include="..\Splendor.Application\Splendor.Application.csproj" />
 	<ProjectReference Include="..\Splendor.Domain\Splendor.Domain.csproj" />
   </ItemGroup>
 </Project>

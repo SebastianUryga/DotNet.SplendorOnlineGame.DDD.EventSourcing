@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Splendor.Application.DecisionStates;
 using Splendor.Domain;
 using Splendor.Domain.Aggregates;
 using Splendor.Domain.Events;
@@ -10,7 +11,7 @@ namespace Splendor.UnitTests;
 public static class TestHelpers
 {
     // Apply a list of domain events to an aggregate using dynamic dispatch
-    public static void ApplyHistory(Game game, IEnumerable<object> history)
+    public static void ApplyHistory(SplendorGameState game, IEnumerable<object> history)
     {
         foreach (var e in history)
         {
@@ -42,7 +43,7 @@ public static class TestHelpers
             new GameCreated(gameId, owner1, DateTimeOffset.UtcNow),
             new PlayerJoined(gameId, player1Id, owner1, "Alice", DateTimeOffset.UtcNow),
             new PlayerJoined(gameId, player2Id, owner2, "Bob", DateTimeOffset.UtcNow),
-            new GameStarted(gameId, deck1, deck2, deck3, market1, market2, market3, NobleDefinitions.AllNobles.Select(n => n.Id).ToList(), DateTimeOffset.UtcNow),
+            new GameStarted(gameId, StartingMarketGems(2), deck1, deck2, deck3, market1, market2, market3, NobleDefinitions.AllNobles.Select(n => n.Id).ToList(), DateTimeOffset.UtcNow),
             new TurnStarted(gameId, player1Id, DateTimeOffset.UtcNow)
         };
 
@@ -55,5 +56,18 @@ public static class TestHelpers
         {
             history.Add(new CardPurchased(gameId, playerId, card.Id, GemCollection.Empty, DateTimeOffset.UtcNow));
         }
+    }
+
+    public static GemCollection StartingMarketGems(int playerCount)
+    {
+        var regularGems = playerCount switch
+        {
+            2 => 4,
+            3 => 5,
+            4 => 7,
+            _ => throw new ArgumentOutOfRangeException(nameof(playerCount), "Splendor supports 2-4 players.")
+        };
+
+        return new GemCollection(regularGems, regularGems, regularGems, regularGems, regularGems, 5);
     }
 }

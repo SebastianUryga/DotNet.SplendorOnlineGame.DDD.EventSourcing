@@ -6,13 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="MassTransit" Version="8.3.6" />
-    <PackageReference Include="Marten" Version="7.34.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.14">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="7.0.14" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.1" />
+    <PackageReference Include="Marten" Version="9.32.0" />
   </ItemGroup>
 
   <PropertyGroup>

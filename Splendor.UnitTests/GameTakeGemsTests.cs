@@ -1,7 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using FluentAssertions;
+using Splendor.Application.Commands;
+using Splendor.Application.DecisionStates;
 using Splendor.Domain.Aggregates;
 using Splendor.Domain.Events;
 using Splendor.Domain.ValueObjects;
@@ -20,12 +19,19 @@ public class GameTakeGemsTests
         // give the player 9 gems (setup via events)
         history.Add(new GemsTaken(gameId, player1Id, new GemCollection(1,1,1,1,1,4), DateTimeOffset.UtcNow));
 
-        var game = new Game();
+        var game = new SplendorGameState();
         TestHelpers.ApplyHistory(game, history);
 
         // act - player attempts to take 2 more gems -> total becomes 11 -> overflow
-        var take = new GemCollection(1, 1, 0, 0, 0, 0);
-        var produced = game.TakeGems(owner1, player1Id, take).ToList();
+        var command = new TakeGemsCommand
+        {
+            GameId = gameId,
+            OwnerId = owner1,
+            PlayerId = player1Id,
+            Diamond = 1,
+            Sapphire = 1
+        };
+        var produced = TakeGemsCommandHandler.Decide(command, game).ToList();
 
         // assert - expect GemsTaken then GemsOverflowDetected, with excess = 1
         produced.Should().HaveCount(2);
@@ -44,11 +50,22 @@ public class GameTakeGemsTests
         TestHelpers.AddPurchasedCardsWithBonus(history, gameId, player1Id, GemType.Onyx, 4);
         TestHelpers.AddPurchasedCardsWithBonus(history, gameId, player1Id, GemType.Sapphire, 4);
 
-        var game = new Game();
+        var game = new SplendorGameState();
         TestHelpers.ApplyHistory(game, history);
 
         // no matter what action the player takes, they will now be eligible for two nobles (N_06 and N_07)
-        var produced = game.TakeGems(owner1, player1Id, new GemCollection(1, 1, 1, 0, 0, 0)).ToList();
+        var command = new TakeGemsCommand
+        {
+            GameId = gameId,
+            OwnerId = owner1,
+            PlayerId = player1Id,
+            Diamond = 1,
+            Sapphire = 1,
+            Emerald = 1
+        };
+        var produced = TakeGemsCommandHandler.Decide(command, game).ToList();
+        game.Apply(produced);
+        produced.AddRange(TurnCompletion.Decide(gameId, player1Id, game, DateTimeOffset.UtcNow));
 
         var selection = produced.OfType<NobleSelectionRequired>().Single();
         selection.EligibleNobleIds.Should().BeEquivalentTo("N_06", "N_07");

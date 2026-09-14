@@ -18,7 +18,4 @@ public class Player
         OwnerId = ownerId;
         Name = name;
     }
-    
-    // Construct from state if needed
-    public Player() { } 
 }

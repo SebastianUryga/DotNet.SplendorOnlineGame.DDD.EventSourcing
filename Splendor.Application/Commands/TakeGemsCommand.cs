@@ -1,7 +1,11 @@
+using Marten;
 using MediatR;
 using Splendor.Application.Common.Interfaces;
-using Splendor.Domain.Aggregates;
+using Splendor.Domain.Common;
+using Splendor.Domain.Events;
 using Splendor.Domain.ValueObjects;
+using Splendor.Application.Events;
+using Splendor.Application.DecisionStates;
 
 namespace Splendor.Application.Commands;
 
@@ -20,23 +24,93 @@ public record TakeGemsCommand : IAuthoredCommand, IRequest
 
 public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
 {
-    private readonly IEventStore _eventStore;
+    private readonly IDocumentSession _session;
 
-    public TakeGemsCommandHandler(IEventStore eventStore)
+    public TakeGemsCommandHandler(IDocumentSession session)
     {
-        _eventStore = eventStore;
+        _session = session;
     }
 
-    public async Task Handle(TakeGemsCommand request, CancellationToken cancellationToken)
+    public async Task Handle(TakeGemsCommand command, CancellationToken cancellationToken)
     {
-        var game = await _eventStore.LoadAsync<Game>(request.GameId, cancellationToken);
-        if (game == null) throw new Exception("Game not found");
+        var query = SplendorGameState.Query(command.GameId);
+        var boundary = await _session.Events.FetchForWritingByTags<SplendorGameState>(query, cancellationToken);
+        var state = boundary.Aggregate ?? throw new InvalidOperationException("Game not found.");
 
-        var gems = new GemCollection(request.Diamond, request.Sapphire, request.Emerald, request.Ruby, request.Onyx, request.Gold);
+        var events = Decide(command, state).ToList();
 
-        var events = game.TakeGems(request.OwnerId, request.PlayerId, gems).ToList();
+        // Apply decision events to local state
+        state.Apply(events);
 
-        await _eventStore.AppendAsync(request.GameId, events, cancellationToken);
-        await _eventStore.SaveChangesAsync(cancellationToken);
+        // Turn completion may produce additional events; merge them
+        var completionEvents = TurnCompletion.Decide(command.GameId, command.PlayerId, state, DateTimeOffset.UtcNow);
+        events.AddRange(completionEvents);
+
+        // Tag and append events to the boundary
+        boundary.AppendMany(events.Select(e => _session.TagEvent(e)).ToArray());
+        await _session.SaveChangesAsync(cancellationToken);
+    }
+
+    internal static IReadOnlyList<IDomainEvent> Decide(TakeGemsCommand command, SplendorGameState state)
+    {
+        var gems = new GemCollection(command.Diamond, command.Sapphire, command.Emerald, command.Ruby, command.Onyx, command.Gold);
+
+        if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game deleted.");
+        if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game finished.");
+        if (state.Status != GameStatus.Started) throw new InvalidOperationException("Game not started.");
+        if (!state.Players.TryGetValue(command.PlayerId, out var player)) throw new InvalidOperationException("Player not found.");
+        if (player.OwnerId != command.OwnerId) throw new InvalidOperationException("You do not control this player.");
+        if (state.CurrentPlayerId != command.PlayerId) throw new InvalidOperationException("Not your turn.");
+        if (state.PendingGemReturnPlayerId is not null) throw new InvalidOperationException("A gem overflow resolution is pending.");
+        if (state.PendingNobleSelectionPlayerId is not null) throw new InvalidOperationException("A noble selection is pending.");
+
+        ValidateSelection(gems);
+        EnsureAvailable(state.MarketGems, gems);
+
+        var now = DateTimeOffset.UtcNow;
+        var events = new List<IDomainEvent>
+        {
+            new GemsTaken(command.GameId, command.PlayerId, gems, now)
+        };
+
+        var newTotal = player.Gems + gems;
+        if (newTotal.Total > 10)
+        {
+            events.Add(new GemsOverflowDetected(command.GameId, command.PlayerId, newTotal, newTotal.Total - 10, now));
+            return events;
+        }
+
+        return events;
+    }
+
+    private static void ValidateSelection(GemCollection gems)
+    {
+        var colorCounts = new[] { gems.Diamond, gems.Sapphire, gems.Emerald, gems.Ruby, gems.Onyx };
+        var nonZeroColors = colorCounts.Where(c => c > 0).ToList();
+
+        var isOptionA = gems.Gold == 0 && nonZeroColors.All(c => c == 1) && nonZeroColors.Count is >= 1 and <= 3;
+        var isOptionB = gems.Gold == 0 && nonZeroColors.Count == 1 && nonZeroColors[0] == 2;
+        var isOptionC = gems.Gold == 1 && nonZeroColors.Count == 0;
+
+        if (!isOptionA && !isOptionB && !isOptionC)
+        {
+            throw new InvalidOperationException("Invalid gem selection.");
+        }
+    }
+
+    private static void EnsureAvailable(GemCollection marketGems, GemCollection gems)
+    {
+        if (gems.Diamond == 2 && marketGems.Diamond < 4) throw new InvalidOperationException("Not enough diamonds on market.");
+        if (gems.Sapphire == 2 && marketGems.Sapphire < 4) throw new InvalidOperationException("Not enough sapphires on market.");
+        if (gems.Emerald == 2 && marketGems.Emerald < 4) throw new InvalidOperationException("Not enough emeralds on market.");
+        if (gems.Ruby == 2 && marketGems.Ruby < 4) throw new InvalidOperationException("Not enough rubies on market.");
+        if (gems.Onyx == 2 && marketGems.Onyx < 4) throw new InvalidOperationException("Not enough onyxes on market.");
+
+        if (marketGems.Diamond < gems.Diamond) throw new InvalidOperationException("Not enough diamonds on market.");
+        if (marketGems.Sapphire < gems.Sapphire) throw new InvalidOperationException("Not enough sapphires on market.");
+        if (marketGems.Emerald < gems.Emerald) throw new InvalidOperationException("Not enough emeralds on market.");
+        if (marketGems.Ruby < gems.Ruby) throw new InvalidOperationException("Not enough rubies on market.");
+        if (marketGems.Onyx < gems.Onyx) throw new InvalidOperationException("Not enough onyxes on market.");
+        if (marketGems.Gold < gems.Gold) throw new InvalidOperationException("Not enough gold on market.");
     }
 }

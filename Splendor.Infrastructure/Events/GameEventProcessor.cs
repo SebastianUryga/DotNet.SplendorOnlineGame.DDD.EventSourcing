@@ -1,10 +1,8 @@
+using JasperFx.Events.Daemon;
+using JasperFx.Events.Projections;
 using Marten;
-using Marten.Events;
-using Marten.Events.Daemon;
-using Marten.Events.Daemon.Internals;
 using Marten.Subscriptions;
 using Microsoft.Extensions.DependencyInjection;
-using Splendor.Infrastructure.Persistence;
 using Splendor.Domain.Events;
 
 namespace Splendor.Infrastructure.Events;
@@ -42,15 +40,10 @@ public class GameEventProcessor : SubscriptionBase
         CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
-        var projector = scope.ServiceProvider.GetRequiredService<GameReadModelProjector>();
         var publisher = scope.ServiceProvider.GetRequiredService<EventPublisher>();
 
         foreach (var @event in page.Events)
         {
-            // 1. Update Read Model
-            await projector.ProjectAsync(@event.Data, cancellationToken);
-
-            // 2. Publish Event Notification
             await publisher.PublishAsync(@event, cancellationToken);
         }
 

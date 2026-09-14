@@ -22,7 +22,7 @@ This project was created for **educational purposes** to gain hands-on experienc
 - **Domain-Driven Design (DDD)** concepts.
 - **Event Sourcing** for reliable state management.
 - **CQRS** to decouple complex business logic from read-optimized data.
-- **Entity Framework Core** for relational data access on the query side.
+- **Marten document projections** for read-optimized game views.
 
 ## Roadmap
 
@@ -49,12 +49,12 @@ The primary source of truth for the game state is an **Event Stream**. Every act
 ### 2. CQRS (Command Query Responsibility Segregation)
 We separate the "write" side from the "read" side to optimize performance and scalability:
 - **Commands**: Handled via **MediatR**. They validate business logic against the aggregate and persist events to Marten.
-- **Queries**: Read models are decoupled from the event store.
-- **Projections**: Marten projections asynchronously (or inline) update the **SQL Server** read models.
+- **Queries**: Read optimized Marten documents.
+- **Projections**: Marten inline projections update `GameSummaryView` and `SplendorBoardView`.
 
 ### 3. Real-time Read Models
-While the write side uses PostgreSQL, the query side uses **SQL Server** via **Entity Framework Core**.
-- This allows for complex querying and reporting without impacting the event store's performance.
+The application keeps read models in PostgreSQL as Marten documents.
+- This keeps event streams and query documents in one persistence stack while preserving CQRS boundaries.
 
 ### 4. Real-time Updates with RabbitMQ + SignalR
 The application uses an event-driven architecture for real-time game updates:
@@ -73,8 +73,8 @@ Domain Event → Marten Subscription → RabbitMQ
 
 ### 5. Integration Testing with Testcontainers
 Reliability is ensured through integration tests that use real database instances:
-- **Testcontainers** automatically starts ephemeral Docker containers (PostgreSQL & SQL Server) for each test run.
-- **WebApplicationFactory** provides in-memory API testing, ensuring the entire stack (Controller -> MediatR -> Marten -> SQL Server) works as expected.
+- **Testcontainers** automatically starts ephemeral PostgreSQL containers for integration tests.
+- **WebApplicationFactory** provides in-memory API testing, ensuring the stack (Controller -> MediatR -> Marten) works as expected.
 
 ## Getting Started
 
@@ -85,7 +85,7 @@ Reliability is ensured through integration tests that use real database instance
 
 ### Running Locally
 
-1. **Start infrastructure** (PostgreSQL, SQL Server & RabbitMQ):
+1. **Start infrastructure** (PostgreSQL & RabbitMQ):
    ```bash
    docker-compose up -d
    ```
@@ -141,6 +141,6 @@ dotnet test Splendor.UITests
 - **Authentication**: JWT (Auth0)
 - **CQRS**: MediatR
 - **Event Store**: Marten (PostgreSQL)
-- **Read Models**: EF Core (SQL Server)
+- **Read Models**: Marten documents (PostgreSQL)
 - **Real-time**: SignalR, MassTransit, RabbitMQ
 - **Testing**: xUnit unit tests, Testcontainers, FluentAssertions, Selenium (E2E)

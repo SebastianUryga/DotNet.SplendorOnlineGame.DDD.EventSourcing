@@ -247,7 +247,7 @@ public class Game
         allNobles = allNobles.OrderBy(_ => random.Next()).ToList();
         nobleIds = allNobles.Take(Math.Min(3, allNobles.Count)).ToList();
 
-        yield return new GameStarted(Id, deck1, deck2, deck3, market1, market2, market3, nobleIds, DateTimeOffset.UtcNow);
+        yield return new GameStarted(Id, MarketGems, deck1, deck2, deck3, market1, market2, market3, nobleIds, DateTimeOffset.UtcNow);
         yield return new TurnStarted(Id, Players.First().Id, DateTimeOffset.UtcNow);
     }
 
@@ -493,7 +493,7 @@ public class Game
         var totalPoints = GetPlayerPrestigePoints(player) + (acquiredNoble?.PrestigePoints ?? 0);
         if (totalPoints >= 15)
         {
-            yield return new GameFinished(Id, player.Id, player.Name, totalPoints, DateTimeOffset.UtcNow);
+            yield return new GameFinished(Id, player.Id, player.OwnerId, player.Name, totalPoints, DateTimeOffset.UtcNow);
             yield break;
         }
 

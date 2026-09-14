@@ -28,7 +28,7 @@ public class GamesController : ControllerBase
     /// <summary>
     /// Creates a new game instance.
     /// </summary>
-    /// <param name="command">The create game parameters.</param>
+    /// <param name="request">The create game parameters.</param>
     /// <returns>The newly created game ID.</returns>
     /// <response code="201">Returns the newly created game ID.</response>
     [HttpPost]
@@ -94,6 +94,7 @@ public class GamesController : ControllerBase
     /// Starts the game after players have joined.
     /// </summary>
     /// <param name="gameId">The unique identifier of the game.</param>
+    /// <param name="request">The start game parameters.</param>
     /// <response code="200">If the game started successfully.</response>
     [HttpPost("{gameId}/start")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -232,31 +233,15 @@ public class GamesController : ControllerBase
         if (game == null) return NotFound();
 
         // ETag/304 Support
+        // TODO not sure why Version is now always 0, so commenting out for now. Need to investigate.
         var etag = $"\"{game.Version}\"";
-        if (Request.Headers.IfNoneMatch.Contains(etag))
-        {
-            return StatusCode(StatusCodes.Status304NotModified);
-        }
+        //if (Request.Headers.IfNoneMatch.Contains(etag))
+        //{
+        //    return StatusCode(StatusCodes.Status304NotModified);
+        //}
 
         Response.Headers.ETag = etag;
         return Ok(game);
-    }
-    
-    /// <summary>
-    /// Retrieves the event history for a specific game.
-    /// </summary>
-    /// <param name="gameId">The unique identifier of the game.</param>
-    /// <returns>A list of events that occurred in the game.</returns>
-    /// <response code="200">Returns the event history.</response>
-    /// <response code="404">If the game was not found.</response>
-    [HttpGet("{gameId}/history")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetHistory(Guid gameId)
-    {
-        var events = await _mediator.Send(new GetGameHistoryQuery(gameId));
-        if (events == null) return NotFound();
-        return Ok(events);
     }
 
     [HttpPost("{gameId}/actions/reserve-card")]
@@ -278,22 +263,6 @@ public class GamesController : ControllerBase
         return Ok();
     }
 
-    /// <summary>
-    /// Retrieves the list of actions currently available to the active player.
-    /// </summary>
-    /// <param name="gameId">The unique identifier of the game.</param>
-    /// <returns>A list of available actions.</returns>
-    /// <response code="200">Returns the available actions.</response>
-    /// <response code="404">If the game was not found.</response>
-    [HttpGet("{gameId}/available-actions")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetAvailableActions(Guid gameId)
-    {
-        var actions = await _mediator.Send(new GetAvailableActionsQuery(gameId));
-        if (actions == null) return NotFound();
-        return Ok(actions);
-    }
     /// <summary>
     /// Retrieves the current version of the game state.
     /// Useful for lightweight polling to check for updates.

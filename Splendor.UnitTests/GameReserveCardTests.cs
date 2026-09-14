@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using FluentAssertions;
+using Splendor.Application.Commands;
+using Splendor.Application.DecisionStates;
 using Splendor.Domain.Aggregates;
 using Splendor.Domain.Events;
 using Splendor.Domain.ValueObjects;
@@ -20,14 +22,23 @@ public class GameReserveCardTests
         // give the player 10 gems (setup via events)
         history.Add(new GemsTaken(gameId, player1Id, new GemCollection(2,2,2,2,2,0), DateTimeOffset.UtcNow));
 
-        var game = new Game();
+        var game = new SplendorGameState();
         TestHelpers.ApplyHistory(game, history);
 
         // pick a card available in market
         var cardId = game.Market1.First();
 
         // act - player attempts to reserve a market card; market has gold so player will be given one -> overflow
-        var produced = game.ReserveCard(owner1, player1Id, cardId).ToList();
+        var command = new ReserveCardCommand
+        {
+            GameId = gameId,
+            OwnerId = owner1,
+            PlayerId = player1Id,
+            CardId = cardId
+        };
+        var produced = ReserveCardCommandHandler.Decide(command, game).ToList();
+        game.Apply(produced);
+        produced.AddRange(TurnCompletion.Decide(gameId, player1Id, game, DateTimeOffset.UtcNow));
 
         // assert - expect GemsTaken (gold), CardReserved, CardRevealed, then GemsOverflowDetected with excess = 1
         produced.Should().HaveCountGreaterOrEqualTo(4);

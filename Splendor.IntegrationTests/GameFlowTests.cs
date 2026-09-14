@@ -27,40 +27,7 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
         const string user1Id = "user-alice";
         const string user2Id = "user-bob";
 
-        // 1. User1 creates a game
-        Guid gameId;
-        using (TestUserContext.SetUser(user1Id))
-        {
-            var response = await _client.PostAsJsonAsync("/games", new { });
-            response.StatusCode.Should().Be(HttpStatusCode.Created);
-            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-            gameId = json.GetProperty("id").GetGuid();
-            await Task.Delay(200);
-        }
-
-        // 2. User1 joins as "Alice"
-        using (TestUserContext.SetUser(user1Id))
-        {
-            var response = await _client.PostAsJsonAsync($"/games/{gameId}/players", new { Name = "Alice" });
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
-            await Task.Delay(200);
-        }
-
-        // 3. User2 joins as "Bob"
-        using (TestUserContext.SetUser(user2Id))
-        {
-            var response = await _client.PostAsJsonAsync($"/games/{gameId}/players", new { Name = "Bob" });
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
-            await Task.Delay(200);
-        }
-
-        // 4. User1 starts the game
-        using (TestUserContext.SetUser(user1Id))
-        {
-            var response = await _client.PostAsJsonAsync($"/games/{gameId}/start", new { });
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
-            await Task.Delay(200);
-        }
+        var gameId = await CreateAndStartGame(user1Id, user2Id, "Alice", "Bob");
 
         // 5. Verify game state after start
         var game = await GetGame(gameId);
@@ -89,11 +56,7 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
                 _ => new { PlayerId = currentPlayer.Id, Diamond = 1, Sapphire = 1, Emerald = 0, Ruby = 0, Onyx = 1, Gold = 0 }
             };
 
-            using (TestUserContext.SetUser(userId))
-            {
-                var response = await _client.PostAsJsonAsync($"/games/{gameId}/actions/take-gems", gemsToTake);
-                response.StatusCode.Should().Be(HttpStatusCode.OK);
-            }
+            await PostAsUserAsync(userId, $"/games/{gameId}/actions/take-gems", gemsToTake);
         }
 
         // 7. Verify players have accumulated gems
@@ -113,12 +76,8 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
         affordableCard.Should().NotBeNull("With 9 gems each, players should be able to afford at least one Level 1 card");
 
         // 9. Buy the card
-        using (TestUserContext.SetUser(buyer.OwnerId))
-        {
-            var response = await _client.PostAsJsonAsync($"/games/{gameId}/actions/buy-card",
-                new { PlayerId = buyer.Id, CardId = affordableCard!.Id });
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
-        }
+        await PostAsUserAsync(buyer.OwnerId, $"/games/{gameId}/actions/buy-card",
+            new { PlayerId = buyer.Id, CardId = affordableCard!.Id });
 
         // 10. Verify card was purchased
         game = await GetGame(gameId);
@@ -131,60 +90,41 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
     public async Task TakeGems_WrongPlayer_ReturnsBadRequest()
     {
         // Arrange
-        var gameId = await CreateAndStartGame();
+        var gameId = await CreateAndStartGame("user-1", "user-2", "P1", "P2");
         var game = await GetGame(gameId);
         var notCurrentPlayer = game.Players.First(p => p.Id != game.CurrentPlayerId);
 
         // Act - try to take gems as wrong player
-        using (TestUserContext.SetUser(notCurrentPlayer.OwnerId))
-        {
-            var response = await _client.PostAsJsonAsync($"/games/{gameId}/actions/take-gems",
-                new { PlayerId = notCurrentPlayer.Id, Diamond = 1, Sapphire = 1, Emerald = 1, Ruby = 0, Onyx = 0, Gold = 0 });
-
-            // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        }
+        await PostAsUserAsync(notCurrentPlayer.OwnerId, $"/games/{gameId}/actions/take-gems",
+            new { PlayerId = notCurrentPlayer.Id, Diamond = 1, Sapphire = 1, Emerald = 1, Ruby = 0, Onyx = 0, Gold = 0 },
+            HttpStatusCode.BadRequest);
     }
 
-    private async Task<Guid> CreateAndStartGame()
+    private async Task<Guid> CreateAndStartGame(string user1, string user2, string player1Name, string player2Name)
     {
-        const string user1 = "user-1";
-        const string user2 = "user-2";
+        var response = await PostAsUserAsync(user1, "/games", new { }, HttpStatusCode.Created);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var gameId = json.GetProperty("id").GetGuid();
 
-        Guid gameId;
-        using (TestUserContext.SetUser(user1))
-        {
-            var response = await _client.PostAsJsonAsync("/games", new { });
-            var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-            gameId = json.GetProperty("id").GetGuid();
-        }
-
-        await Task.Delay(200);
-
-        using (TestUserContext.SetUser(user1))
-            await _client.PostAsJsonAsync($"/games/{gameId}/players", new { Name = "P1" });
-
-        await Task.Delay(200);
-
-        using (TestUserContext.SetUser(user2))
-            await _client.PostAsJsonAsync($"/games/{gameId}/players", new { Name = "P2" });
-
-        await Task.Delay(200);
-
-        using (TestUserContext.SetUser(user1))
-            await _client.PostAsJsonAsync($"/games/{gameId}/start", new { });
-
-        await Task.Delay(200);
+        await PostAsUserAsync(user1, $"/games/{gameId}/players", new { Name = player1Name });
+        await PostAsUserAsync(user2, $"/games/{gameId}/players", new { Name = player2Name });
+        await PostAsUserAsync(user1, $"/games/{gameId}/start", new { });
 
         return gameId;
     }
 
+    private async Task<HttpResponseMessage> PostAsUserAsync(string userId, string requestUri, object body, HttpStatusCode expectedStatus = HttpStatusCode.OK)
+    {
+        using (TestUserContext.SetUser(userId))
+        {
+            var response = await _client.PostAsJsonAsync(requestUri, body);
+            response.StatusCode.Should().Be(expectedStatus);
+            return response;
+        }
+    }
+
     private async Task<GameView> GetGame(Guid gameId)
     {
-        // Marten uses async subscriptions to update the read model (SQL Server).
-        // A short delay is needed to ensure projections are completed before we fetch the game state.
-        await Task.Delay(1000);
-
         var response = await _client.GetAsync($"/games/{gameId}");
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<GameView>(JsonOptions))!;

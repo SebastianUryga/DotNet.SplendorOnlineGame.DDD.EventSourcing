@@ -1,6 +1,6 @@
 using MediatR;
-using Microsoft.EntityFrameworkCore;
-using Splendor.Application.Common.Interfaces;
+using Marten;
+using Splendor.Application.ReadModels;
 
 namespace Splendor.Application.Queries;
 
@@ -8,20 +8,16 @@ public record GetGameVersionQuery(Guid GameId) : IRequest<long?>;
 
 public class GetGameVersionQueryHandler : IRequestHandler<GetGameVersionQuery, long?>
 {
-    private readonly IReadModelsContext _context;
+    private readonly IQuerySession _session;
 
-    public GetGameVersionQueryHandler(IReadModelsContext context)
+    public GetGameVersionQueryHandler(IQuerySession session)
     {
-        _context = context;
+        _session = session;
     }
 
     public async Task<long?> Handle(GetGameVersionQuery request, CancellationToken cancellationToken)
     {
-        var version = await _context.GameViews
-            .Where(x => x.Id == request.GameId)
-            .Select(x => (long?)x.Version)
-            .FirstOrDefaultAsync(cancellationToken);
-            
-        return version;
+        var game = await _session.LoadAsync<SplendorBoardView>(request.GameId, cancellationToken);
+        return game?.Version;
     }
 }
