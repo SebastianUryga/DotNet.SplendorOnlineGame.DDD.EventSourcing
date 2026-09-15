@@ -69,26 +69,42 @@ public class StartGameCommandHandler : IRequestHandler<StartGameCommand>
             throw new InvalidOperationException("Only the creator or a participant can start the game.");
         }
 
-        var now = DateTimeOffset.UtcNow;
-        var level1 = CardDefinitions.GetLevel(1).Select(x => x.Id);
-        var level2 = CardDefinitions.GetLevel(2).Select(x => x.Id);
-        var level3 = CardDefinitions.GetLevel(3).Select(x => x.Id);
+        // Shuffle and setup card decks
+        var random = new Random();
+        var deck1 = CardDefinitions.GetLevel(1).Select(c => c.Id).OrderBy(_ => random.Next()).ToList();
+        var deck2 = CardDefinitions.GetLevel(2).Select(c => c.Id).OrderBy(_ => random.Next()).ToList();
+        var deck3 = CardDefinitions.GetLevel(3).Select(c => c.Id).OrderBy(_ => random.Next()).ToList();
 
-        return
-        [
+        // Draw 4 cards for each market
+        var market1 = deck1.Take(4).ToList();
+        deck1 = deck1.Skip(4).ToList();
+        var market2 = deck2.Take(4).ToList();
+        deck2 = deck2.Skip(4).ToList();
+        var market3 = deck3.Take(4).ToList();
+        deck3 = deck3.Skip(4).ToList();
+
+        // Pick 3 random nobles for this game
+        var nobleIds = new List<string>();
+        var allNobles = NobleDefinitions.AllNobles.Select(n => n.Id).ToList();
+        // shuffle nobles
+        allNobles = allNobles.OrderBy(_ => random.Next()).ToList();
+        nobleIds = allNobles.Take(Math.Min(3, allNobles.Count)).ToList();
+
+        return new List<IDomainEvent>
+        {
             new GameStarted(
                 command.GameId,
                 StartingMarketGems(state.PlayerOrder.Count),
-                level1.Skip(4).ToList(),
-                level2.Skip(4).ToList(),
-                level3.Skip(4).ToList(),
-                level1.Take(4).ToList(),
-                level2.Take(4).ToList(),
-                level3.Take(4).ToList(),
-                [],
-                now),
-            new TurnStarted(command.GameId, state.PlayerOrder[0], now)
-        ];
+                deck1,
+                deck2,
+                deck3,
+                market1,
+                market2,
+                market3,
+                nobleIds,
+                DateTimeOffset.UtcNow),
+            new TurnStarted(command.GameId, state.PlayerOrder[0], DateTimeOffset.UtcNow)
+        };
     }
 
     public static GemCollection StartingMarketGems(int playerCount)

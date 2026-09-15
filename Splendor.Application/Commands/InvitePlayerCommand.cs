@@ -7,6 +7,7 @@ using Splendor.Application.Common.Interfaces;
 using Splendor.Application.Events;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
+using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Application.Commands;
 
@@ -47,22 +48,22 @@ public class InvitePlayerCommandHandler : IRequestHandler<InvitePlayerCommand>
 
     private IEnumerable<IDomainEvent> Decide(InvitePlayerCommand command, PatiralGameState state)
     {
-        if (state._gameId == Guid.Empty) throw new InvalidOperationException("GameId missing in history");
+        if (state.GameId == Guid.Empty) throw new InvalidOperationException("GameId missing in history");
 
         // mirror Game.EnsureActive(): cannot invite after start/finish/delete
-        if (state._gameStatus == "Started") throw new InvalidOperationException("Game is already started.");
-        if (state._gameStatus == "Finished") throw new InvalidOperationException("Game is already finished.");
-        if (state._gameStatus == "Deleted") throw new InvalidOperationException("Game has been deleted.");
+        if (state.GameStatus == GameStatus.Started) throw new InvalidOperationException("Game is already started.");
+        if (state.GameStatus == GameStatus.Finished) throw new InvalidOperationException("Game is already finished.");
+        if (state.GameStatus == GameStatus.Deleted) throw new InvalidOperationException("Game has been deleted.");
 
         // inviter must control a player in this game
-        if (!state._joinedPlayers.Any(p => p.OwnerId == command.OwnerId))
+        if (!state.JoinedPlayers.Any(p => p.OwnerId == command.OwnerId))
             throw new InvalidOperationException("You do not control a player in this game");
 
         // do not invite someone already in game
-        if (state._joinedPlayers.Any(p => p.OwnerId == command.InviteeId))
+        if (state.JoinedPlayers.Any(p => p.OwnerId == command.InviteeId))
             throw new InvalidOperationException("Player already in game");
 
-        yield return new PlayerInvited(state._gameId, command.OwnerId, command.InviteeId, DateTimeOffset.UtcNow);
+        yield return new PlayerInvited(state.GameId, command.OwnerId, command.InviteeId, DateTimeOffset.UtcNow);
     }
 
     // Minimal snapshot of game state needed to decide about inviting
@@ -75,29 +76,29 @@ public class InvitePlayerCommandHandler : IRequestHandler<InvitePlayerCommand>
             public string OwnerId { get; } = ownerId;
         }
 
-        public readonly List<PlayerState> _joinedPlayers = new();
-        public string _gameStatus = "Created";
-        public Guid _gameId = Guid.Empty;
+        public List<PlayerState> JoinedPlayers { get; private set; } = new List<PlayerState>();
+        public GameStatus GameStatus { get; private set; }
+        public Guid GameId { get; private set; }
 
         public void Apply(object @event)
         {
             switch (@event)
             {
                 case GameCreated gc:
-                    _gameId = gc.GameId;
-                    _gameStatus = "Created";
+                    GameId = gc.GameId;
+                    GameStatus = GameStatus.Created;
                     break;
                 case PlayerJoined pj:
-                    _joinedPlayers.Add(new PlayerState(pj.PlayerId, pj.OwnerId));
+                    JoinedPlayers.Add(new PlayerState(pj.PlayerId, pj.OwnerId));
                     break;
                 case GameStarted:
-                    _gameStatus = "Started";
+                    GameStatus = GameStatus.Started;
                     break;
                 case GameFinished:
-                    _gameStatus = "Finished";
+                    GameStatus = GameStatus.Finished;
                     break;
                 case GameDeleted:
-                    _gameStatus = "Deleted";
+                    GameStatus = GameStatus.Deleted;
                     break;
                     // ignore PlayerInvited for state since we don't persist invites in aggregate state
             }

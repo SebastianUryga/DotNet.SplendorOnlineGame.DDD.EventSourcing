@@ -18,6 +18,6 @@ public class GetGameVersionQueryHandler : IRequestHandler<GetGameVersionQuery, l
     public async Task<long?> Handle(GetGameVersionQuery request, CancellationToken cancellationToken)
     {
         var game = await _session.LoadAsync<SplendorBoardView>(request.GameId, cancellationToken);
-        return game?.Version;
+        return game?.GameVersion;
     }
 }

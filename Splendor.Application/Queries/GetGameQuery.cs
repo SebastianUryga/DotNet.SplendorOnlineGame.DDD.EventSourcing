@@ -24,7 +24,7 @@ public class GetGameQueryHandler : IRequestHandler<GetGameQuery, GameView?>
     private static GameView ToGameView(SplendorBoardView board) => new()
     {
         Id = board.Id,
-        Version = board.Version,
+        Version = board.GameVersion,
         Status = board.Status,
         Players = board.Players.Select(player => new PlayerView
         {

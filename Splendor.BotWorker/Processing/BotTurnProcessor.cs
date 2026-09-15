@@ -78,7 +78,7 @@ namespace Splendor.BotWorker.Processing
                         break;
 
                     case ReserveCardAction card:
-                        await _gameApi.ReserveCardAsync(gameId, new ReserveCardRequest(botPlayerId, card.CardId), cancellationToken);
+                        await _gameApi.ReserveCardAsync(gameId, new ReserveCardRequest(botPlayerId, card.CardId, null), cancellationToken);
                         _logger.LogInformation("ReserveCard executed: CardId={CardId} for Player={PlayerId}", card.CardId, botPlayerId);
                         break;
 

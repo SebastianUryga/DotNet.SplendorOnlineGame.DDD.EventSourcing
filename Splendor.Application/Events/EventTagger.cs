@@ -16,6 +16,9 @@ public static class EventTagger
 
         switch (@event)
         {
+            case GameCreated created:
+                tagged.WithTag(new OwnerTag(created.CreatorId));
+                break;
             case PlayerJoined joined:
                 tagged.WithTag(new OwnerTag(joined.OwnerId));
                 break;

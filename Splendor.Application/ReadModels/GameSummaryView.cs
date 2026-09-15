@@ -8,5 +8,5 @@ public class GameSummaryView
     public int PlayerCount { get; set; }
     public string? CurrentPlayerId { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
-    public long Version { get; set; }
+    public long GameVersion { get; set; }
 }

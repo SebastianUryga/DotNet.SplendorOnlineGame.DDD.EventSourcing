@@ -22,5 +22,5 @@ public class SplendorBoardView
     public int Deck3Count { get; set; }
     public List<PlayerBoardView> Players { get; set; } = new();
     public DateTimeOffset UpdatedAt { get; set; }
-    public long Version { get; set; }
+    public long GameVersion { get; set; }
 }

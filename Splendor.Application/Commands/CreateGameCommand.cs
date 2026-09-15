@@ -1,6 +1,7 @@
 using MediatR;
 using Marten;
 using Splendor.Application.Common.Interfaces;
+using Splendor.Application.Events;
 using Splendor.Domain.Events;
 
 namespace Splendor.Application.Commands;
@@ -24,7 +25,7 @@ public class CreateGameCommandHandler : IRequestHandler<CreateGameCommand, Guid>
         var gameId = Guid.NewGuid();
         var @event = new GameCreated(gameId, command.OwnerId, DateTimeOffset.UtcNow);
 
-        _session.Events.StartStream(gameId, @event);
+        _session.Events.StartStream(gameId, _session.TagEvent(@event));
         await _session.SaveChangesAsync(cancellationToken);
 
         return gameId;

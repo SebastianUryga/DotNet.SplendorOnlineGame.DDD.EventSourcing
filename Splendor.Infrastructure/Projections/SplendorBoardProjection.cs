@@ -31,7 +31,7 @@ public partial class SplendorBoardProjection : MultiStreamProjection<SplendorBoa
         Id = e.GameId,
         Status = "Created",
         UpdatedAt = e.Timestamp,
-        Version = 1
+        GameVersion = 1
     };
 
     public void Apply(PlayerJoined e, SplendorBoardView view)
@@ -184,7 +184,7 @@ public partial class SplendorBoardProjection : MultiStreamProjection<SplendorBoa
     private static void SetProjectionMetadata(SplendorBoardView view, DateTimeOffset timestamp)
     {
         view.UpdatedAt = timestamp;
-        view.Version++;
+        view.GameVersion++;
     }
 
     private static List<string> GetMarketForLevel(SplendorBoardView game, int level) => level switch

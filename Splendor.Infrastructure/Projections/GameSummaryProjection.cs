@@ -22,7 +22,7 @@ public partial class GameSummaryProjection : MultiStreamProjection<GameSummaryVi
         Id = e.GameId,
         Status = "Created",
         UpdatedAt = e.Timestamp,
-        Version = 1
+        GameVersion = 1
     };
 
     public void Apply(PlayerJoined e, GameSummaryView view)
@@ -62,6 +62,6 @@ public partial class GameSummaryProjection : MultiStreamProjection<GameSummaryVi
     private static void SetProjectionMetadata(GameSummaryView view, DateTimeOffset timestamp)
     {
         view.UpdatedAt = timestamp;
-        view.Version++;
+        view.GameVersion++;
     }
 }
