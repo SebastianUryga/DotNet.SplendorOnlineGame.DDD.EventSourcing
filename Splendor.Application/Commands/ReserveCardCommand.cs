@@ -5,6 +5,7 @@ using Splendor.Application.DecisionStates;
 using Splendor.Application.Events;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
+using Splendor.Domain.Rules;
 using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Application.Commands;
@@ -60,7 +61,7 @@ public class ReserveCardCommandHandler : IRequestHandler<ReserveCardCommand>
         if (state.CurrentPlayerId != command.PlayerId) throw new InvalidOperationException("Not your turn.");
         if (state.PendingGemReturnPlayerId is not null) throw new InvalidOperationException("A gem overflow resolution is pending.");
         if (state.PendingNobleSelectionPlayerId is not null) throw new InvalidOperationException("A noble selection is pending.");
-        if (player.ReservedCardIds.Count >= 3) throw new InvalidOperationException("Cannot reserve more than 3 cards.");
+        SplendorRules.EnsureCanReserveCard(player.ReservedCardIds.Count);
 
         if (command.CardId is null) throw new InvalidOperationException("Card id is required.");
 

@@ -1,7 +1,9 @@
 using Splendor.Application.DecisionStates;
+using Splendor.Application.Events;
 using Splendor.Domain;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
+using Splendor.Domain.Rules;
 using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Application.Commands;
@@ -24,10 +26,10 @@ internal static class TurnCompletion
             };
         }
 
-        var bonuses = GetPlayerBonuses(player);
+        var bonuses = SplendorRules.GetBonuses(player.OwnedCardIds);
         var eligible = state.Nobles
             .Select(NobleDefinitions.GetById)
-            .Where(noble => noble != null && MeetsNobleRequirements(bonuses, noble.Requirements))
+            .Where(noble => noble != null && SplendorRules.MeetsNobleRequirements(bonuses, noble.Requirements))
             .Cast<Noble>()
             .ToList();
 
@@ -49,15 +51,15 @@ internal static class TurnCompletion
         var nextPlayerId = state.NextPlayerAfter(playerId);
         var isRoundComplete = nextPlayerId == state.PlayerOrder[0];
         var pointsFromAcquiredNoble = acquired?.PrestigePoints ?? 0;
-        var playerPoints = GetPlayerPrestigePoints(player) + pointsFromAcquiredNoble;
-        var hasEndGameStarted = playerPoints >= 15 || state.Players.Values.Any(p => GetPlayerPrestigePoints(p) >= 15);
+        var playerPoints = SplendorRules.GetPrestigePoints(player.OwnedCardIds, player.OwnedNobleIds) + pointsFromAcquiredNoble;
+        var hasEndGameStarted = playerPoints >= 15 || state.Players.Values.Any(p => SplendorRules.GetPrestigePoints(p.OwnedCardIds, p.OwnedNobleIds) >= 15);
 
         events.Add(new TurnEnded(gameId, playerId, now));
 
         if (hasEndGameStarted && isRoundComplete)
         {
             var winner = SelectWinner(state, playerId, pointsFromAcquiredNoble);
-            events.Add(new GameFinished(gameId, winner.PlayerId, winner.Player.OwnerId, winner.Player.Name, winner.Points, now));
+            events.Add(new GameFinished(gameId, winner.PlayerId, winner.OwnerId, winner.Name, winner.PrestigePoints, now));
             return events;
         }
 
@@ -65,50 +67,21 @@ internal static class TurnCompletion
         return events;
     }
 
-    private static GemCollection GetPlayerBonuses(PlayerState player)
+    private static PlayerScoreCandidate SelectWinner(SplendorGameState state, string currentPlayerId, int currentPlayerExtraPoints)
     {
-        var diamond = 0;
-        var sapphire = 0;
-        var emerald = 0;
-        var ruby = 0;
-        var onyx = 0;
-
-        foreach (var cardId in player.OwnedCardIds)
+        var candidates = state.Players.Select(player =>
         {
-            switch (CardDefinitions.GetById(cardId)?.BonusType)
-            {
-                case GemType.Diamond: diamond++; break;
-                case GemType.Sapphire: sapphire++; break;
-                case GemType.Emerald: emerald++; break;
-                case GemType.Ruby: ruby++; break;
-                case GemType.Onyx: onyx++; break;
-            }
-        }
+            var extraPoints = player.Key == currentPlayerId ? currentPlayerExtraPoints : 0;
 
-        return new GemCollection(diamond, sapphire, emerald, ruby, onyx, 0);
+            return new PlayerScoreCandidate(
+                PlayerId: player.Key,
+                OwnerId: player.Value.OwnerId,
+                Name: player.Value.Name,
+                PrestigePoints: SplendorRules.GetPrestigePoints(player.Value.OwnedCardIds, player.Value.OwnedNobleIds) + extraPoints,
+                PurchasedCardCount: player.Value.OwnedCardIds.Count,
+                PlayerOrder: state.PlayerOrder.IndexOf(player.Key));
+        });
+
+        return SplendorRules.SelectWinner(candidates);
     }
-
-    private static int GetPlayerPrestigePoints(PlayerState player) =>
-        player.OwnedCardIds.Sum(cardId => CardDefinitions.GetById(cardId)?.PrestigePoints ?? 0) +
-        player.OwnedNobleIds.Sum(nobleId => NobleDefinitions.GetById(nobleId)?.PrestigePoints ?? 0);
-
-    private static (string PlayerId, PlayerState Player, int Points) SelectWinner(SplendorGameState state, string currentPlayerId, int currentPlayerExtraPoints) =>
-        state.Players
-            .Select(entry => (
-                PlayerId: entry.Key,
-                Player: entry.Value,
-                Points: GetPlayerPrestigePoints(entry.Value) + (entry.Key == currentPlayerId ? currentPlayerExtraPoints : 0),
-                PlayerOrder: state.PlayerOrder.IndexOf(entry.Key)))
-            .OrderByDescending(player => player.Points)
-            .ThenBy(player => player.Player.OwnedCardIds.Count)
-            .ThenBy(player => player.PlayerOrder)
-            .Select(player => (player.PlayerId, player.Player, player.Points))
-            .First();
-
-    private static bool MeetsNobleRequirements(GemCollection bonuses, GemCollection requirements) =>
-        bonuses.Diamond >= requirements.Diamond &&
-        bonuses.Sapphire >= requirements.Sapphire &&
-        bonuses.Emerald >= requirements.Emerald &&
-        bonuses.Ruby >= requirements.Ruby &&
-        bonuses.Onyx >= requirements.Onyx;
 }

@@ -48,7 +48,7 @@ The primary source of truth for the game state is an **Event Stream**. Every act
 
 ### 2. CQRS (Command Query Responsibility Segregation)
 We separate the "write" side from the "read" side to optimize performance and scalability:
-- **Commands**: Handled via **MediatR**. They validate business logic against the aggregate and persist events to Marten.
+- **Commands**: Handled via **MediatR**. They validate business logic against Marten decision state and domain rules, then persist events to Marten.
 - **Queries**: Read optimized Marten documents.
 - **Projections**: Marten inline projections update `GameSummaryView` and `SplendorBoardView`.
 

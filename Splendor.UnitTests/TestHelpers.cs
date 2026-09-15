@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Splendor.Application.DecisionStates;
 using Splendor.Domain;
-using Splendor.Domain.Aggregates;
 using Splendor.Domain.Events;
 using Splendor.Domain.ValueObjects;
 

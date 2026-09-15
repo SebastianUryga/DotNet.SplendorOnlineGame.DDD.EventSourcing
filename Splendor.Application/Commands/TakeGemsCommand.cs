@@ -6,6 +6,7 @@ using Splendor.Domain.Events;
 using Splendor.Domain.ValueObjects;
 using Splendor.Application.Events;
 using Splendor.Application.DecisionStates;
+using Splendor.Domain.Rules;
 
 namespace Splendor.Application.Commands;
 
@@ -64,8 +65,8 @@ public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
         if (state.PendingGemReturnPlayerId is not null) throw new InvalidOperationException("A gem overflow resolution is pending.");
         if (state.PendingNobleSelectionPlayerId is not null) throw new InvalidOperationException("A noble selection is pending.");
 
-        ValidateSelection(gems);
-        EnsureAvailable(state.MarketGems, gems);
+        SplendorRules.EnsureValidGemSelection(gems);
+        SplendorRules.EnsureGemsAvailable(state.MarketGems, gems);
 
         var now = DateTimeOffset.UtcNow;
         var events = new List<IDomainEvent>
@@ -81,36 +82,5 @@ public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
         }
 
         return events;
-    }
-
-    private static void ValidateSelection(GemCollection gems)
-    {
-        var colorCounts = new[] { gems.Diamond, gems.Sapphire, gems.Emerald, gems.Ruby, gems.Onyx };
-        var nonZeroColors = colorCounts.Where(c => c > 0).ToList();
-
-        var isOptionA = gems.Gold == 0 && nonZeroColors.All(c => c == 1) && nonZeroColors.Count is >= 1 and <= 3;
-        var isOptionB = gems.Gold == 0 && nonZeroColors.Count == 1 && nonZeroColors[0] == 2;
-        var isOptionC = gems.Gold == 1 && nonZeroColors.Count == 0;
-
-        if (!isOptionA && !isOptionB && !isOptionC)
-        {
-            throw new InvalidOperationException("Invalid gem selection.");
-        }
-    }
-
-    private static void EnsureAvailable(GemCollection marketGems, GemCollection gems)
-    {
-        if (gems.Diamond == 2 && marketGems.Diamond < 4) throw new InvalidOperationException("Not enough diamonds on market.");
-        if (gems.Sapphire == 2 && marketGems.Sapphire < 4) throw new InvalidOperationException("Not enough sapphires on market.");
-        if (gems.Emerald == 2 && marketGems.Emerald < 4) throw new InvalidOperationException("Not enough emeralds on market.");
-        if (gems.Ruby == 2 && marketGems.Ruby < 4) throw new InvalidOperationException("Not enough rubies on market.");
-        if (gems.Onyx == 2 && marketGems.Onyx < 4) throw new InvalidOperationException("Not enough onyxes on market.");
-
-        if (marketGems.Diamond < gems.Diamond) throw new InvalidOperationException("Not enough diamonds on market.");
-        if (marketGems.Sapphire < gems.Sapphire) throw new InvalidOperationException("Not enough sapphires on market.");
-        if (marketGems.Emerald < gems.Emerald) throw new InvalidOperationException("Not enough emeralds on market.");
-        if (marketGems.Ruby < gems.Ruby) throw new InvalidOperationException("Not enough rubies on market.");
-        if (marketGems.Onyx < gems.Onyx) throw new InvalidOperationException("Not enough onyxes on market.");
-        if (marketGems.Gold < gems.Gold) throw new InvalidOperationException("Not enough gold on market.");
     }
 }

@@ -51,7 +51,8 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `IBotGameMembershipHandler` ob
 ### Domain Layer
 | Plik | Opis |
 |------|------|
-| `Domain/Aggregates/Game.cs` | Główny agregat gry: odtwarza stan przez `Apply()`, obsługuje tworzenie i rozpoczęcie gry, tury, pobieranie i zwrot żetonów, zakup oraz rezerwację kart, wybór arystokraty i zakończenie gry. |
+| `Domain/Rules/SplendorRules.cs` | Czyste reguły domenowe: bonusy, punkty prestiżu, wymagania arystokratów, walidacja żetonów, płatność za karty, limit rezerwacji i wybór zwycięzcy. |
+| `Domain/Aggregates/Game.cs` | Legacy agregat gry po migracji logiki decyzji do handlerów i Marten decision state. Kandydat do usunięcia osobnym refaktorem, jeśli nie będzie już potrzebny jako referencja. |
 | `Domain/Events/GameEvents.cs` | Zdarzenia domenowe: utworzenie i rozpoczęcie gry, tury, żetony, przekroczenie i rozwiązanie limitu żetonów, zakup/rezerwacja/odsłonięcie kart, arystokraci, zakończenie i usunięcie gry. |
 | `Domain/Entities/Player.cs` | Gracz: identyfikatory, nazwa, żetony, kupione i zarezerwowane karty oraz zdobyci arystokraci. |
 | `Domain/ValueObjects/GemCollection.cs` | Kolekcja żetonów: Diamond, Sapphire, Emerald, Ruby, Onyx i Gold. |
@@ -165,8 +166,9 @@ record GemCollection(int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx,
 5. Akcja gracza:
    - `GemsTaken` - pobranie gemów (max 3 różne, 2 takie same przy rynku >= 4 lub 1 złoty)
    - `CardPurchased` + `CardRevealed` - kupno karty
-6. Gdy gracz osiągnie ≥ 15 punktów prestiżu → `GameFinished` (koniec gry, status `Finished`)
-7. W przeciwnym wypadku `TurnEnded` - koniec tury i powrót do punktu 4 (następny gracz)
+6. Gdy gracz osiągnie ≥ 15 punktów prestiżu, gra trwa do końca bieżącej rundy.
+7. Po domknięciu rundy `GameFinished` wskazuje zwycięzcę: najwięcej punktów prestiżu, a przy remisie mniej zakupionych kart.
+8. W przeciwnym wypadku `TurnEnded` - koniec tury i powrót do punktu 4 (następny gracz)
 
 
 
@@ -243,7 +245,7 @@ npm start
 ### Zaimplementowane
 
 - Event Sourcing z Marten oraz CQRS z MediatR.
-- Agregat `Game` z odtwarzaniem stanu przez `Apply(Event)`.
+- Marten decision state `SplendorGameState` dla głównego gameplay boundary oraz czyste reguły domenowe w `SplendorRules`.
 - Pełna talia Splendor: 90 kart rozwoju na trzech poziomach.
 - Rozgrywka dla 2-4 graczy: tworzenie gry, lobby, dołączanie graczy i tury.
 - Pobieranie żetonów zgodnie z regułami gry:
@@ -253,11 +255,11 @@ npm start
 - Kupowanie kart z uwzględnieniem stałych bonusów i złotych żetonów jako wildcardów.
 - Rezerwacja kart: maksymalnie trzy na gracza; rezerwacja przyznaje złoty żeton, jeśli jest dostępny.
 - Arystokraci: automatyczne przyznanie jednego dostępnego arystokraty albo wybór, gdy gracz kwalifikuje się do kilku.
-- Zakończenie gry po osiągnięciu co najmniej 15 punktów prestiżu.
+- Zakończenie gry po domknięciu rundy, w której ktoś osiągnął co najmniej 15 punktów prestiżu.
 - Read modele Marten: `GameSummaryView`, `SplendorBoardView`, `PlayerBoardView`, `UserStatsView`; `GetGameQuery` mapuje planszę do kompatybilnego `GameView`.
 - REST API, Swagger, JWT/Auth0, SignalR oraz MassTransit/RabbitMQ.
 - ETag/`304 Not Modified` dla `GET /games/{id}` i polling wersji gry.
-- Testy jednostkowe agregatu w `Splendor.UnitTests`.
+- Testy jednostkowe decyzji gameplayu w `Splendor.UnitTests`.
 - Testy integracyjne z Testcontainers oraz testy UI Selenium z Page Object Model.
 
 
@@ -275,8 +277,8 @@ npm start
 ## Konwencje kodu
 
 - Eventy jako `record` w `GameEvents.cs`
-- Agregat stosuje eventy przez metody `Apply(Event)`
-- Metody domenowe zwracają `IEnumerable<IDomainEvent>`
+- Marten decision state stosuje eventy przez metody `Apply(Event)`
+- Czyste reguły domenowe trzymać w `Splendor.Domain.Rules`
 - Komendy obsługiwane przez MediatR handlery
 - Projekcje Marten aktualizują dokumentowe read modele
 - Elementy UI testowalne oznaczane atrybutem `data-testid` w szablonach Angular

@@ -3,9 +3,9 @@ using MediatR;
 using Splendor.Application.Common.Interfaces;
 using Splendor.Application.DecisionStates;
 using Splendor.Application.Events;
-using Splendor.Domain.Aggregates;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
+using Splendor.Domain.Rules;
 using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Application.Commands;
@@ -67,15 +67,15 @@ public class BuyCardCommandHandler : IRequestHandler<BuyCardCommand>
             throw new InvalidOperationException("Card not available in market or reserved by player.");
         }
 
-        var effectiveCost = CalculateEffectiveCost(card.Cost, GetPlayerBonuses(player));
-        if (!CanAfford(player.Gems, effectiveCost))
+        var effectiveCost = SplendorRules.CalculateEffectiveCost(card.Cost, SplendorRules.GetBonuses(player.OwnedCardIds));
+        if (!SplendorRules.CanAfford(player.Gems, effectiveCost))
         {
             throw new InvalidOperationException("Cannot afford this card.");
         }
 
         var now = DateTimeOffset.UtcNow;
         var events = new List<IDomainEvent>();
-        var payment = CalculatePayment(player.Gems, effectiveCost);
+        var payment = SplendorRules.CalculatePayment(player.Gems, effectiveCost);
 
         events.Add(new CardPurchased(command.GameId, command.PlayerId, command.CardId, payment, now));
 
@@ -86,65 +86,5 @@ public class BuyCardCommandHandler : IRequestHandler<BuyCardCommand>
         }
 
         return events;
-    }
-
-    private static GemCollection CalculateEffectiveCost(GemCollection cost, GemCollection bonuses) =>
-        new(
-            Math.Max(0, cost.Diamond - bonuses.Diamond),
-            Math.Max(0, cost.Sapphire - bonuses.Sapphire),
-            Math.Max(0, cost.Emerald - bonuses.Emerald),
-            Math.Max(0, cost.Ruby - bonuses.Ruby),
-            Math.Max(0, cost.Onyx - bonuses.Onyx),
-            0);
-
-    private static bool CanAfford(GemCollection playerGems, GemCollection cost)
-    {
-        var deficit = 0;
-        deficit += Math.Max(0, cost.Diamond - playerGems.Diamond);
-        deficit += Math.Max(0, cost.Sapphire - playerGems.Sapphire);
-        deficit += Math.Max(0, cost.Emerald - playerGems.Emerald);
-        deficit += Math.Max(0, cost.Ruby - playerGems.Ruby);
-        deficit += Math.Max(0, cost.Onyx - playerGems.Onyx);
-        return deficit <= playerGems.Gold;
-    }
-
-    private static GemCollection CalculatePayment(GemCollection playerGems, GemCollection cost)
-    {
-        var goldNeeded = 0;
-        var dPay = Math.Min(playerGems.Diamond, cost.Diamond);
-        goldNeeded += cost.Diamond - dPay;
-        var sPay = Math.Min(playerGems.Sapphire, cost.Sapphire);
-        goldNeeded += cost.Sapphire - sPay;
-        var ePay = Math.Min(playerGems.Emerald, cost.Emerald);
-        goldNeeded += cost.Emerald - ePay;
-        var rPay = Math.Min(playerGems.Ruby, cost.Ruby);
-        goldNeeded += cost.Ruby - rPay;
-        var oPay = Math.Min(playerGems.Onyx, cost.Onyx);
-        goldNeeded += cost.Onyx - oPay;
-
-        return new GemCollection(dPay, sPay, ePay, rPay, oPay, goldNeeded);
-    }
-
-    private static GemCollection GetPlayerBonuses(PlayerState player)
-    {
-        var diamond = 0;
-        var sapphire = 0;
-        var emerald = 0;
-        var ruby = 0;
-        var onyx = 0;
-
-        foreach (var cardId in player.OwnedCardIds)
-        {
-            switch (Splendor.Domain.CardDefinitions.GetById(cardId)?.BonusType)
-            {
-                case GemType.Diamond: diamond++; break;
-                case GemType.Sapphire: sapphire++; break;
-                case GemType.Emerald: emerald++; break;
-                case GemType.Ruby: ruby++; break;
-                case GemType.Onyx: onyx++; break;
-            }
-        }
-
-        return new GemCollection(diamond, sapphire, emerald, ruby, onyx, 0);
     }
 }

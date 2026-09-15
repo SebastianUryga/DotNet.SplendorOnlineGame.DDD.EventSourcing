@@ -6,6 +6,7 @@ using Splendor.Application.Events;
 using Splendor.Domain;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
+using Splendor.Domain.Rules;
 using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Application.Commands;
@@ -60,8 +61,11 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
             throw new InvalidOperationException("Noble is no longer available.");
 
         var noble = NobleDefinitions.GetById(command.NobleId) ?? throw new InvalidOperationException("Noble not found.");
-        if (!MeetsRequirements(player, noble.Requirements))
+        var bonuses = SplendorRules.GetBonuses(player.OwnedCardIds);
+        if (!SplendorRules.MeetsNobleRequirements(bonuses, noble.Requirements))
+        {
             throw new InvalidOperationException("Player no longer meets this noble's requirements.");
+        }
 
         var now = DateTimeOffset.UtcNow;
         return new List<IDomainEvent>
@@ -69,33 +73,4 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
             new NobleAcquired(command.GameId, command.PlayerId, command.NobleId, now)
         };
     }
-
-    private static bool MeetsRequirements(PlayerState player, GemCollection requirements)
-    {
-        var bonuses = GetBonuses(player);
-        return bonuses.Diamond >= requirements.Diamond &&
-            bonuses.Sapphire >= requirements.Sapphire &&
-            bonuses.Emerald >= requirements.Emerald &&
-            bonuses.Ruby >= requirements.Ruby &&
-            bonuses.Onyx >= requirements.Onyx;
-    }
-
-    private static GemCollection GetBonuses(PlayerState player)
-    {
-        var bonuses = new int[5];
-        foreach (var cardId in player.OwnedCardIds)
-        {
-            switch (CardDefinitions.GetById(cardId)?.BonusType)
-            {
-                case GemType.Diamond: bonuses[0]++; break;
-                case GemType.Sapphire: bonuses[1]++; break;
-                case GemType.Emerald: bonuses[2]++; break;
-                case GemType.Ruby: bonuses[3]++; break;
-                case GemType.Onyx: bonuses[4]++; break;
-            }
-        }
-
-        return new GemCollection(bonuses[0], bonuses[1], bonuses[2], bonuses[3], bonuses[4], 0);
-    }
-
 }
