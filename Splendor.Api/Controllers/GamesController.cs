@@ -257,7 +257,8 @@ public class GamesController : ControllerBase
             GameId = gameId,
             OwnerId = userId,
             PlayerId = request.PlayerId,
-            CardId = request.CardId
+            CardId = request.CardId,
+            Level = request.Level
         });
 
         return Ok();

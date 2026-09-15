@@ -13,9 +13,11 @@ public record BuyCardRequest(
     string PlayerId,
     string CardId);
 
+// CardId reserves a visible market card; null CardId with Level reserves blindly from a deck.
 public record ReserveCardRequest(
     string PlayerId,
-    string CardId);
+    string? CardId,
+    int? Level);
 
 public record ResolveGemLimitRequest(
     string PlayerId,

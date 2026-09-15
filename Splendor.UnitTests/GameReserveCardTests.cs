@@ -50,4 +50,29 @@ public class GameReserveCardTests
         overflow.ExcessCount.Should().Be(1);
         overflow.PlayerId.Should().Be(player1Id);
     }
+
+    [Fact]
+    public void ReserveCard_Throws_WhenPlayerAlreadyHasThreeReservedCards()
+    {
+        var (gameId, owner1, _, player1Id, _, history) = TestHelpers.CreateStartedGame();
+        history.Add(new CardReserved(gameId, player1Id, "L1_01", DateTimeOffset.UtcNow));
+        history.Add(new CardReserved(gameId, player1Id, "L1_02", DateTimeOffset.UtcNow));
+        history.Add(new CardReserved(gameId, player1Id, "L1_03", DateTimeOffset.UtcNow));
+
+        var game = new SplendorGameState();
+        TestHelpers.ApplyHistory(game, history);
+
+        var command = new ReserveCardCommand
+        {
+            GameId = gameId,
+            OwnerId = owner1,
+            PlayerId = player1Id,
+            CardId = game.Market1.First()
+        };
+
+        var act = () => ReserveCardCommandHandler.Decide(command, game);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("Cannot reserve more than 3 cards.");
+    }
 }

@@ -20,7 +20,7 @@ public static class TestHelpers
     }
 
     // Create a started game with two players and populated decks/markets. Returns tuple with ids and history events.
-    public static (Guid GameId, string Owner1, string Owner2, string Player1Id, string Player2Id, List<object> History) CreateStartedGame()
+    public static (Guid GameId, string Owner1, string Owner2, string Player1Id, string Player2Id, List<object> History) CreateStartedGame(List<string>? nobles = null)
     {
         var gameId = Guid.NewGuid();
         var owner1 = "owner-1";
@@ -43,7 +43,7 @@ public static class TestHelpers
             new GameCreated(gameId, owner1, DateTimeOffset.UtcNow),
             new PlayerJoined(gameId, player1Id, owner1, "Alice", DateTimeOffset.UtcNow),
             new PlayerJoined(gameId, player2Id, owner2, "Bob", DateTimeOffset.UtcNow),
-            new GameStarted(gameId, StartingMarketGems(2), deck1, deck2, deck3, market1, market2, market3, NobleDefinitions.AllNobles.Select(n => n.Id).ToList(), DateTimeOffset.UtcNow),
+            new GameStarted(gameId, StartingMarketGems(2), deck1, deck2, deck3, market1, market2, market3, nobles ?? NobleDefinitions.AllNobles.Select(n => n.Id).ToList(), DateTimeOffset.UtcNow),
             new TurnStarted(gameId, player1Id, DateTimeOffset.UtcNow)
         };
 

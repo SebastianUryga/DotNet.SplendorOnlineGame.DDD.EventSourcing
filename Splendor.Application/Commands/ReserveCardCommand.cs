@@ -14,7 +14,9 @@ public record ReserveCardCommand : IAuthoredCommand, IRequest
     public Guid GameId { get; init; }
     public string OwnerId { get; init; } = string.Empty;
     public string PlayerId { get; init; } = string.Empty;
-    public string CardId { get; init; } = string.Empty;
+    // Null CardId means a blind deck reservation; Level selects the deck.
+    public string? CardId { get; init; }
+    public int? Level { get; init; }
 }
 
 public class ReserveCardCommandHandler : IRequestHandler<ReserveCardCommand>
@@ -58,6 +60,9 @@ public class ReserveCardCommandHandler : IRequestHandler<ReserveCardCommand>
         if (state.CurrentPlayerId != command.PlayerId) throw new InvalidOperationException("Not your turn.");
         if (state.PendingGemReturnPlayerId is not null) throw new InvalidOperationException("A gem overflow resolution is pending.");
         if (state.PendingNobleSelectionPlayerId is not null) throw new InvalidOperationException("A noble selection is pending.");
+        if (player.ReservedCardIds.Count >= 3) throw new InvalidOperationException("Cannot reserve more than 3 cards.");
+
+        if (command.CardId is null) throw new InvalidOperationException("Card id is required.");
 
         var card = Domain.CardDefinitions.GetById(command.CardId) ?? throw new InvalidOperationException("Card not found.");
         var market = state.MarketFor(card);
