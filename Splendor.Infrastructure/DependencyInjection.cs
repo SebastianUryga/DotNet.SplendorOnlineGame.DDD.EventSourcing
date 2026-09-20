@@ -9,6 +9,7 @@ using Splendor.Infrastructure.Events;
 using Splendor.Infrastructure.Projections;
 using Splendor.Application;
 using Splendor.Application.Events;
+using Splendor.Infrastructure.Observability;
 
 namespace Splendor.Infrastructure;
 
@@ -19,6 +20,7 @@ public static class DependencyInjection
         services.AddMarten(options =>
         {
             options.Connection(martenConnectionString);
+            options.Logger(new MartenMetricsLogger());
 
             // Allow re-creating database (DEV only)
             options.AutoCreateSchemaObjects = JasperFx.AutoCreate.All;

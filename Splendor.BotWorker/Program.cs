@@ -49,11 +49,13 @@ builder.Services.AddMassTransit(config =>
                 h.Username(builder.Configuration["RabbitMq:Username"] ?? "guest");
                 h.Password(builder.Configuration["RabbitMq:Password"] ?? "guest");
             });
-
-        cfg.ReceiveEndpoint("splendor-bot-game-updated", endpoint =>
-        {
-            endpoint.ConfigureConsumer<BotGameUpdatedConsumer>(context);
-        });
+        cfg.ReceiveEndpoint(
+            new TemporaryEndpointDefinition("bot-game-updated"),
+            KebabCaseEndpointNameFormatter.Instance,
+            endpoint =>
+            {
+                endpoint.ConfigureConsumer<BotGameUpdatedConsumer>(context);
+            });
     });
 });
 

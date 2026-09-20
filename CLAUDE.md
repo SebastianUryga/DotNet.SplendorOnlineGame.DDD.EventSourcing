@@ -75,6 +75,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `IBotGameMembershipHandler` ob
 | `Application/Commands/ReserveCardCommand.cs` | Rezerwacja karty |
 | `Application/Commands/ChooseNobleCommand.cs` | Wybór arystokraty |
 | `Application/ReadModels/GameView.cs` | Read model gry (GameView, PlayerView) |
+| `Application/Behaviors/CommandMetricsBehavior.cs` | MediatR pipeline behavior mierzący czas, aktywne i zakończone operacje. |
 
 ### Infrastructure Layer
 | Plik | Opis |
@@ -82,6 +83,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `IBotGameMembershipHandler` ob
 | `Infrastructure/DependencyInjection.cs` | Rejestracja Marten, projekcji i subskrypcji eventów |
 | `Infrastructure/Projections/GameSummaryProjection.cs` | Marten projection dla listy gier |
 | `Infrastructure/Projections/SplendorBoardProjection.cs` | Marten projection dla planszy Splendor |
+| `Infrastructure/Observability/MartenMetricsLogger.cs` | Pomiar czasu i liczby operacji wykonywanych przez Martena. |
 
 ### API Layer
 | Plik | Opis |
@@ -89,6 +91,14 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `IBotGameMembershipHandler` ob
 | `Api/Controllers/GamesController.cs` | REST API dla gier i kart |
 | `Api/Program.cs` | Konfiguracja aplikacji (CORS, JWT, etc.) |
 | `Api/Middleware/` | Custom middleware (ExceptionHandling) |
+
+### Obserwowalność
+
+- API eksportuje metryki i trace’y przez OpenTelemetry Protocol do Aspire Dashboard.
+- MediatR mierzy `splendor.command.duration`, `splendor.command.executed` i `splendor.command.active`.
+- Marten mierzy operacje odczytu i zapisu przez `MartenMetricsLogger`.
+- Dashboard lokalny jest dostępny pod `http://localhost:18888` po uruchomieniu `docker-compose up -d`.
+- To pierwszy etap obserwowalności; benchmark DCB i kontrolowane testy obciążeniowe nie są jeszcze gotowe.
 
 ### Integration Tests
 | Plik | Opis |
@@ -258,6 +268,7 @@ npm start
 - Zakończenie gry po domknięciu rundy, w której ktoś osiągnął co najmniej 15 punktów prestiżu.
 - Read modele Marten: `GameSummaryView`, `SplendorBoardView`, `PlayerBoardView`, `UserStatsView`; `GetGameQuery` mapuje planszę do kompatybilnego `GameView`.
 - REST API, Swagger, JWT/Auth0, SignalR oraz MassTransit/RabbitMQ.
+- Podstawowe metryki aplikacji i Martena przez `System.Diagnostics.Metrics` oraz eksport OpenTelemetry do lokalnego Aspire Dashboard.
 - ETag/`304 Not Modified` dla `GET /games/{id}` i polling wersji gry.
 - Testy jednostkowe decyzji gameplayu w `Splendor.UnitTests`.
 - Testy integracyjne z Testcontainers oraz testy UI Selenium z Page Object Model.
@@ -273,6 +284,11 @@ npm start
 **Bot worker:**
 - [ ] Zapewnić odczyt `GameView` co najmniej w wersji wskazanej przez `GameUpdatedMessage`; przy opóźnionej projekcji stosować ograniczone retry/redelivery zamiast wykonywać ruch na starym stanie.
 - [ ] Rozważyć `IBotGameRegistry` jako cache gier i playerów kontrolowanych przez bota; cache nie może być źródłem prawdy i musi umieć odbudować stan po restarcie workera.
+
+**Obserwowalność i wydajność:**
+- [x] Podstawowe metryki komend i operacji Martena.
+- [x] Eksport metryk i trace’ów przez OpenTelemetry do lokalnego Aspire Dashboard.
+- [ ] Kontrolowany benchmark DCB z różną liczbą eventów i analizą p50/p95/p99.
 
 ## Konwencje kodu
 

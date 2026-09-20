@@ -3,6 +3,9 @@ using Splendor.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi;
 using MassTransit;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Splendor.Api.Consumers;
 using Splendor.Api.Hubs;
 
@@ -10,6 +13,29 @@ var builder = WebApplication.CreateBuilder(args);
 
 
 builder.Services.AddControllers();
+var otlpEndpoint = builder.Configuration["OpenTelemetry:Endpoint"];
+var openTelemetry = builder.Services
+    .AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService("Splendor.Api"))
+    .WithMetrics(metrics => metrics
+        .AddMeter("Splendor.Application")
+        .AddMeter("Splendor.Infrastructure")
+        .AddMeter("Microsoft.AspNetCore.Hosting")
+        .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
+        .AddMeter("System.Net.Http"))
+    .WithTracing(tracing => tracing
+        .AddSource("Splendor.Application")
+        .AddSource("Splendor.Infrastructure")
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation());
+
+if (Uri.TryCreate(otlpEndpoint, UriKind.Absolute, out var otlpUri))
+{
+    openTelemetry
+        .WithMetrics(metrics => metrics.AddOtlpExporter(options => options.Endpoint = otlpUri))
+        .WithTracing(tracing => tracing.AddOtlpExporter(options => options.Endpoint = otlpUri));
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>

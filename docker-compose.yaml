@@ -35,6 +35,15 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
     restart: always
 
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
+    container_name: splendor-aspire-dashboard
+    ports:
+      - "18888:18888"
+      - "4317:18889"
+      - "4318:18890"
+    restart: unless-stopped
+
 volumes:
   postgres-data:
     external: true

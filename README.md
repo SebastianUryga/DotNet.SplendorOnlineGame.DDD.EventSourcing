@@ -23,6 +23,7 @@ This project was created for **educational purposes** to gain hands-on experienc
 - **Event Sourcing** for reliable state management.
 - **CQRS** to decouple complex business logic from read-optimized data.
 - **Marten document projections** for read-optimized game views.
+- **Observability** with application and Marten metrics exported through OpenTelemetry to a local Aspire Dashboard.
 
 ## Roadmap
 
