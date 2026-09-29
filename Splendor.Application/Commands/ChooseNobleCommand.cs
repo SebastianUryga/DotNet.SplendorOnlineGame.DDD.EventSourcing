@@ -1,8 +1,8 @@
 using Marten;
 using MediatR;
 using Splendor.Application.Common.Interfaces;
-using Splendor.Application.DecisionStates;
 using Splendor.Application.Events;
+using Splendor.Application.Snapshots;
 using Splendor.Domain;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
@@ -30,18 +30,20 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
 
     public async Task Handle(ChooseNobleCommand command, CancellationToken cancellationToken)
     {
-        var query = SplendorGameState.Query(command.GameId);
-        var boundary = await _session.Events.FetchForWritingByTags<SplendorGameState>(query, cancellationToken);
-        var state = boundary.Aggregate ?? throw new InvalidOperationException("Game not found.");
+        var stream = await _session.Events.FetchForWriting<SplendorGameState>(command.GameId, cancellationToken);
+        var state = stream.Aggregate ?? throw new InvalidOperationException("Game not found.");
 
         var events = Decide(command, state).ToList();
 
+        // Apply decision events to local state
         state.Apply(events);
 
+        // Turn completion may produce additional events; merge them
         var completionEvents = TurnCompletion.Decide(command.GameId, command.PlayerId, state, DateTimeOffset.UtcNow);
         events.AddRange(completionEvents);
 
-        boundary.AppendMany(events.Select(e => _session.TagEvent(e)).ToArray());
+        // Tag and append events to the stream
+        stream.AppendMany(events.Select(e => _session.TagEvent(e)));
         await _session.SaveChangesAsync(cancellationToken);
     }
 

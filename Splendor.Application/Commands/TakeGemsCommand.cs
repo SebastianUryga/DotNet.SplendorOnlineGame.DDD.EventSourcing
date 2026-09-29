@@ -1,12 +1,12 @@
 using Marten;
 using MediatR;
 using Splendor.Application.Common.Interfaces;
+using Splendor.Application.Events;
+using Splendor.Application.Snapshots;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
-using Splendor.Domain.ValueObjects;
-using Splendor.Application.Events;
-using Splendor.Application.DecisionStates;
 using Splendor.Domain.Rules;
+using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Application.Commands;
 
@@ -34,9 +34,8 @@ public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
 
     public async Task Handle(TakeGemsCommand command, CancellationToken cancellationToken)
     {
-        var query = SplendorGameState.Query(command.GameId);
-        var boundary = await _session.Events.FetchForWritingByTags<SplendorGameState>(query, cancellationToken);
-        var state = boundary.Aggregate ?? throw new InvalidOperationException("Game not found.");
+        var stream = await _session.Events.FetchForWriting<SplendorGameState>(command.GameId, cancellationToken);
+        var state = stream.Aggregate ?? throw new InvalidOperationException("Game not found.");
 
         var events = Decide(command, state).ToList();
 
@@ -47,8 +46,8 @@ public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
         var completionEvents = TurnCompletion.Decide(command.GameId, command.PlayerId, state, DateTimeOffset.UtcNow);
         events.AddRange(completionEvents);
 
-        // Tag and append events to the boundary
-        boundary.AppendMany(events.Select(e => _session.TagEvent(e)).ToArray());
+        // Tag and append events to the stream
+        stream.AppendMany(events.Select(e => _session.TagEvent(e)));
         await _session.SaveChangesAsync(cancellationToken);
     }
 
@@ -74,6 +73,7 @@ public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
             new GemsTaken(command.GameId, command.PlayerId, gems, now)
         };
 
+        // TODO: this check should be done in TrunCompletion.Decide, not here, add a test for this
         var newTotal = player.Gems + gems;
         if (newTotal.Total > 10)
         {

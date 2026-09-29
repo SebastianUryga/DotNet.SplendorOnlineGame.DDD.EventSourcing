@@ -1,13 +1,16 @@
-using Splendor.Application;
-using Splendor.Infrastructure;
+using Marten;
+using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi;
-using MassTransit;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Splendor.Api.Consumers;
 using Splendor.Api.Hubs;
+using Splendor.Application;
+using Splendor.Application.Snapshots;
+using Splendor.Infrastructure;
+using Splendor.Infrastructure.Projections;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -148,6 +151,28 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.MapPost(
+        "/dev/projections/splendor-board/rebuild",
+        async (IDocumentStore store, CancellationToken cancellationToken) =>
+        {
+            using var daemon = await store.BuildProjectionDaemonAsync();
+
+            await daemon.RebuildProjectionAsync<SplendorBoardProjection>(
+                cancellationToken);
+
+            return Results.NoContent();
+        });
+    app.MapPost(
+    "/dev/projections/game-state/rebuild",
+    async (IDocumentStore store, CancellationToken cancellationToken) =>
+    {
+        using var daemon = await store.BuildProjectionDaemonAsync();
+
+        await daemon.RebuildProjectionAsync<SplendorGameState>(
+            cancellationToken);
+
+        return Results.NoContent();
+    });
 }
 
 if (!app.Environment.IsDevelopment())

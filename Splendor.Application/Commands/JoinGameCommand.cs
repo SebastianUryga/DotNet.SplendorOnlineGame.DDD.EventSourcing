@@ -1,9 +1,8 @@
-using JasperFx.Events.Tags;
 using Marten;
 using MediatR;
 using Splendor.Application.Common.Interfaces;
-using Splendor.Application.DecisionStates;
 using Splendor.Application.Events;
+using Splendor.Application.Snapshots;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
 using Splendor.Domain.ValueObjects;
@@ -28,23 +27,22 @@ public class JoinGameCommandHandler : IRequestHandler<JoinGameCommand>
 
     public async Task Handle(JoinGameCommand command, CancellationToken cancellationToken)
     {
-        var query = JoinGameDecisionState.Query(command.GameId);
-        var boundary = await _session.Events.FetchForWritingByTags<JoinGameDecisionState>(query, cancellationToken);
-        var state = boundary.Aggregate ?? throw new InvalidOperationException("Game not found.");
+        var stream = await _session.Events.FetchForWriting<SplendorGameState>(command.GameId, cancellationToken);
+        var state = stream.Aggregate ?? throw new InvalidOperationException("Game not found.");
 
         var events = Decide(command, state);
 
-        boundary.AppendMany(events.Select(e => _session.TagEvent(e)).ToArray());
+        stream.AppendMany(events.Select(e => _session.TagEvent(e)));
         await _session.SaveChangesAsync(cancellationToken);
     }
 
-    private static IReadOnlyList<IDomainEvent> Decide(JoinGameCommand command, JoinGameDecisionState state)
+    private static IReadOnlyList<IDomainEvent> Decide(JoinGameCommand command, SplendorGameState state)
     {
         if (state.Status == GameStatus.Started) throw new InvalidOperationException("Game is already started.");
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game is already finished.");
         if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game has been deleted.");
-        if (state.PlayerNames.Count >= 4) throw new InvalidOperationException("Game full.");
-        if (state.PlayerNames.Contains(command.Name, StringComparer.OrdinalIgnoreCase))
+        if (state.Players.Count >= 4) throw new InvalidOperationException("Game full.");
+        if (state.Players.Values.Any(player => string.Equals(player.Name, command.Name, StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException($"Player with name '{command.Name}' already exists in this game.");
 
         var playerId = Guid.NewGuid() + " " + command.Name;
