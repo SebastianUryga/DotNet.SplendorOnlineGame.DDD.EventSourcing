@@ -66,6 +66,17 @@ public class GamesController : ControllerBase
         return Ok();
     }
 
+    [HttpDelete("{gameId}/players/me")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> LeaveGame(Guid gameId)
+    {
+        var userId = _currentUserService.UserId;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        await _mediator.Send(new LeaveGameCommand { GameId = gameId, OwnerId = userId });
+        return NoContent();
+    }
+
     /// <summary>
     /// Invites a player to join an existing game.
     /// </summary>

@@ -1,7 +1,7 @@
 using JasperFx.Events;
 using Marten;
-using Splendor.Application.DecisionStates;
 using Splendor.Application.Events;
+using Splendor.Application.Snapshots;
 using Splendor.Domain;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
@@ -49,9 +49,7 @@ public class GameTestHelper
     public async Task AppendAsync(Guid gameId, params IDomainEvent[] events)
     {
         await using var session = _store.LightweightSession();
-        session.Events.Append(
-            Guid.NewGuid(),
-            events.Select(session.TagEvent).ToArray());
+        session.Events.Append(gameId, events.Select(session.TagEvent));
         await session.SaveChangesAsync();
     }
 
@@ -64,7 +62,6 @@ public class GameTestHelper
     public async Task<SplendorGameState?> LoadStateAsync(Guid gameId)
     {
         await using var session = _store.LightweightSession();
-        return await session.Events.AggregateByTagsAsync<SplendorGameState>(
-            SplendorGameState.Query(gameId));
+        return (await session.Events.FetchForWriting<SplendorGameState>(gameId))?.Aggregate;
     }
 }

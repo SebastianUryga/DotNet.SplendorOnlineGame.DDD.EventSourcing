@@ -1,15 +1,16 @@
-using Marten;
 using JasperFx.Events;
 using JasperFx.Events.Daemon;
 using JasperFx.Events.Projections;
+using Marten;
 using Microsoft.Extensions.DependencyInjection;
+using Splendor.Application;
+using Splendor.Application.Events;
+using Splendor.Application.Snapshots;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
 using Splendor.Infrastructure.Events;
-using Splendor.Infrastructure.Projections;
-using Splendor.Application;
-using Splendor.Application.Events;
 using Splendor.Infrastructure.Observability;
+using Splendor.Infrastructure.Projections;
 
 namespace Splendor.Infrastructure;
 
@@ -36,6 +37,8 @@ public static class DependencyInjection
                 IDomainEvent domainEvent => [new GameTag(domainEvent.GameId)],
                 _ => []
             });
+            // Snapshots
+            options.Projections.Snapshot<SplendorGameState>(SnapshotLifecycle.Async);
 
             // Projections
             options.Projections.Add<GameSummaryProjection>(ProjectionLifecycle.Inline);

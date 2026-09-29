@@ -1,17 +1,13 @@
 using JasperFx.Events;
 using JasperFx.Events.Projections;
 using Marten;
-using MassTransit;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Splendor.Application.Events;
+using Splendor.Application.Snapshots;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
-using Splendor.Infrastructure.Events;
 using Testcontainers.PostgreSql;
 
 namespace Splendor.IntegrationTests;
@@ -48,6 +44,8 @@ public class SplendorApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                     IDomainEvent domainEvent => [new GameTag(domainEvent.GameId)],
                     _ => []
                 });
+
+                options.Projections.Snapshot<SplendorGameState>(SnapshotLifecycle.Async);
 
                 options.Projections.Add<Splendor.Infrastructure.Projections.GameSummaryProjection>(ProjectionLifecycle.Inline);
                 options.Projections.Add<Splendor.Infrastructure.Projections.SplendorBoardProjection>(ProjectionLifecycle.Inline);

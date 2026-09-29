@@ -4,6 +4,7 @@ using System.Linq;
 using FluentAssertions;
 using Splendor.Application.Commands;
 using Splendor.Application.DecisionStates;
+using Splendor.Application.Snapshots;
 using Splendor.Domain.Events;
 using Splendor.Domain.ValueObjects;
 using Xunit;
@@ -44,6 +45,13 @@ public class GameEndTests
         var finished = produced.OfType<GameFinished>().Should().ContainSingle().Subject;
         finished.WinnerId.Should().Be(player1Id);
         finished.PrestigePoints.Should().Be(15);
+        produced.OfType<PlayerParticipationEnded>()
+            .Select(e => (e.PlayerId, e.OwnerId))
+            .Should().BeEquivalentTo(new[]
+            {
+                (player1Id, "owner-1"),
+                (player2Id, "owner-2")
+            });
     }
 
     private static void AddPurchasedCards(List<object> history, Guid gameId, string playerId, params string[] cardIds)

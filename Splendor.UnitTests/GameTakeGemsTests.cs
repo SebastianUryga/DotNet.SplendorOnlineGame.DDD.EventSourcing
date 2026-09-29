@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Splendor.Application.Commands;
 using Splendor.Application.DecisionStates;
+using Splendor.Application.Snapshots;
 using Splendor.Domain.Events;
 using Splendor.Domain.ValueObjects;
 using Xunit;

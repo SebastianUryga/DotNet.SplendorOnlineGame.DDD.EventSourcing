@@ -9,6 +9,19 @@ public static class SplendorRules
     private const int SameColorGemsTaken = 2;
     private const int MinimumMarketGemsForSameColorTake = 4;
 
+    public static GemCollection StartingMarketGems(int playerCount)
+    {
+        var regularGems = playerCount switch
+        {
+            2 => 4,
+            3 => 5,
+            4 => 7,
+            _ => throw new ArgumentOutOfRangeException(nameof(playerCount), "Splendor supports 2-4 players.")
+        };
+
+        return new GemCollection(regularGems, regularGems, regularGems, regularGems, regularGems, 5);
+    }
+
     public static GemCollection GetBonuses(IEnumerable<string> ownedCardIds)
     {
         var diamond = 0;

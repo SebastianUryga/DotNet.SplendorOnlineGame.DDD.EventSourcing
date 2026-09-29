@@ -19,3 +19,5 @@ public record NobleSelectionRequired(Guid GameId, string PlayerId, List<string> 
 public record NobleAcquired(Guid GameId, string PlayerId, string NobleId, DateTimeOffset Timestamp) : IDomainEvent;
 public record GameFinished(Guid GameId, string WinnerId, string WinnerOwnerId, string WinnerName, int PrestigePoints, DateTimeOffset Timestamp) : IDomainEvent;
 public record GameDeleted(Guid GameId, DateTimeOffset Timestamp) : IDomainEvent;
+public record PlayerLeft(Guid GameId, string PlayerId, string OwnerId, DateTimeOffset Timestamp) : IDomainEvent;
+public record PlayerParticipationEnded(Guid GameId, string PlayerId, string OwnerId, DateTimeOffset Timestamp) : IDomainEvent;

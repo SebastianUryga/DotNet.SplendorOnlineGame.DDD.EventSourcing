@@ -10,6 +10,7 @@ public partial class GameSummaryProjection : MultiStreamProjection<GameSummaryVi
     {
         Identity<GameCreated>(e => e.GameId);
         Identity<PlayerJoined>(e => e.GameId);
+        Identity<PlayerLeft>(e => e.GameId);
         Identity<PlayerInvited>(e => e.GameId);
         Identity<GameStarted>(e => e.GameId);
         Identity<TurnStarted>(e => e.GameId);
@@ -28,6 +29,12 @@ public partial class GameSummaryProjection : MultiStreamProjection<GameSummaryVi
     public void Apply(PlayerJoined e, GameSummaryView view)
     {
         view.PlayerCount++;
+        SetProjectionMetadata(view, e.Timestamp);
+    }
+
+    public void Apply(PlayerLeft e, GameSummaryView view)
+    {
+        view.PlayerCount--;
         SetProjectionMetadata(view, e.Timestamp);
     }
 

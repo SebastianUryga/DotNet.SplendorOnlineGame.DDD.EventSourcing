@@ -12,6 +12,7 @@ public partial class SplendorBoardProjection : MultiStreamProjection<SplendorBoa
     {
         Identity<GameCreated>(e => e.GameId);
         Identity<PlayerJoined>(e => e.GameId);
+        Identity<PlayerLeft>(e => e.GameId);
         Identity<GameStarted>(e => e.GameId);
         Identity<TurnStarted>(e => e.GameId);
         Identity<GemsTaken>(e => e.GameId);
@@ -29,7 +30,7 @@ public partial class SplendorBoardProjection : MultiStreamProjection<SplendorBoa
     public SplendorBoardView Create(GameCreated e) => new()
     {
         Id = e.GameId,
-        Status = "Created",
+        Status = GameStatus.Created,
         UpdatedAt = e.Timestamp,
         GameVersion = 1
     };
@@ -45,17 +46,23 @@ public partial class SplendorBoardProjection : MultiStreamProjection<SplendorBoa
         SetProjectionMetadata(view, e.Timestamp);
     }
 
+    public void Apply(PlayerLeft e, SplendorBoardView view)
+    {
+        view.Players.RemoveAll(player => player.Id == e.PlayerId);
+        SetProjectionMetadata(view, e.Timestamp);
+    }
+
     public void Apply(GameStarted e, SplendorBoardView view)
     {
-        view.Status = "Started";
-        view.MarketGems = new GemCollection(4, 4, 4, 4, 4, 5);
-        view.Market1 = e.Market1.ToList();
-        view.Market2 = e.Market2.ToList();
-        view.Market3 = e.Market3.ToList();
+        view.Status = GameStatus.Started;
+        view.MarketGems = e.MarketGems ?? GemCollection.Empty;
+        view.Market1 = e.Market1;
+        view.Market2 = e.Market2;
+        view.Market3 = e.Market3;
         view.Deck1Count = e.Deck1.Count;
         view.Deck2Count = e.Deck2.Count;
         view.Deck3Count = e.Deck3.Count;
-        view.Nobles = e.Nobles.ToList();
+        view.Nobles = e.Nobles ?? new List<string>();
         view.CurrentPlayerId = view.Players.FirstOrDefault()?.Id;
         SetProjectionMetadata(view, e.Timestamp);
     }
@@ -168,7 +175,7 @@ public partial class SplendorBoardProjection : MultiStreamProjection<SplendorBoa
 
     public void Apply(GameFinished e, SplendorBoardView view)
     {
-        view.Status = "Finished";
+        view.Status = GameStatus.Finished;
         view.WinnerId = e.WinnerId;
         view.WinnerName = e.WinnerName;
         view.CurrentPlayerId = null;
@@ -177,7 +184,7 @@ public partial class SplendorBoardProjection : MultiStreamProjection<SplendorBoa
 
     public void Apply(GameDeleted e, SplendorBoardView view)
     {
-        view.Status = "Deleted";
+        view.Status = GameStatus.Deleted;
         SetProjectionMetadata(view, e.Timestamp);
     }
 

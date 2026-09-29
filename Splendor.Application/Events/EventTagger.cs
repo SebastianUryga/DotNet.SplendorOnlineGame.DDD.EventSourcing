@@ -22,9 +22,15 @@ public static class EventTagger
             case PlayerJoined joined:
                 tagged.WithTag(new OwnerTag(joined.OwnerId));
                 break;
+            case PlayerLeft left:
+                tagged.WithTag(new OwnerTag(left.OwnerId));
+                break;
             case GameFinished finished:
                 tagged.WithTag(new OwnerTag(finished.WinnerOwnerId));
-                break;      
+                break;
+            case PlayerParticipationEnded ended:
+                tagged.WithTag(new OwnerTag(ended.OwnerId));
+                break;
         }
 
         return tagged;

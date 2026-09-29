@@ -22,9 +22,19 @@ public static class EventTagger
                 tagged.WithTag(new OwnerTag(joined.OwnerId));
             }
 
+            if (@event is PlayerLeft left)
+            {
+                tagged.WithTag(new OwnerTag(left.OwnerId));
+            }
+
             if (@event is GameFinished finished)
             {
                 tagged.WithTag(new OwnerTag(finished.WinnerOwnerId));
+            }
+
+            if (@event is PlayerParticipationEnded ended)
+            {
+                tagged.WithTag(new OwnerTag(ended.OwnerId));
             }
 
             return tagged;

@@ -34,9 +34,15 @@ public class DeleteGameCommandHandler : IRequestHandler<DeleteGameCommand>
     {
         if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game is already deleted.");
 
-        return new List<IDomainEvent>
+        var now = DateTimeOffset.UtcNow;
+        var events = new List<IDomainEvent>
         {
-            new GameDeleted(command.GameId, DateTimeOffset.UtcNow)
+            new GameDeleted(command.GameId, now)
         };
+
+        events.AddRange(state.Players.Select(player =>
+            (IDomainEvent)new PlayerParticipationEnded(command.GameId, player.Key, player.Value.OwnerId, now)));
+
+        return events;
     }
 }

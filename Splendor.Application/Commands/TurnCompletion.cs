@@ -1,5 +1,4 @@
-using Splendor.Application.DecisionStates;
-using Splendor.Application.Events;
+using Splendor.Application.Snapshots;
 using Splendor.Domain;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
@@ -60,6 +59,8 @@ internal static class TurnCompletion
         {
             var winner = SelectWinner(state, playerId, pointsFromAcquiredNoble);
             events.Add(new GameFinished(gameId, winner.PlayerId, winner.OwnerId, winner.Name, winner.PrestigePoints, now));
+            events.AddRange(state.Players.Select(candidate =>
+                (IDomainEvent)new PlayerParticipationEnded(gameId, candidate.Key, candidate.Value.OwnerId, now)));
             return events;
         }
 

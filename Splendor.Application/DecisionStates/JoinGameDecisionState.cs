@@ -2,46 +2,32 @@ using JasperFx.Events.Aggregation;
 using JasperFx.Events.Tags;
 using Splendor.Application.Events;
 using Splendor.Domain.Events;
-using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Application.DecisionStates;
 
 [BoundaryAggregate]
 internal class JoinGameDecisionState
 {
-    public GameStatus Status { get; private set; }
-    public List<string> PlayerNames { get; } = new();
+    public HashSet<Guid> ActiveGameIds { get; } = new();
 
-    public static EventTagQuery Query(Guid gameId) =>
+    public static EventTagQuery Query(string ownerId) =>
         new EventTagQuery()
-            .Or<GameCreated, GameTag>(new GameTag(gameId))
-            .Or<PlayerJoined, GameTag>(new GameTag(gameId))
-            .Or<GameStarted, GameTag>(new GameTag(gameId))
-            .Or<GameFinished, GameTag>(new GameTag(gameId))
-            .Or<GameDeleted, GameTag>(new GameTag(gameId));
-
-    public void Apply(GameCreated _)
-    {
-        Status = GameStatus.Created;
-    }
+            .Or<PlayerJoined, OwnerTag>(new OwnerTag(ownerId))
+            .Or<PlayerLeft, OwnerTag>(new OwnerTag(ownerId))
+            .Or<PlayerParticipationEnded, OwnerTag>(new OwnerTag(ownerId));
 
     public void Apply(PlayerJoined e)
     {
-        PlayerNames.Add(e.Name);
+        ActiveGameIds.Add(e.GameId);
     }
 
-    public void Apply(GameStarted _)
+    public void Apply(PlayerParticipationEnded e)
     {
-        Status = GameStatus.Started;
+        ActiveGameIds.Remove(e.GameId);
     }
 
-    public void Apply(GameFinished _)
+    public void Apply(PlayerLeft e)
     {
-        Status = GameStatus.Finished;
-    }
-
-    public void Apply(GameDeleted _)
-    {
-        Status = GameStatus.Deleted;
+        ActiveGameIds.Remove(e.GameId);
     }
 }

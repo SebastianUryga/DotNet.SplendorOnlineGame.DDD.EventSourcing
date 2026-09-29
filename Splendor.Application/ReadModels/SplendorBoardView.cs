@@ -5,7 +5,7 @@ namespace Splendor.Application.ReadModels;
 public class SplendorBoardView
 {
     public Guid Id { get; set; }
-    public string Status { get; set; } = "Created";
+    public GameStatus Status { get; set; }
     public GemCollection MarketGems { get; set; } = GemCollection.Empty;
     public string? CurrentPlayerId { get; set; }
     public string? WinnerId { get; set; }

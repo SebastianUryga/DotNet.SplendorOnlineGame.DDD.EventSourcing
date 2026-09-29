@@ -11,12 +11,12 @@ public class PlayerState
         Name = name;
     }
 
-    public string OwnerId { get; }
-    public string Name { get; }
-    public GemCollection Gems { get; private set; } = GemCollection.Empty;
-    public List<string> OwnedCardIds { get; } = new();
-    public List<string> ReservedCardIds { get; } = new();
-    public List<string> OwnedNobleIds { get; } = new();
+    public string OwnerId { get; set; }
+    public string Name { get; set; }
+    public GemCollection Gems { get; set; } = GemCollection.Empty;
+    public List<string> OwnedCardIds { get; set; } = new();
+    public List<string> ReservedCardIds { get; set; } = new();
+    public List<string> OwnedNobleIds { get; set; } = new();
 
     public PlayerState Clone()
     {
