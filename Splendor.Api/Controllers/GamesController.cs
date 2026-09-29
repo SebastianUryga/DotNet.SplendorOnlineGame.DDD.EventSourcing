@@ -66,14 +66,14 @@ public class GamesController : ControllerBase
         return Ok();
     }
 
-    [HttpDelete("{gameId}/players/me")]
+    [HttpDelete("{gameId}/players/{playerId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> LeaveGame(Guid gameId)
+    public async Task<IActionResult> LeaveGame(Guid gameId, string playerId)
     {
         var userId = _currentUserService.UserId;
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-        await _mediator.Send(new LeaveGameCommand { GameId = gameId, OwnerId = userId });
+        await _mediator.Send(new LeaveGameCommand { GameId = gameId, PlayerId = playerId, OwnerId = userId });
         return NoContent();
     }
 

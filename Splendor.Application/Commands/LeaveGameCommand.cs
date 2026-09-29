@@ -13,6 +13,7 @@ namespace Splendor.Application.Commands;
 public record LeaveGameCommand : IAuthoredCommand, IRequest
 {
     public Guid GameId { get; init; }
+    public string PlayerId { get; init; } = string.Empty;
     public string OwnerId { get; init; } = string.Empty;
 }
 
@@ -41,10 +42,11 @@ public class LeaveGameCommandHandler : IRequestHandler<LeaveGameCommand>
         if (state.Status != GameStatus.Created)
             throw new InvalidOperationException("You can only leave a game before it starts.");
 
-        var player = state.Players.SingleOrDefault(player => player.Value.OwnerId == command.OwnerId);
-        if (player.Key is null)
+        if (!state.Players.TryGetValue(command.PlayerId, out var player))
+            throw new InvalidOperationException("Player not found.");
+        if (player.OwnerId != command.OwnerId)
             throw new InvalidOperationException("You do not control a player in this game.");
 
-        return new PlayerLeft(command.GameId, player.Key, command.OwnerId, DateTimeOffset.UtcNow);
+        return new PlayerLeft(command.GameId, command.PlayerId, command.OwnerId, DateTimeOffset.UtcNow);
     }
 }
