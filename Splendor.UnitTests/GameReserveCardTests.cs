@@ -14,6 +14,37 @@ namespace Splendor.UnitTests;
 public class GameReserveCardTests
 {
     [Fact]
+    public void ReserveCard_ReservesTopCardFromSelectedDeck_WhenCardIdIsNull()
+    {
+        var (gameId, owner1, _, player1Id, _, history) = TestHelpers.CreateStartedGame();
+        var game = new SplendorGameState();
+        TestHelpers.ApplyHistory(game, history);
+        var topCardId = game.Deck2.First();
+
+        var command = new ReserveCardCommand
+        {
+            GameId = gameId,
+            OwnerId = owner1,
+            PlayerId = player1Id,
+            Level = 2
+        };
+
+        var produced = ReserveCardCommandHandler.Decide(
+            command,
+            game,
+            TestHelpers.CreateActiveTurnClock(gameId, player1Id, DateTimeOffset.UtcNow));
+
+        var reserved = produced.Should().ContainSingle(e => e is CardReserved)
+            .Which.Should().BeOfType<CardReserved>().Subject;
+        reserved.CardId.Should().Be(topCardId);
+        produced.Should().NotContain(e => e is CardRevealed);
+
+        game.Apply(produced);
+        game.Deck2.Should().NotContain(topCardId);
+        game.Players[player1Id].ReservedCardIds.Should().Contain(topCardId);
+    }
+
+    [Fact]
     public void ReserveCard_GivesGoldAndEmitsOverflow_WhenTotalExceedsLimit()
     {
         // arrange - build a started game with two players

@@ -67,14 +67,25 @@ public class ReserveCardCommandHandler : IRequestHandler<ReserveCardCommand>
         if (!turnClock.CanStartAction(command.PlayerId)) throw new InvalidOperationException("Turn deadline has passed.");
         SplendorRules.EnsureCanReserveCard(player.ReservedCardIds.Count);
 
-        if (command.CardId is null) throw new InvalidOperationException("Card id is required.");
+        var isBlindReservation = command.CardId is null;
+        var level = command.Level ?? 0;
+        var cardId = command.CardId;
 
-        var card = Domain.CardDefinitions.GetById(command.CardId) ?? throw new InvalidOperationException("Card not found.");
-        var market = state.MarketFor(card);
-
-        if (!market.Contains(command.CardId))
+        if (isBlindReservation)
         {
-            throw new InvalidOperationException("Card not available in market.");
+            if (command.Level is null) throw new InvalidOperationException("Deck level is required.");
+            var selectedDeck = state.DeckFor(level);
+            if (selectedDeck.Count == 0) throw new InvalidOperationException("Deck is empty.");
+            cardId = selectedDeck[0];
+        }
+        else
+        {
+            var card = Domain.CardDefinitions.GetById(cardId!) ?? throw new InvalidOperationException("Card not found.");
+            level = card.Level;
+            if (!state.MarketFor(level).Contains(cardId!))
+            {
+                throw new InvalidOperationException("Card not available in market.");
+            }
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -85,12 +96,12 @@ public class ReserveCardCommandHandler : IRequestHandler<ReserveCardCommand>
             events.Add(new GemsTaken(command.GameId, command.PlayerId, new GemCollection(0, 0, 0, 0, 0, 1), now));
         }
 
-        events.Add(new CardReserved(command.GameId, command.PlayerId, command.CardId, now));
+        events.Add(new CardReserved(command.GameId, command.PlayerId, cardId!, now));
 
-        var deck = state.DeckFor(card.Level);
-        if (market.Contains(command.CardId) && deck.Count > 0)
+        var deck = state.DeckFor(level);
+        if (!isBlindReservation && deck.Count > 0)
         {
-            events.Add(new CardRevealed(command.GameId, card.Level, deck[0], now));
+            events.Add(new CardRevealed(command.GameId, level, deck[0], now));
         }
 
         return events;

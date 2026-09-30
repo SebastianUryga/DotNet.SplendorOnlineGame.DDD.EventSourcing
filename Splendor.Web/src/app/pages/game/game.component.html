@@ -162,6 +162,7 @@
         <div class="level-header">
           <h4>Level {{ level }}</h4>
           <span class="deck-count">{{ getDeckCount(level) }} in deck</span>
+          <button (click)="reserveCard(null, level)" class="btn-reserve" [disabled]="getDeckCount(level) === 0 || game.isGemReturnPending" data-testid="reserve-deck-card-btn">Reserve from deck</button>
         </div>
         <div class="cards-row">
           <div *ngFor="let cardId of getMarketCards(level)" class="card-item">

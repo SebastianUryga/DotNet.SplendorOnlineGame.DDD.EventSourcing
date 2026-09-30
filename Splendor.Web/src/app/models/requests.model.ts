@@ -25,7 +25,8 @@ export interface BuyCardRequest {
 
 export interface ReserveCardRequest {
     playerId: string;
-    cardId: string;
+    cardId: string | null;
+    level: number | null;
 }
 
 export interface ResolveGemLimitRequest {

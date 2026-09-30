@@ -122,6 +122,7 @@ public class SplendorGameState
         if (card != null)
         {
             MarketFor(card).Remove(e.CardId);
+            DeckFor(card.Level).Remove(e.CardId);
         }
     }
 

@@ -281,10 +281,11 @@ export class GameComponent implements OnInit, OnDestroy {
     });
   }
 
-  reserveCard(cardId: string): void {
+  reserveCard(cardId: string | null, level: number | null = null): void {
     const req = {
       playerId: this.game?.currentPlayerId || '',
-      cardId: cardId
+      cardId,
+      level
     };
     this.gameService.reserveCard(this.gameId, req).subscribe(() => {
       this.refresh();

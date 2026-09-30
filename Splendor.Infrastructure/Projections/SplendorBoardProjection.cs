@@ -136,7 +136,11 @@ public partial class SplendorBoardProjection : SingleStreamProjection<SplendorBo
         var card = CardDefinitions.GetById(e.CardId);
         if (card != null)
         {
-            GetMarketForLevel(view, card.Level).Remove(e.CardId);
+            var reservedFromMarket = GetMarketForLevel(view, card.Level).Remove(e.CardId);
+            if (!reservedFromMarket)
+            {
+                DecrementDeckCount(view, card.Level);
+            }
         }
 
         var player = view.Players.FirstOrDefault(p => p.Id == e.PlayerId);

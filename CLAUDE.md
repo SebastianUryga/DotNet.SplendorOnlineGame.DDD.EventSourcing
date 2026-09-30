@@ -66,6 +66,8 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 |------|------|
 | `Application/Commands/CreateGameCommand.cs` | Tworzenie nowej gry |
 | `Application/Commands/JoinGameCommand.cs` | Dołączanie gracza do gry |
+| `Application/Commands/InvitePlayerCommand.cs` | Zapraszanie gracza do lobby |
+| `Application/Commands/LeaveGameCommand.cs` | Opuszczanie lobby przez gracza |
 | `Application/Commands/StartGameCommand.cs` | Rozpoczęcie gry |
 | `Application/Commands/TakeGemsCommand.cs` | Pobieranie gemów z rynku |
 | `Application/Commands/BuyCardCommand.cs` | Kupowanie karty |
@@ -73,6 +75,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 | `Application/Commands/ResolveGemLimitCommand.cs` | Rozwiązywanie limitu gemów |
 | `Application/Commands/ReserveCardCommand.cs` | Rezerwacja karty |
 | `Application/Commands/ChooseNobleCommand.cs` | Wybór arystokraty |
+| `Application/Commands/ExpireTurnCommand.cs` | Automatyczne zakończenie przeterminowanej tury |
 | `Application/ReadModels/GameView.cs` | Read model gry (GameView, PlayerView) |
 | `Application/Behaviors/CommandMetricsBehavior.cs` | MediatR pipeline behavior mierzący czas, aktywne i zakończone operacje. |
 
@@ -97,13 +100,17 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 - MediatR mierzy `splendor.command.duration`, `splendor.command.executed` i `splendor.command.active`.
 - Marten mierzy operacje odczytu i zapisu przez `MartenMetricsLogger`.
 - Dashboard lokalny jest dostępny pod `http://localhost:18888` po uruchomieniu `docker-compose up -d`.
-- Pierwszy benchmark w `Splendor.LoadTests` porównał DCB, agregację live i snapshot inline na uproszczonym stanie; nadal brakuje kontrolowanego pomiaru pełnego `SplendorGameState`.
+- Benchmark w `Splendor.LoadTests` porównał DCB, agregację live i snapshot inline na uproszczonym stanie i uzasadnił przejście na snapshoty. Pomiar pełnego `SplendorGameState` nie jest planowany bez konkretnego celu wydajnościowego lub wykrytej regresji.
 
 ### Integration Tests
 | Plik | Opis |
 |------|------|
 | `IntegrationTests/SplendorApiFactory.cs` | WebApplicationFactory - konfiguracja testów z Testcontainers |
 | `IntegrationTests/BasicTests.cs` | Podstawowe testy API (Swagger, Create Game) |
+| `IntegrationTests/GameFlowTests.cs` | Przepływ gry, autoryzacja ruchu i zmiana deadline'u tury |
+| `IntegrationTests/HybridConcurrencyTests.cs` | Routing do jednego strumienia, snapshoty oraz konflikty stream/DCB |
+| `IntegrationTests/ChooseNobleCommandHandlerTests.cs` | Integracja wyboru arystokraty |
+| `IntegrationTests/TurnExpirationSchedulingTests.cs` | Scheduler → consumer → `ExpireTurnCommand` → `TurnExpired` |
 | `IntegrationTests/TestAuthHandler.cs` | Fake authentication handler - czyta X-Test-User-Id header |
 | `IntegrationTests/TestUserContext.cs` | DelegatingHandler ustawiający X-Test-User-Id per request |
 
@@ -171,13 +178,15 @@ record GemCollection(int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx,
 1. `GameCreated` - utworzenie gry przez CreatorId
 2. `PlayerJoined` - dołączenie gracza (2-4 graczy)
 3. `GameStarted` - rozpoczęcie (tasowanie talii, setup rynku)
-4. `TurnStarted` - początek tury gracza
+4. `TurnStarted` + `TurnDeadlineStarted` - początek tury i zaplanowanie jej deadline'u
 5. Akcja gracza:
    - `GemsTaken` - pobranie gemów (max 3 różne, 2 takie same przy rynku >= 4 lub 1 złoty)
    - `CardPurchased` + `CardRevealed` - kupno karty
 6. Gdy gracz osiągnie ≥ 15 punktów prestiżu, gra trwa do końca bieżącej rundy.
 7. Po domknięciu rundy `GameFinished` wskazuje zwycięzcę: najwięcej punktów prestiżu, a przy remisie mniej zakupionych kart.
-8. W przeciwnym wypadku `TurnEnded` - koniec tury i powrót do punktu 4 (następny gracz)
+8. W przeciwnym wypadku `TurnEnded` - koniec tury i powrót do punktu 4 (następny gracz).
+9. Po przekroczeniu deadline'u scheduler wywołuje `ExpireTurnCommand`; aktualna tura emituje `TurnExpired`, a spóźnione wiadomości są ignorowane dzięki `TurnId`.
+10. `PlayerLeft` usuwa gracza z lobby, a `PlayerParticipationEnded` zwalnia jego aktywny udział po zakończeniu lub usunięciu gry.
 
 
 
@@ -192,6 +201,7 @@ record GemCollection(int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx,
 | GET | `/games/{id}/history` | Historia zdarzeń gry |
 | DELETE | `/games/{id}` | Usuwanie gry |
 | POST | `/games/{id}/players` | Dołączanie gracza |
+| DELETE | `/games/{id}/players/{playerId}` | Opuszczanie lobby |
 | POST | `/games/{id}/invite` | Zapraszanie użytkownika do gry |
 | POST | `/games/{id}/start` | Rozpoczęcie gry |
 | POST | `/games/{id}/actions/take-gems` | Pobieranie żetonów |
@@ -265,7 +275,7 @@ npm start
 - Rezerwacja kart: maksymalnie trzy na gracza; rezerwacja przyznaje złoty żeton, jeśli jest dostępny.
 - Arystokraci: automatyczne przyznanie jednego dostępnego arystokraty albo wybór, gdy gracz kwalifikuje się do kilku.
 - Zakończenie gry po domknięciu rundy, w której ktoś osiągnął co najmniej 15 punktów prestiżu.
-- Read modele Marten: `GameSummaryView`, `SplendorBoardView`, `PlayerBoardView`, `UserStatsView`; `GetGameQuery` mapuje planszę do kompatybilnego `GameView`.
+- Read modele Marten: `GameSummaryView`, `SplendorBoardView`, `PlayerBoardView`; `GetGameQuery` mapuje planszę do kompatybilnego `GameView`. `UserStatsView` jest na razie nieużywanym placeholderem bez projekcji i endpointów.
 - REST API, Swagger, JWT/Auth0, SignalR oraz MassTransit/RabbitMQ.
 - Podstawowe metryki aplikacji i Martena przez `System.Diagnostics.Metrics` oraz eksport OpenTelemetry do lokalnego Aspire Dashboard.
 - ETag/`304 Not Modified` dla `GET /games/{id}` i polling wersji gry.
@@ -286,7 +296,7 @@ npm start
 **Obserwowalność i wydajność:**
 - [x] Podstawowe metryki komend i operacji Martena.
 - [x] Eksport metryk i trace’ów przez OpenTelemetry do lokalnego Aspire Dashboard.
-- [ ] Powtórzyć kontrolowany benchmark na pełnym `SplendorGameState` z analizą p50/p95/p99; uproszczony benchmark DCB/live/snapshot jest już w `Splendor.LoadTests`.
+- [x] Uproszczony benchmark DCB/live/snapshot w `Splendor.LoadTests` dostarczył przesłanki do przyjęcia architektury hybrydowej.
 
 ## Konwencje kodu
 
