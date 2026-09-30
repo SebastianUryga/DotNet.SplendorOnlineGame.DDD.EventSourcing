@@ -1,6 +1,7 @@
 using Marten;
 using MediatR;
 using Splendor.Application.Common.Interfaces;
+using Splendor.Application.DecisionStates;
 using Splendor.Application.Events;
 using Splendor.Application.Snapshots;
 using Splendor.Domain.Common;
@@ -36,14 +37,17 @@ public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
     {
         var stream = await _session.Events.FetchForWriting<SplendorGameState>(command.GameId, cancellationToken);
         var state = stream.Aggregate ?? throw new InvalidOperationException("Game not found.");
+        var turnClock = await _session.Events.FetchForWritingByTags<TurnClockState>(
+            TurnClockState.Query(command.GameId), cancellationToken);
+        var clock = turnClock.Aggregate ?? throw new InvalidOperationException("Turn clock not started.");
 
-        var events = Decide(command, state).ToList();
+        var events = Decide(command, state, clock).ToList();
 
         // Apply decision events to local state
         state.Apply(events);
 
         // Turn completion may produce additional events; merge them
-        var completionEvents = TurnCompletion.Decide(command.GameId, command.PlayerId, state, DateTimeOffset.UtcNow);
+        var completionEvents = TurnCompletion.DecideAfterAction(command.GameId, command.PlayerId, state, DateTimeOffset.UtcNow);
         events.AddRange(completionEvents);
 
         // Tag and append events to the stream
@@ -51,7 +55,7 @@ public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
         await _session.SaveChangesAsync(cancellationToken);
     }
 
-    internal static IReadOnlyList<IDomainEvent> Decide(TakeGemsCommand command, SplendorGameState state)
+    internal static IReadOnlyList<IDomainEvent> Decide(TakeGemsCommand command, SplendorGameState state, TurnClockState turnClock)
     {
         var gems = new GemCollection(command.Diamond, command.Sapphire, command.Emerald, command.Ruby, command.Onyx, command.Gold);
 
@@ -63,6 +67,7 @@ public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
         if (state.CurrentPlayerId != command.PlayerId) throw new InvalidOperationException("Not your turn.");
         if (state.PendingGemReturnPlayerId is not null) throw new InvalidOperationException("A gem overflow resolution is pending.");
         if (state.PendingNobleSelectionPlayerId is not null) throw new InvalidOperationException("A noble selection is pending.");
+        if (!turnClock.CanStartAction(command.PlayerId)) throw new InvalidOperationException("Turn deadline has passed.");
 
         SplendorRules.EnsureValidGemSelection(gems);
         SplendorRules.EnsureGemsAvailable(state.MarketGems, gems);

@@ -1,6 +1,7 @@
 using Marten;
 using MediatR;
 using Splendor.Application.Common.Interfaces;
+using Splendor.Application.DecisionStates;
 using Splendor.Application.Events;
 using Splendor.Application.Snapshots;
 using Splendor.Domain;
@@ -27,10 +28,12 @@ public record StartGameCommand : IAuthoredCommand, IRequest
 public class StartGameCommandHandler : IRequestHandler<StartGameCommand>
 {
     private readonly IDocumentSession _session;
+    private readonly TimeProvider _timeProvider;
 
-    public StartGameCommandHandler(IDocumentSession session)
+    public StartGameCommandHandler(IDocumentSession session, TimeProvider timeProvider)
     {
         _session = session;
+        _timeProvider = timeProvider;
     }
 
     public async Task Handle(StartGameCommand command, CancellationToken cancellationToken)
@@ -38,13 +41,13 @@ public class StartGameCommandHandler : IRequestHandler<StartGameCommand>
         var stream = await _session.Events.FetchForWriting<SplendorGameState>(command.GameId, cancellationToken);
         var state = stream.Aggregate ?? throw new InvalidOperationException("Game not found.");
 
-        var events = Decide(command, state);
+        var events = Decide(command, state, _timeProvider.GetUtcNow());
 
         stream.AppendMany(events.Select(e => _session.TagEvent(e)));
         await _session.SaveChangesAsync(cancellationToken);
     }
 
-    private static IReadOnlyList<IDomainEvent> Decide(StartGameCommand command, SplendorGameState state)
+    private static IReadOnlyList<IDomainEvent> Decide(StartGameCommand command, SplendorGameState state, DateTimeOffset now)
     {
         if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game deleted.");
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game finished.");
@@ -94,8 +97,9 @@ public class StartGameCommandHandler : IRequestHandler<StartGameCommand>
                 market2,
                 market3,
                 nobleIds,
-                DateTimeOffset.UtcNow),
-            new TurnStarted(command.GameId, state.PlayerOrder[0], DateTimeOffset.UtcNow)
+                now),
+            new TurnStarted(command.GameId, state.PlayerOrder[0], now),
+            TurnClockState.Start(command.GameId, state.PlayerOrder[0], now)
         };
     }
 }

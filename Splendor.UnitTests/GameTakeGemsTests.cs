@@ -31,7 +31,9 @@ public class GameTakeGemsTests
             Diamond = 1,
             Sapphire = 1
         };
-        var produced = TakeGemsCommandHandler.Decide(command, game).ToList();
+        var now = DateTimeOffset.UtcNow;
+        var produced = TakeGemsCommandHandler.Decide(
+            command, game, TestHelpers.CreateActiveTurnClock(gameId, player1Id, now)).ToList();
 
         // assert - expect GemsTaken then GemsOverflowDetected, with excess = 1
         produced.Should().HaveCount(2);
@@ -63,9 +65,11 @@ public class GameTakeGemsTests
             Sapphire = 1,
             Emerald = 1
         };
-        var produced = TakeGemsCommandHandler.Decide(command, game).ToList();
+        var now = DateTimeOffset.UtcNow;
+        var produced = TakeGemsCommandHandler.Decide(
+            command, game, TestHelpers.CreateActiveTurnClock(gameId, player1Id, now)).ToList();
         game.Apply(produced);
-        produced.AddRange(TurnCompletion.Decide(gameId, player1Id, game, DateTimeOffset.UtcNow));
+        produced.AddRange(TurnCompletion.DecideAfterAction(gameId, player1Id, game, DateTimeOffset.UtcNow));
 
         var selection = produced.OfType<NobleSelectionRequired>().Single();
         selection.EligibleNobleIds.Should().BeEquivalentTo("N_06", "N_07");

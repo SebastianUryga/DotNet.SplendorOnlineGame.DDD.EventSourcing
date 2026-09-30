@@ -36,7 +36,9 @@ public class GameBuyCardTests
             PlayerId = player1Id,
             CardId = cardId
         };
-        var produced = BuyCardCommandHandler.Decide(command, game).ToList();
+        var now = DateTimeOffset.UtcNow;
+        var produced = BuyCardCommandHandler.Decide(
+            command, game, TestHelpers.CreateActiveTurnClock(gameId, player1Id, now)).ToList();
 
         // assert - expect CardPurchased first
         produced.Should().ContainSingle(e => e is CardPurchased);
@@ -69,9 +71,11 @@ public class GameBuyCardTests
             PlayerId = player1Id,
             CardId = emeraldCard.Id
         };
-        var produced = BuyCardCommandHandler.Decide(command, game).ToList();
+        var now = DateTimeOffset.UtcNow;
+        var produced = BuyCardCommandHandler.Decide(
+            command, game, TestHelpers.CreateActiveTurnClock(gameId, player1Id, now)).ToList();
         game.Apply(produced);
-        produced.AddRange(TurnCompletion.Decide(gameId, player1Id, game, DateTimeOffset.UtcNow));
+        produced.AddRange(TurnCompletion.DecideAfterAction(gameId, player1Id, game, DateTimeOffset.UtcNow));
 
         produced.OfType<NobleAcquired>().Should().ContainSingle();
         produced.FindIndex(e => e is NobleAcquired).Should().BeLessThan(produced.FindIndex(e => e is TurnEnded));

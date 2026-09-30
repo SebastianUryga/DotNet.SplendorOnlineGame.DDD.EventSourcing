@@ -109,14 +109,22 @@ if (builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddMassTransit(x =>
     {
+        x.AddDelayedMessageScheduler();
         x.AddConsumer<GameUpdatedConsumer>();
-        x.UsingInMemory((context, cfg) => cfg.ConfigureEndpoints(context));
+        x.AddConsumer<ExpireTurnConsumer>();
+        x.UsingInMemory((context, cfg) =>
+        {
+            cfg.UseDelayedMessageScheduler();
+            cfg.ConfigureEndpoints(context);
+        });
     });
 }
 else
 {
     builder.Services.AddMassTransit(x =>
     {
+        x.AddDelayedMessageScheduler();
+        x.AddConsumer<ExpireTurnConsumer>();
         x.AddConsumer<GameUpdatedConsumer>(c =>
         {
             c.Options<BatchOptions>(o =>
@@ -128,6 +136,7 @@ else
 
         x.UsingRabbitMq((context, cfg) =>
         {
+            cfg.UseDelayedMessageScheduler();
             cfg.Host("localhost", "/", h =>
             {
                 h.Username("guest");

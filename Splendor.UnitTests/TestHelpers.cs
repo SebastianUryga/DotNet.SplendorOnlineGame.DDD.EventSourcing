@@ -1,4 +1,5 @@
 using Splendor.Application.Snapshots;
+using Splendor.Application.DecisionStates;
 using Splendor.Domain;
 using Splendor.Domain.Events;
 using Splendor.Domain.Rules;
@@ -8,6 +9,13 @@ namespace Splendor.UnitTests;
 
 public static class TestHelpers
 {
+    internal static TurnClockState CreateActiveTurnClock(Guid gameId, string playerId, DateTimeOffset now)
+    {
+        var clock = new TurnClockState();
+        clock.Apply(new TurnDeadlineStarted(gameId, Guid.NewGuid(), playerId, now.AddMinutes(1), now));
+        return clock;
+    }
+
     // Apply a list of domain events to an aggregate using dynamic dispatch
     public static void ApplyHistory(SplendorGameState game, IEnumerable<object> history)
     {

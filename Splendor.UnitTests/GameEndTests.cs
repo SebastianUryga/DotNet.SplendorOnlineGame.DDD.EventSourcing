@@ -22,7 +22,7 @@ public class GameEndTests
         var game = new SplendorGameState();
         TestHelpers.ApplyHistory(game, history);
 
-        var produced = TurnCompletion.Decide(gameId, player1Id, game, DateTimeOffset.UtcNow).ToList();
+        var produced = TurnCompletion.DecideAfterAction(gameId, player1Id, game, DateTimeOffset.UtcNow).ToList();
 
         produced.OfType<GameFinished>().Should().BeEmpty();
         produced.OfType<TurnEnded>().Should().ContainSingle(e => e.PlayerId == player1Id);
@@ -40,7 +40,7 @@ public class GameEndTests
         var game = new SplendorGameState();
         TestHelpers.ApplyHistory(game, history);
 
-        var produced = TurnCompletion.Decide(gameId, player2Id, game, DateTimeOffset.UtcNow).ToList();
+        var produced = TurnCompletion.DecideAfterAction(gameId, player2Id, game, DateTimeOffset.UtcNow).ToList();
 
         var finished = produced.OfType<GameFinished>().Should().ContainSingle().Subject;
         finished.WinnerId.Should().Be(player1Id);

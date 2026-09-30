@@ -39,7 +39,7 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
         state.Apply(events);
 
         // Turn completion may produce additional events; merge them
-        var completionEvents = TurnCompletion.Decide(command.GameId, command.PlayerId, state, DateTimeOffset.UtcNow);
+        var completionEvents = TurnCompletion.DecideAfterNobleSelection(command.GameId, command.PlayerId, state, DateTimeOffset.UtcNow);
         events.AddRange(completionEvents);
 
         // Tag and append events to the stream
@@ -47,7 +47,7 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
         await _session.SaveChangesAsync(cancellationToken);
     }
 
-    private static IReadOnlyList<IDomainEvent> Decide(ChooseNobleCommand command, SplendorGameState state)
+    internal static IReadOnlyList<IDomainEvent> Decide(ChooseNobleCommand command, SplendorGameState state)
     {
         if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game deleted.");
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game finished.");

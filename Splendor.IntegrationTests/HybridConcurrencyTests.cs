@@ -50,28 +50,30 @@ public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
     [Fact]
     public async Task MigratedHandlers_UseGameSnapshotAndStream()
     {
-        var gameId = await SeedCreatedGame("owner-1");
+        const string owner1 = "migrated-owner-1";
+        const string owner2 = "migrated-owner-2";
+        var gameId = await SeedCreatedGame(owner1);
 
         await Execute(session => new JoinGameCommandHandler(session).Handle(new JoinGameCommand
         {
             GameId = gameId,
-            OwnerId = "owner-1",
+            OwnerId = owner1,
             Name = "Alice"
         }, CancellationToken.None));
         await Execute(session => new JoinGameCommandHandler(session).Handle(new JoinGameCommand
         {
             GameId = gameId,
-            OwnerId = "owner-2",
+            OwnerId = owner2,
             Name = "Bob"
         }, CancellationToken.None));
         await Execute(session => new InvitePlayerCommandHandler(session).Handle(new InvitePlayerCommand
         {
             GameId = gameId,
-            OwnerId = "owner-1",
+            OwnerId = owner1,
             InviteeId = "owner-3"
         }, CancellationToken.None));
-        await Execute(session => new StartGameCommandHandler(session).Handle(
-            new StartGameCommand(gameId, "owner-1"), CancellationToken.None));
+        await Execute(session => new StartGameCommandHandler(session, TimeProvider.System).Handle(
+            new StartGameCommand(gameId, owner1), CancellationToken.None));
         await Execute(session => new DeleteGameCommandHandler(session).Handle(
             new DeleteGameCommand(gameId), CancellationToken.None));
 
@@ -80,7 +82,7 @@ public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
         var stream = await freshSession.Events.FetchStreamAsync(gameId);
 
         state.Should().NotBeNull();
-        state!.CreatorId.Should().Be("owner-1");
+        state!.CreatorId.Should().Be(owner1);
         state.Status.Should().Be(GameStatus.Deleted);
         state.Players.Should().HaveCount(2);
         stream.Should().Contain(e => e.Data is PlayerInvited);

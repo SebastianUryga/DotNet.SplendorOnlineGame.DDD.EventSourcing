@@ -36,9 +36,11 @@ public class GameReserveCardTests
             PlayerId = player1Id,
             CardId = cardId
         };
-        var produced = ReserveCardCommandHandler.Decide(command, game).ToList();
+        var now = DateTimeOffset.UtcNow;
+        var produced = ReserveCardCommandHandler.Decide(
+            command, game, TestHelpers.CreateActiveTurnClock(gameId, player1Id, now)).ToList();
         game.Apply(produced);
-        produced.AddRange(TurnCompletion.Decide(gameId, player1Id, game, DateTimeOffset.UtcNow));
+        produced.AddRange(TurnCompletion.DecideAfterAction(gameId, player1Id, game, DateTimeOffset.UtcNow));
 
         // assert - expect GemsTaken (gold), CardReserved, CardRevealed, then GemsOverflowDetected with excess = 1
         produced.Should().HaveCountGreaterOrEqualTo(4);
@@ -70,7 +72,9 @@ public class GameReserveCardTests
             CardId = game.Market1.First()
         };
 
-        var act = () => ReserveCardCommandHandler.Decide(command, game);
+        var now = DateTimeOffset.UtcNow;
+        var clock = TestHelpers.CreateActiveTurnClock(gameId, player1Id, now);
+        var act = () => ReserveCardCommandHandler.Decide(command, game, clock);
 
         act.Should().Throw<InvalidOperationException>()
             .WithMessage("Cannot reserve more than 3 cards.");

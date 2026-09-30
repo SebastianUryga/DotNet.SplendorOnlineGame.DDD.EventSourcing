@@ -57,6 +57,7 @@ dlldata.c
 # Benchmark Results
 BenchmarkDotNet.Artifacts/
 *-load-test-*.csv
+backups/
 
 # .NET
 project.lock.json

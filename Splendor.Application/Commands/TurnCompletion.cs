@@ -1,4 +1,5 @@
 using Splendor.Application.Snapshots;
+using Splendor.Application.DecisionStates;
 using Splendor.Domain;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
@@ -9,7 +10,7 @@ namespace Splendor.Application.Commands;
 
 internal static class TurnCompletion
 {
-    public static IEnumerable<IDomainEvent> Decide(Guid gameId, string playerId, SplendorGameState state, DateTimeOffset now)
+    public static IEnumerable<IDomainEvent> DecideAfterAction(Guid gameId, string playerId, SplendorGameState state, DateTimeOffset now)
     {
         if (state.PendingGemReturnPlayerId == playerId) return Enumerable.Empty<IDomainEvent>();
         if (state.PendingGemReturnPlayerId is not null) throw new InvalidOperationException("A gem overflow resolution is pending.");
@@ -47,9 +48,24 @@ internal static class TurnCompletion
             events.Add(new NobleAcquired(gameId, playerId, acquired.Id, now));
         }
 
+        var pointsFromAcquiredNoble = acquired?.PrestigePoints ?? 0;
+        events.AddRange(DecideTurnEnd(gameId, playerId, state, pointsFromAcquiredNoble, now));
+        return events;
+    }
+
+    public static IEnumerable<IDomainEvent> DecideAfterNobleSelection(Guid gameId, string playerId, SplendorGameState state, DateTimeOffset now) =>
+        DecideTurnEnd(gameId, playerId, state, 0, now);
+
+    public static IEnumerable<IDomainEvent> DecideAfterExpiration(Guid gameId, string playerId, SplendorGameState state, DateTimeOffset now) =>
+        DecideTurnEnd(gameId, playerId, state, 0, now);
+
+    private static IEnumerable<IDomainEvent> DecideTurnEnd(Guid gameId, string playerId, SplendorGameState state, int pointsFromAcquiredNoble, DateTimeOffset now)
+    {
+        if (!state.Players.TryGetValue(playerId, out var player)) throw new InvalidOperationException("Player not found.");
+
+        var events = new List<IDomainEvent>();
         var nextPlayerId = state.NextPlayerAfter(playerId);
         var isRoundComplete = nextPlayerId == state.PlayerOrder[0];
-        var pointsFromAcquiredNoble = acquired?.PrestigePoints ?? 0;
         var playerPoints = SplendorRules.GetPrestigePoints(player.OwnedCardIds, player.OwnedNobleIds) + pointsFromAcquiredNoble;
         var hasEndGameStarted = playerPoints >= 15 || state.Players.Values.Any(p => SplendorRules.GetPrestigePoints(p.OwnedCardIds, p.OwnedNobleIds) >= 15);
 
@@ -65,6 +81,7 @@ internal static class TurnCompletion
         }
 
         events.Add(new TurnStarted(gameId, nextPlayerId, now));
+        events.Add(TurnClockState.Start(gameId, nextPlayerId, now));
         return events;
     }
 
