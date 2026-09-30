@@ -20,7 +20,7 @@ public class BotGameUpdatedConsumer : IConsumer<Batch<GameUpdatedMessage>>
         var latestMessagesByGame = context.Message
             .Select(x => x.Message)
             .GroupBy(x => x.GameId)
-            .Select(g => g.OrderByDescending(x => x.Version).First());
+            .Select(g => g.OrderByDescending(x => x.StreamVersion).First());
 
         foreach (var message in latestMessagesByGame)
         {
@@ -30,7 +30,7 @@ public class BotGameUpdatedConsumer : IConsumer<Batch<GameUpdatedMessage>>
                 continue;
             }
 
-            await _processor.ProcessAsync(message.GameId, message.Version, context.CancellationToken);
+            await _processor.ProcessAsync(message.GameId, context.CancellationToken);
         }
     }
 }

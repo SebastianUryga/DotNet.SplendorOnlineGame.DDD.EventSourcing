@@ -244,12 +244,11 @@ public class GamesController : ControllerBase
         if (game == null) return NotFound();
 
         // ETag/304 Support
-        // TODO not sure why Version is now always 0, so commenting out for now. Need to investigate.
         var etag = $"\"{game.Version}\"";
-        //if (Request.Headers.IfNoneMatch.Contains(etag))
-        //{
-        //    return StatusCode(StatusCodes.Status304NotModified);
-        //}
+        if (Request.Headers.IfNoneMatch.Contains(etag))
+        {
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
 
         Response.Headers.ETag = etag;
         return Ok(game);

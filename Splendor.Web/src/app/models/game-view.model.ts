@@ -18,6 +18,8 @@ export interface GameView {
     players: PlayerView[];
     marketGems: GemCollection;
     currentPlayerId: string | null;
+    turnId: string | null;
+    expiresAt: string | null;
     isGemReturnPending?: boolean;
     market1: string[];
     market2: string[];

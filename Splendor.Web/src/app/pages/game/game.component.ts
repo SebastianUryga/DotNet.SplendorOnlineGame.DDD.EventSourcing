@@ -6,7 +6,7 @@ import { GameView, PlayerView } from '../../models/game-view.model';
 import { NobleView } from '../../models/noble.model';
 import { GemCollection, EMPTY_GEMS } from '../../models/gem-collection.model';
 import { Card } from '../../models/card.model';
-import { interval, Subscription, startWith, switchMap, filter, firstValueFrom } from 'rxjs';
+import { interval, Subscription, startWith } from 'rxjs';
 import { SignalRService } from '../../core/services/signalr.service';
 import { ChooseNobleRequest } from '../../models/requests.model';
 
@@ -25,7 +25,9 @@ export class GameComponent implements OnInit, OnDestroy {
   selectedGems: any = { diamond: 0, sapphire: 0, emerald: 0, ruby: 0, onyx: 0 };
   gemTypes = ['diamond', 'sapphire', 'emerald', 'ruby', 'onyx', 'gold'];
   gemTypesExcludeGold = ['diamond', 'sapphire', 'emerald', 'ruby', 'onyx'];
+  turnSecondsRemaining = 0;
   private signalrSubscription?: Subscription;
+  private clockSubscription?: Subscription;
   selectedCardId?: string | null = null;
   selectedCard?: Card | undefined;
 
@@ -48,6 +50,12 @@ export class GameComponent implements OnInit, OnDestroy {
         this.game = gameView;
         this.gameService.updateGameCache(gameView);
       });
+    this.clockSubscription = interval(1000).pipe(startWith(0)).subscribe(() => {
+      const expiresAt = this.game?.expiresAt;
+      this.turnSecondsRemaining = expiresAt
+        ? Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000))
+        : 0;
+    });
 
     // Initial load
     this.refresh();
@@ -100,6 +108,7 @@ export class GameComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.signalrSubscription?.unsubscribe();
+    this.clockSubscription?.unsubscribe();
     this.signalRService.leaveGame(this.gameId);
   }
 

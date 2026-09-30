@@ -22,7 +22,7 @@ public class EventPublisher
         var message = new GameUpdatedMessage(
             GameId: GetGameId(@event),
             EventType: @event.EventTypeName,
-            Version: @event.Version
+            StreamVersion: @event.Version
         );
 
         await _publishEndpoint.Publish(message, ct);

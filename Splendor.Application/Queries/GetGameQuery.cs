@@ -40,6 +40,8 @@ public class GetGameQueryHandler : IRequestHandler<GetGameQuery, GameView?>
         }).ToList(),
         MarketGems = board.MarketGems,
         CurrentPlayerId = board.CurrentPlayerId,
+        TurnId = board.TurnId,
+        ExpiresAt = board.ExpiresAt,
         WinnerId = board.WinnerId,
         WinnerName = board.WinnerName,
         IsGemReturnPending = board.IsGemReturnPending,

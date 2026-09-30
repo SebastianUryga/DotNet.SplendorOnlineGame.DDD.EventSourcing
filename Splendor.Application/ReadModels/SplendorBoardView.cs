@@ -8,6 +8,8 @@ public class SplendorBoardView
     public GameStatus Status { get; set; }
     public GemCollection MarketGems { get; set; } = GemCollection.Empty;
     public string? CurrentPlayerId { get; set; }
+    public Guid? TurnId { get; set; }
+    public DateTimeOffset? ExpiresAt { get; set; }
     public string? WinnerId { get; set; }
     public string? WinnerName { get; set; }
     public bool IsGemReturnPending { get; set; }

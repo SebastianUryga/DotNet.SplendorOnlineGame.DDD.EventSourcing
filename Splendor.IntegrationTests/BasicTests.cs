@@ -43,4 +43,23 @@ public class BasicTests : IClassFixture<SplendorApiFactory>
         var responseBody = await response.Content.ReadAsStringAsync();
         Assert.Contains("id", responseBody);
     }
+
+    [Fact]
+    public async Task Get_Game_WithMatchingEtag_ReturnsNotModified()
+    {
+        var client = _factory.CreateAuthenticatedClient();
+        var content = new StringContent("{\"OwnerId\":\"test-user-id\"}", System.Text.Encoding.UTF8, "application/json");
+        var created = await client.PostAsync("/games", content);
+        var gameId = System.Text.Json.JsonDocument.Parse(await created.Content.ReadAsStringAsync())
+            .RootElement.GetProperty("id").GetGuid();
+
+        var first = await client.GetAsync($"/games/{gameId}");
+        var etag = first.Headers.ETag;
+        Assert.NotNull(etag);
+
+        client.DefaultRequestHeaders.IfNoneMatch.Add(etag);
+        var second = await client.GetAsync($"/games/{gameId}");
+
+        Assert.Equal(HttpStatusCode.NotModified, second.StatusCode);
+    }
 }

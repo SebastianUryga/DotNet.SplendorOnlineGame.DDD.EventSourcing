@@ -45,6 +45,7 @@ This project is built following **Clean Architecture** principles and leverages 
 ### 1. Event Sourcing
 The primary source of truth for the game state is an **Event Stream**. Every action (creating a game, joining, taking gems) is recorded as a sequence of immutable events.
 - **Persistence**: Powered by [Marten](https://martendb.io/) on top of **PostgreSQL**.
+- **Write model**: Each game uses one physical stream with an async `SplendorGameState` snapshot. Narrow DCB states enforce cross-game rules such as the owner's active-game limit and the current turn deadline.
 - **Benefits**: Perfect audit log, ability to rebuild state at any point in time, and simplified write logic.
 
 ### 2. CQRS (Command Query Responsibility Segregation)
@@ -66,10 +67,13 @@ The application uses an event-driven architecture for real-time game updates:
 
 The bot worker is an autonomous API client, not an in-process game engine. It authenticates as a regular user, consumes game-update messages, reads the current game view through the REST API, and submits the same legal actions available to human players.
 
+Each turn has a persisted deadline. MassTransit schedules its expiration through RabbitMQ, while `TurnId` makes delayed messages from older turns harmless. The deadline is exposed through the read model and displayed as a countdown in the Angular UI.
+
 ```
 Domain Event → Marten Subscription → RabbitMQ
                                        ├→ SignalR consumer → WebSocket → Angular
-                                       └→ Bot worker → REST API → Game command
+                                       ├→ Bot worker → REST API → Game command
+                                       └→ scheduled turn expiry → Game command
 ```
 
 ### 5. Integration Testing with Testcontainers

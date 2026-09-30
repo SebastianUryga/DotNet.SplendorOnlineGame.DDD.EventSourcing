@@ -52,7 +52,9 @@
       </div>
       <div class="player-stats">
         <span>Cards: {{ p.ownedCardIds.length }}</span>
-        <span class="active-badge" *ngIf="p.id === game.currentPlayerId">Current Turn</span>
+        <span class="active-badge" *ngIf="p.id === game.currentPlayerId">
+          Current Turn<span *ngIf="game.expiresAt"> - {{ turnSecondsRemaining }}s</span>
+        </span>
       </div>
       <!-- Derived penalties/bonuses from owned cards (inside `player-card`) -->
       <div class="mini-penalties" *ngIf="p.ownedCardIds && p.ownedCardIds.length > 0">

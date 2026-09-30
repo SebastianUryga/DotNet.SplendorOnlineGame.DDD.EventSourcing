@@ -34,6 +34,8 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
         game.Status.Should().Be("Started");
         game.Players.Should().HaveCount(2);
         game.CurrentPlayerId.Should().NotBeNullOrEmpty();
+        game.TurnId.Should().NotBeNull();
+        game.ExpiresAt.Should().BeAfter(DateTimeOffset.UtcNow);
         game.Market1.Should().HaveCount(4);
         game.Market2.Should().HaveCount(4);
         game.Market3.Should().HaveCount(4);
@@ -98,6 +100,23 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
         await PostAsUserAsync(notCurrentPlayer.OwnerId, $"/games/{gameId}/actions/take-gems",
             new { PlayerId = notCurrentPlayer.Id, Diamond = 1, Sapphire = 1, Emerald = 1, Ruby = 0, Onyx = 0, Gold = 0 },
             HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task TakeGems_StartsDeadlineForNextTurn()
+    {
+        var gameId = await CreateAndStartGame("deadline-user-1", "deadline-user-2", "P1", "P2");
+        var before = await GetGame(gameId);
+        var currentPlayer = before.Players.Single(player => player.Id == before.CurrentPlayerId);
+
+        await PostAsUserAsync(currentPlayer.OwnerId, $"/games/{gameId}/actions/take-gems",
+            new { PlayerId = currentPlayer.Id, Diamond = 1, Sapphire = 1, Emerald = 1, Ruby = 0, Onyx = 0, Gold = 0 });
+
+        var after = await GetGame(gameId);
+        after.CurrentPlayerId.Should().NotBe(before.CurrentPlayerId);
+        after.TurnId.Should().NotBeNull();
+        after.TurnId!.Value.Should().NotBe(before.TurnId!.Value);
+        after.ExpiresAt.Should().BeAfter(DateTimeOffset.UtcNow);
     }
 
     private async Task<Guid> CreateAndStartGame(string user1, string user2, string player1Name, string player2Name)

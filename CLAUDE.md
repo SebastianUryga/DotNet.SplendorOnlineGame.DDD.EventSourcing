@@ -44,7 +44,7 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 
 `Splendor.BotWorker` jest zewnętrznym, API-driven klientem gry. Uwierzytelnia się jako zwykły użytkownik i wykonuje wszystkie akcje przez REST API; nie odwołuje się bezpośrednio do bazy danych, event store ani warstwy aplikacyjnej.
 
-Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `IBotGameMembershipHandler` obsługuje zaproszenie i dołączenie bota, a `IBotStrategy` wybiera ruch dla aktualnego stanu gry. Logi Serilog trafiają na konsolę oraz do `Splendor.BotWorker/logs/bot-worker-*.log`.
+Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości służy wyłącznie do wybrania najnowszego eventu w batchu i nie jest porównywana z wersją read modelu. `IBotGameMembershipHandler` obsługuje zaproszenie i dołączenie bota, a `IBotStrategy` wybiera ruch dla aktualnego stanu gry. Logi Serilog trafiają na konsolę oraz do `Splendor.BotWorker/logs/bot-worker-*.log`.
 
 ## Kluczowe pliki
 
@@ -52,7 +52,6 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `IBotGameMembershipHandler` ob
 | Plik | Opis |
 |------|------|
 | `Domain/Rules/SplendorRules.cs` | Czyste reguły domenowe: bonusy, punkty prestiżu, wymagania arystokratów, walidacja żetonów, płatność za karty, limit rezerwacji i wybór zwycięzcy. |
-| `Domain/Aggregates/Game.cs` | Legacy agregat gry po migracji logiki decyzji do handlerów i Marten decision state. Kandydat do usunięcia osobnym refaktorem, jeśli nie będzie już potrzebny jako referencja. |
 | `Domain/Events/GameEvents.cs` | Zdarzenia domenowe: utworzenie i rozpoczęcie gry, tury, żetony, przekroczenie i rozwiązanie limitu żetonów, zakup/rezerwacja/odsłonięcie kart, arystokraci, zakończenie i usunięcie gry. |
 | `Domain/Entities/Player.cs` | Gracz: identyfikatory, nazwa, żetony, kupione i zarezerwowane karty oraz zdobyci arystokraci. |
 | `Domain/ValueObjects/GemCollection.cs` | Kolekcja żetonów: Diamond, Sapphire, Emerald, Ruby, Onyx i Gold. |
@@ -98,7 +97,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `IBotGameMembershipHandler` ob
 - MediatR mierzy `splendor.command.duration`, `splendor.command.executed` i `splendor.command.active`.
 - Marten mierzy operacje odczytu i zapisu przez `MartenMetricsLogger`.
 - Dashboard lokalny jest dostępny pod `http://localhost:18888` po uruchomieniu `docker-compose up -d`.
-- To pierwszy etap obserwowalności; benchmark DCB i kontrolowane testy obciążeniowe nie są jeszcze gotowe.
+- Pierwszy benchmark w `Splendor.LoadTests` porównał DCB, agregację live i snapshot inline na uproszczonym stanie; nadal brakuje kontrolowanego pomiaru pełnego `SplendorGameState`.
 
 ### Integration Tests
 | Plik | Opis |
@@ -255,7 +254,7 @@ npm start
 ### Zaimplementowane
 
 - Event Sourcing z Marten oraz CQRS z MediatR.
-- Marten decision state `SplendorGameState` dla głównego gameplay boundary oraz czyste reguły domenowe w `SplendorRules`.
+- Async snapshot `SplendorGameState` pojedynczego strumienia gry, uzupełniony wąskimi boundary DCB (`JoinGameDecisionState`, `TurnClockState`) oraz czystymi regułami w `SplendorRules`.
 - Pełna talia Splendor: 90 kart rozwoju na trzech poziomach.
 - Rozgrywka dla 2-4 graczy: tworzenie gry, lobby, dołączanie graczy i tury.
 - Pobieranie żetonów zgodnie z regułami gry:
@@ -282,13 +281,12 @@ npm start
 - [ ] Total gems dla gracza w gameplay view
 
 **Bot worker:**
-- [ ] Zapewnić odczyt `GameView` co najmniej w wersji wskazanej przez `GameUpdatedMessage`; przy opóźnionej projekcji stosować ograniczone retry/redelivery zamiast wykonywać ruch na starym stanie.
 - [ ] Rozważyć `IBotGameRegistry` jako cache gier i playerów kontrolowanych przez bota; cache nie może być źródłem prawdy i musi umieć odbudować stan po restarcie workera.
 
 **Obserwowalność i wydajność:**
 - [x] Podstawowe metryki komend i operacji Martena.
 - [x] Eksport metryk i trace’ów przez OpenTelemetry do lokalnego Aspire Dashboard.
-- [ ] Kontrolowany benchmark DCB z różną liczbą eventów i analizą p50/p95/p99.
+- [ ] Powtórzyć kontrolowany benchmark na pełnym `SplendorGameState` z analizą p50/p95/p99; uproszczony benchmark DCB/live/snapshot jest już w `Splendor.LoadTests`.
 
 ## Konwencje kodu
 

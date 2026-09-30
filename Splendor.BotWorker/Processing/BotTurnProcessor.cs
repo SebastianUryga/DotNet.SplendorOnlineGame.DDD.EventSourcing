@@ -23,9 +23,9 @@ namespace Splendor.BotWorker.Processing
             _logger = logger;
         }
 
-        public async Task ProcessAsync(Guid gameId, long messageVersion, CancellationToken cancellationToken)
+        public async Task ProcessAsync(Guid gameId, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Processing turn for game {GameId} v{Version}", gameId, messageVersion);
+            _logger.LogInformation("Processing turn for game {GameId}", gameId);
 
             var botUserId = await _tokenProvider.GetUserIdAsync(cancellationToken);
             var game = await _gameApi.GetGameAsync(gameId, cancellationToken);
@@ -33,11 +33,6 @@ namespace Splendor.BotWorker.Processing
             {
                 _logger.LogWarning("Game {GameId} not available", gameId);
                 return;
-            }
-
-            if (game.Version < messageVersion)
-            {
-                _logger.LogInformation("Processing for game {GameId}: message version {MessageVersion} is newer than game version {GameVersion}", gameId, messageVersion, game.Version);
             }
 
             if (game.Status != "Started")

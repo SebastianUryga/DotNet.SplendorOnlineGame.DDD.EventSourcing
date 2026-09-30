@@ -2,5 +2,5 @@
 
 public interface IBotTurnProcessor
 {
-    Task ProcessAsync(Guid gameId, long messageVersion, CancellationToken cancellationToken);
+    Task ProcessAsync(Guid gameId, CancellationToken cancellationToken);
 }

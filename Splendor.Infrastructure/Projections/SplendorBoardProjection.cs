@@ -1,4 +1,4 @@
-using Marten.Events.Projections;
+using Marten.Events.Aggregation;
 using Splendor.Application.ReadModels;
 using Splendor.Domain;
 using Splendor.Domain.Events;
@@ -6,27 +6,8 @@ using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Infrastructure.Projections;
 
-public partial class SplendorBoardProjection : MultiStreamProjection<SplendorBoardView, Guid>
+public partial class SplendorBoardProjection : SingleStreamProjection<SplendorBoardView, Guid>
 {
-    public SplendorBoardProjection()
-    {
-        Identity<GameCreated>(e => e.GameId);
-        Identity<PlayerJoined>(e => e.GameId);
-        Identity<PlayerLeft>(e => e.GameId);
-        Identity<GameStarted>(e => e.GameId);
-        Identity<TurnStarted>(e => e.GameId);
-        Identity<GemsTaken>(e => e.GameId);
-        Identity<GemsOverflowDetected>(e => e.GameId);
-        Identity<GemLimitResolved>(e => e.GameId);
-        Identity<CardPurchased>(e => e.GameId);
-        Identity<CardRevealed>(e => e.GameId);
-        Identity<CardReserved>(e => e.GameId);
-        Identity<NobleSelectionRequired>(e => e.GameId);
-        Identity<NobleAcquired>(e => e.GameId);
-        Identity<GameFinished>(e => e.GameId);
-        Identity<GameDeleted>(e => e.GameId);
-    }
-
     public SplendorBoardView Create(GameCreated e) => new()
     {
         Id = e.GameId,
@@ -73,8 +54,22 @@ public partial class SplendorBoardProjection : MultiStreamProjection<SplendorBoa
         SetProjectionMetadata(view, e.Timestamp);
     }
 
+    public void Apply(TurnDeadlineStarted e, SplendorBoardView view)
+    {
+        view.TurnId = e.TurnId;
+        view.ExpiresAt = e.ExpiresAt;
+        SetProjectionMetadata(view, e.Timestamp);
+    }
+
+    public void Apply(TurnExpired e, SplendorBoardView view)
+    {
+        ClearTurnDeadline(view);
+        SetProjectionMetadata(view, e.Timestamp);
+    }
+
     public void Apply(GemsTaken e, SplendorBoardView view)
     {
+        ClearTurnDeadline(view);
         view.MarketGems -= e.Gems;
 
         var player = view.Players.FirstOrDefault(p => p.Id == e.PlayerId);
@@ -108,6 +103,7 @@ public partial class SplendorBoardProjection : MultiStreamProjection<SplendorBoa
 
     public void Apply(CardPurchased e, SplendorBoardView view)
     {
+        ClearTurnDeadline(view);
         var card = CardDefinitions.GetById(e.CardId);
         var player = view.Players.FirstOrDefault(p => p.Id == e.PlayerId);
         if (player != null)
@@ -136,6 +132,7 @@ public partial class SplendorBoardProjection : MultiStreamProjection<SplendorBoa
 
     public void Apply(CardReserved e, SplendorBoardView view)
     {
+        ClearTurnDeadline(view);
         var card = CardDefinitions.GetById(e.CardId);
         if (card != null)
         {
@@ -175,6 +172,7 @@ public partial class SplendorBoardProjection : MultiStreamProjection<SplendorBoa
 
     public void Apply(GameFinished e, SplendorBoardView view)
     {
+        ClearTurnDeadline(view);
         view.Status = GameStatus.Finished;
         view.WinnerId = e.WinnerId;
         view.WinnerName = e.WinnerName;
@@ -184,8 +182,15 @@ public partial class SplendorBoardProjection : MultiStreamProjection<SplendorBoa
 
     public void Apply(GameDeleted e, SplendorBoardView view)
     {
+        ClearTurnDeadline(view);
         view.Status = GameStatus.Deleted;
         SetProjectionMetadata(view, e.Timestamp);
+    }
+
+    private static void ClearTurnDeadline(SplendorBoardView view)
+    {
+        view.TurnId = null;
+        view.ExpiresAt = null;
     }
 
     private static void SetProjectionMetadata(SplendorBoardView view, DateTimeOffset timestamp)
