@@ -137,11 +137,29 @@ else
         x.UsingRabbitMq((context, cfg) =>
         {
             cfg.UseDelayedMessageScheduler();
-            cfg.Host("localhost", "/", h =>
+            var rabbitUrl = builder.Configuration["RabbitMq:Url"];
+            if (rabbitUrl is null)
             {
-                h.Username("guest");
-                h.Password("guest");
-            });
+                cfg.Host("localhost", "/", h =>
+                {
+                    h.Username("guest");
+                    h.Password("guest");
+                });
+            }
+            else
+            {
+                var uri = new Uri(rabbitUrl);
+                var credentials = uri.UserInfo.Split(':', 2);
+                cfg.Host(uri.Host, (ushort)(uri.Port > 0 ? uri.Port : 5671), uri.AbsolutePath.TrimStart('/'), h =>
+                {
+                    h.Username(Uri.UnescapeDataString(credentials[0]));
+                    h.Password(Uri.UnescapeDataString(credentials[1]));
+                    if (uri.Scheme == "amqps")
+                    {
+                        h.UseSsl(s => s.Protocol = System.Security.Authentication.SslProtocols.Tls12);
+                    }
+                });
+            }
 
             cfg.ConfigureEndpoints(context);
         });
@@ -182,11 +200,6 @@ if (app.Environment.IsDevelopment())
 
         return Results.NoContent();
     });
-}
-
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
 }
 
 app.UseCors();
