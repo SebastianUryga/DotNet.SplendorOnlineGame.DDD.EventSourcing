@@ -49,6 +49,7 @@
         <div *ngFor="let g of gemTypes" class="mini-gem" [class]="g">
           {{ getPlayerGemCount(p, g) }}
         </div>
+        <span class="mini-gem">Total: {{ getPlayerTotalGems(p) }}</span>
       </div>
       <div class="player-stats">
         <span>Cards: {{ p.ownedCardIds.length }}</span>
