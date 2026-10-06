@@ -1,4 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { AuthService } from '../../core/services/auth.service';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { GameService } from '../../core/services/game.service';
@@ -11,13 +13,21 @@ import { GameSummary } from '../../models/game-view.model';
     templateUrl: './games-list.component.html',
     styleUrls: ['./games-list.component.css']
 })
-export class GamesListComponent implements OnInit {
+export class GamesListComponent implements OnInit, OnDestroy {
     games: GameSummary[] = [];
+    private tokenSubscription?: Subscription;
 
-    constructor(private gameService: GameService, private router: Router) { }
+    constructor(private gameService: GameService, private router: Router, private authService: AuthService) { }
 
     ngOnInit(): void {
-        this.refreshGames();
+        // reload whenever the token changes (guest login, pasted token)
+        this.tokenSubscription = this.authService.token$.subscribe(token => {
+            if (token) this.refreshGames();
+        });
+    }
+
+    ngOnDestroy(): void {
+        this.tokenSubscription?.unsubscribe();
     }
 
     refreshGames(): void {
