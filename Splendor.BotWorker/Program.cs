@@ -41,14 +41,32 @@ builder.Services.AddMassTransit(config =>
 
     config.UsingRabbitMq((context, cfg) =>
     {
-        cfg.Host(
-            builder.Configuration["RabbitMq:Host"]!,
-            builder.Configuration["RabbitMq:VirtualHost"] ?? "/",
-            h =>
+        var rabbitUrl = builder.Configuration["RabbitMq:Url"];
+        if (rabbitUrl is null)
+        {
+            cfg.Host(
+                builder.Configuration["RabbitMq:Host"]!,
+                builder.Configuration["RabbitMq:VirtualHost"] ?? "/",
+                h =>
+                {
+                    h.Username(builder.Configuration["RabbitMq:Username"] ?? "guest");
+                    h.Password(builder.Configuration["RabbitMq:Password"] ?? "guest");
+                });
+        }
+        else
+        {
+            var uri = new Uri(rabbitUrl);
+            var credentials = uri.UserInfo.Split(':', 2);
+            cfg.Host(uri.Host, (ushort)(uri.Port > 0 ? uri.Port : 5671), uri.AbsolutePath.TrimStart('/'), h =>
             {
-                h.Username(builder.Configuration["RabbitMq:Username"] ?? "guest");
-                h.Password(builder.Configuration["RabbitMq:Password"] ?? "guest");
+                h.Username(Uri.UnescapeDataString(credentials[0]));
+                h.Password(Uri.UnescapeDataString(credentials[1]));
+                if (uri.Scheme == "amqps")
+                {
+                    h.UseSsl(s => s.Protocol = System.Security.Authentication.SslProtocols.Tls12);
+                }
             });
+        }
         cfg.ReceiveEndpoint(
             new TemporaryEndpointDefinition("bot-game-updated"),
             KebabCaseEndpointNameFormatter.Instance,
