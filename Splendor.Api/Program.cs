@@ -123,7 +123,7 @@ else
 {
     builder.Services.AddMassTransit(x =>
     {
-        x.AddDelayedMessageScheduler();
+        x.AddMessageScheduler(new Uri("queue:scheduler"));
         x.AddConsumer<ExpireTurnConsumer>();
         x.AddConsumer<GameUpdatedConsumer>(c =>
         {
@@ -136,7 +136,7 @@ else
 
         x.UsingRabbitMq((context, cfg) =>
         {
-            cfg.UseDelayedMessageScheduler();
+            cfg.UseInMemoryScheduler("scheduler");
             var rabbitUrl = builder.Configuration["RabbitMq:Url"];
             if (rabbitUrl is null)
             {
