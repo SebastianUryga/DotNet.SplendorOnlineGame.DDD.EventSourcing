@@ -3,6 +3,8 @@
   <div class="auth-box">
     <input [(ngModel)]="token" placeholder="Paste JWT Token here..." class="token-input" (keyup.enter)="saveToken()" data-testid="token-input" />
     <button (click)="saveToken()" class="btn-save" data-testid="set-token-btn">Set Token</button>
+    <button (click)="playAsGuest()" class="btn-save" data-testid="guest-btn">Play as guest</button>
+    <span class="status-text" *ngIf="guestError" data-testid="guest-error">{{ guestError }}</span>
     <div class="status-indicator">
       <span class="status-dot" [class.valid]="hasToken"></span>
       <span class="status-text">{{ hasToken ? 'Authenticated' : 'No Token' }}</span>

@@ -17,7 +17,7 @@ import { GameView } from '../../models/game-view.model';
 export class LobbyComponent implements OnInit, OnDestroy {
   gameId!: string;
     game: GameView | null = null;
-    playerName: string = '';
+    playerName: string = localStorage.getItem('splendor_guest_name') ?? '';
     isJoined: boolean = false;
     inviteeId: string = '';
 
