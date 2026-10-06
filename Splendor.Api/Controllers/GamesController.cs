@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Splendor.Application.Commands;
 using Splendor.Application.Queries;
 using Splendor.Application.Common.Interfaces;
@@ -31,6 +32,7 @@ public class GamesController : ControllerBase
     /// <param name="request">The create game parameters.</param>
     /// <returns>The newly created game ID.</returns>
     /// <response code="201">Returns the newly created game ID.</response>
+    [EnableRateLimiting("GameActions")]
     [HttpPost]
     [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateGame([FromBody] CreateGameRequest request)
@@ -49,6 +51,7 @@ public class GamesController : ControllerBase
     /// <param name="request">The player details.</param>
     /// <response code="200">If the player successfully joined the game.</response>
     /// <response code="400">If there is a GameId mismatch or business logic failure.</response>
+    [EnableRateLimiting("GameActions")]
     [HttpPost("{gameId}/players")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -83,6 +86,7 @@ public class GamesController : ControllerBase
     /// <param name="gameId"></param>
     /// <param name="request"></param>
     /// <returns></returns>
+    [EnableRateLimiting("GameActions")]
     [HttpPost("{gameId}/invite")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -107,6 +111,7 @@ public class GamesController : ControllerBase
     /// <param name="gameId">The unique identifier of the game.</param>
     /// <param name="request">The start game parameters.</param>
     /// <response code="200">If the game started successfully.</response>
+    [EnableRateLimiting("GameActions")]
     [HttpPost("{gameId}/start")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> StartGame(Guid gameId, [FromBody] StartGameRequest request)
@@ -125,6 +130,7 @@ public class GamesController : ControllerBase
     /// <param name="request">The gem selection details.</param>
     /// <response code="200">If the gems were successfully taken.</response>
     /// <response code="400">If there is a GameId mismatch or invalid gem combination.</response>
+    [EnableRateLimiting("GameActions")]
     [HttpPost("{gameId}/actions/take-gems")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -155,6 +161,7 @@ public class GamesController : ControllerBase
     /// <param name="request">The purchase details.</param>
     /// <response code="200">If the card was successfully purchased.</response>
     /// <response code="400">If the card cannot be purchased or player mismatch.</response>
+    [EnableRateLimiting("GameActions")]
     [HttpPost("{gameId}/actions/buy-card")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -254,6 +261,7 @@ public class GamesController : ControllerBase
         return Ok(game);
     }
 
+    [EnableRateLimiting("GameActions")]
     [HttpPost("{gameId}/actions/reserve-card")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -293,6 +301,7 @@ public class GamesController : ControllerBase
     /// <summary>
     /// Resolves gem limit by returning specified gems for a player.
     /// </summary>
+    [EnableRateLimiting("GameActions")]
     [HttpPost("{gameId}/actions/resolve-gem-limit")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -317,6 +326,7 @@ public class GamesController : ControllerBase
         return Ok();
     }
 
+    [EnableRateLimiting("GameActions")]
     [HttpPost("{gameId}/actions/choose-noble")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

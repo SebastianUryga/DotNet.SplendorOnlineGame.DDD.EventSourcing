@@ -1,6 +1,8 @@
 using Marten;
 using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
+using Splendor.Api.Auth;
 using Microsoft.OpenApi;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -96,12 +98,29 @@ if (builder.Environment.IsEnvironment("Testing"))
 }
 else
 {
+    var guestKey = builder.Configuration["Guest:SigningKey"]
+        ?? throw new InvalidOperationException("Guest:SigningKey is required.");
+
     builder.Services
-        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer(options =>
+        .AddAuthentication("Smart")
+        .AddPolicyScheme("Smart", null, options =>
+        {
+            options.ForwardDefaultSelector = context =>
+            {
+                var header = context.Request.Headers.Authorization.ToString();
+                return header.StartsWith("Bearer ") && GuestTokens.IsGuestToken(header["Bearer ".Length..])
+                    ? GuestTokens.Scheme
+                    : JwtBearerDefaults.AuthenticationScheme;
+            };
+        })
+        .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
         {
             options.Authority = $"https://{builder.Configuration["Auth0:Domain"]}/";
             options.Audience = builder.Configuration["Auth0:Audience"];
+        })
+        .AddJwtBearer(GuestTokens.Scheme, options =>
+        {
+            options.TokenValidationParameters = GuestTokens.Validation(guestKey);
         });
 }
 
@@ -167,6 +186,14 @@ else
 }
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddConfiguredRateLimiting(builder.Configuration);
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // ponytail: trusts any proxy; fine behind Render's edge, restrict KnownProxies if exposed directly
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 builder.Services.AddScoped<Splendor.Application.Common.Interfaces.ICurrentUserService, Splendor.Api.Services.CurrentUserService>();
 
 var app = builder.Build();
@@ -202,10 +229,12 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseForwardedHeaders();
 app.UseCors();
 
 
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();
