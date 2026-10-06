@@ -1,4 +1,5 @@
-﻿using Splendor.BotWorker.Api;
+using System.Text.Json;
+using Splendor.BotWorker.Api;
 using Splendor.BotWorker.Authentication;
 using Splendor.Contracts.Games;
 
@@ -16,9 +17,21 @@ public class BotGameMembershipHandler : IBotGameMembershipHandler
         _logger = logger;
     }
 
-    public async Task HandleInvitationAsync(Guid gameId, CancellationToken cancellationToken)
+    private static bool IsInvitedBot(string? eventData, string botUserId)
+    {
+        if (string.IsNullOrEmpty(eventData)) return false;
+        using var document = JsonDocument.Parse(eventData);
+        return document.RootElement.TryGetProperty("InviteeId", out var invitee) && invitee.GetString() == botUserId;
+    }
+
+    public async Task HandleInvitationAsync(Guid gameId, string? eventData, CancellationToken cancellationToken)
     {
         var botUserId = await _accessTokenProvider.GetUserIdAsync(cancellationToken);
+        if (!IsInvitedBot(eventData, botUserId))
+        {
+            return;
+        }
+
         var game = await _gameApiClient.GetGameAsync(gameId, cancellationToken);
 
         if (game is null)

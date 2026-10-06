@@ -6,6 +6,7 @@ import { Subscription } from 'rxjs';
 import { GameService } from '../../core/services/game.service';
 import { SignalRService } from '../../core/services/signalr.service';
 import { GameView } from '../../models/game-view.model';
+import { environment } from '../../../environments/environment';
 
 @Component({
     selector: 'app-lobby',
@@ -68,6 +69,10 @@ export class LobbyComponent implements OnInit, OnDestroy {
 
     refresh(): void {
         this.gameService.getGame(this.gameId).subscribe(game => this.game = game);
+  }
+
+  addBot(): void {
+    this.gameService.invitePlayer(this.gameId, { inviteeId: environment.botUserId }).subscribe(() => this.refresh());
   }
 
   invite(): void {

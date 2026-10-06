@@ -1,6 +1,6 @@
-﻿namespace Splendor.BotWorker;
+namespace Splendor.BotWorker;
 
 public interface IBotGameMembershipHandler
 {
-    Task HandleInvitationAsync(Guid gameId, CancellationToken cancellationToken);
+    Task HandleInvitationAsync(Guid gameId, string? eventData, CancellationToken cancellationToken);
 }

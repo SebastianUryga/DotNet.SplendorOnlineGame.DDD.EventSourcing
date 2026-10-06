@@ -1,3 +1,4 @@
+using System.Text.Json;
 using JasperFx.Events;
 using MassTransit;
 using Splendor.Contracts.Messages;
@@ -22,7 +23,8 @@ public class EventPublisher
         var message = new GameUpdatedMessage(
             GameId: GetGameId(@event),
             EventType: @event.EventTypeName,
-            StreamVersion: @event.Version
+            StreamVersion: @event.Version,
+            Data: JsonSerializer.Serialize(@event.Data, @event.Data.GetType())
         );
 
         await _publishEndpoint.Publish(message, ct);

@@ -26,7 +26,7 @@ public class BotGameUpdatedConsumer : IConsumer<Batch<GameUpdatedMessage>>
         {
             if (message.EventType == GameEventTypes.PlayerInvited)
             {
-                await _botGameMembershipHandler.HandleInvitationAsync(message.GameId, context.CancellationToken);
+                await _botGameMembershipHandler.HandleInvitationAsync(message.GameId, message.Data, context.CancellationToken);
                 continue;
             }
 
