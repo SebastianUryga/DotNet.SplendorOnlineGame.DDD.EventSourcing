@@ -39,7 +39,7 @@ public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
             .Which.Message.Should().Be("You cannot be active in more than 2 games.");
 
         await Execute(session => new DeleteGameCommandHandler(session).Handle(
-            new DeleteGameCommand(firstGameId), CancellationToken.None));
+            new DeleteGameCommand(firstGameId, $"creator-{firstGameId}"), CancellationToken.None));
         await Join(thirdGameId, ownerId, "Carol");
 
         await using var session = _store.LightweightSession();
@@ -75,7 +75,7 @@ public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
         await Execute(session => new StartGameCommandHandler(session, TimeProvider.System).Handle(
             new StartGameCommand(gameId, owner1), CancellationToken.None));
         await Execute(session => new DeleteGameCommandHandler(session).Handle(
-            new DeleteGameCommand(gameId), CancellationToken.None));
+            new DeleteGameCommand(gameId, owner1), CancellationToken.None));
 
         await using var freshSession = _store.LightweightSession();
         var state = (await freshSession.Events.FetchForWriting<SplendorGameState>(gameId)).Aggregate;

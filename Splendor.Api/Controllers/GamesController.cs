@@ -228,7 +228,10 @@ public class GamesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteGame(Guid id)
     {
-        await _mediator.Send(new DeleteGameCommand(id));
+        var userId = _currentUserService.UserId;
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        await _mediator.Send(new DeleteGameCommand(id, userId));
         return NoContent();
     }
 
