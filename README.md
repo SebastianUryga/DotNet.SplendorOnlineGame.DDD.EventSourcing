@@ -5,7 +5,40 @@
 > [!NOTE]
 > **Status:** Playable Splendor implementation with a complete core ruleset. The wider game platform remains under active development.
 
-## Demo
+## Live Demo
+
+**[Play online](https://splendoronlinegame-web.onrender.com)**: click **Play as guest**, create a game and use **Add bot** to get an opponent.
+
+> The app runs on free tiers. After 15 minutes of inactivity Render puts the API to sleep, so the first request can take up to a minute. Guest sessions last 60 minutes, and up to 10 guests can be active at once.
+
+### Deployment
+
+```mermaid
+flowchart LR
+    Browser[Angular SPA<br/>Render Static Site] -->|REST + SignalR| API
+    subgraph Render container
+        API[ASP.NET Core API]
+        Bot[Bot worker]
+        Bot -->|REST| API
+    end
+    API -->|Marten| Neon[(Neon PostgreSQL)]
+    API <-->|MassTransit| MQ[[CloudAMQP RabbitMQ]]
+    Bot <--> MQ
+    API -.->|JWT| Auth0
+    Azure[Azure DevOps<br/>build + tests] -.-> Repo[GitHub]
+    Repo -->|auto deploy| Render
+```
+
+| Concern | Service (free plan) |
+|---|---|
+| API + bot worker | Render Web Service (Docker) |
+| Frontend | Render Static Site |
+| Event store and read models | Neon (PostgreSQL) |
+| Messaging | CloudAMQP (RabbitMQ) |
+| Authentication | Auth0, plus short-lived guest tokens issued by the API |
+| CI | Azure DevOps pipeline (build, unit and integration tests) |
+
+## Screenshots
 
 ### Games List
 ![Games List](docs/screenshots/games-list.png)
@@ -28,7 +61,7 @@ This project was created for **educational purposes** to gain hands-on experienc
 ## Roadmap
 
 This project is designed to evolve into a full-scale board game arena:
-- **[x] User Management**: JWT authentication via Auth0.
+- **[x] User Management**: JWT authentication via Auth0 and anonymous guest sessions.
 - **[x] Web Frontend**: Angular SPA with game UI, lobby, and real-time updates (SignalR + RabbitMQ).
 - **[x] Bot Player Worker**: An autonomous, API-driven client that can join invited games and play turns through the same REST API as human players.
 - **[ ] Player Profiles**: Statistics, rankings, and game history across different titles.

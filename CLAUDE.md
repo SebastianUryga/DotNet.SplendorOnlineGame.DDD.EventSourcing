@@ -44,7 +44,7 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 
 `Splendor.BotWorker` jest zewnętrznym, API-driven klientem gry. Uwierzytelnia się jako zwykły użytkownik i wykonuje wszystkie akcje przez REST API; nie odwołuje się bezpośrednio do bazy danych, event store ani warstwy aplikacyjnej.
 
-Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości służy wyłącznie do wybrania najnowszego eventu w batchu i nie jest porównywana z wersją read modelu. `IBotGameMembershipHandler` obsługuje zaproszenie i dołączenie bota, a `IBotStrategy` wybiera ruch dla aktualnego stanu gry. Logi Serilog trafiają na konsolę oraz do `Splendor.BotWorker/logs/bot-worker-*.log`.
+Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości służy wyłącznie do wybrania najnowszego eventu w batchu i nie jest porównywana z wersją read modelu. `IBotGameMembershipHandler` obsługuje zaproszenie i dołączenie bota, a `IBotStrategy` wybiera ruch dla aktualnego stanu gry. `GameUpdatedMessage.Data` niesie zdarzenie jako JSON; przy `PlayerInvited` bot dołącza tylko, gdy `InviteeId` to jego identyfikator. Na produkcji bot działa w tym samym kontenerze co API (Api__BaseUrl=http://localhost:10000, konto bota w Auth0 przez `Bot__Username`/`Bot__Password`). Logi Serilog trafiają na konsolę oraz do `Splendor.BotWorker/logs/bot-worker-*.log`.
 
 ## Kluczowe pliki
 
@@ -102,6 +102,14 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 - Dashboard lokalny jest dostępny pod `http://localhost:18888` po uruchomieniu `docker-compose up -d`.
 - Benchmark w `Splendor.LoadTests` porównał DCB, agregację live i snapshot inline na uproszczonym stanie i uzasadnił przejście na snapshoty. Pomiar pełnego `SplendorGameState` nie jest planowany bez konkretnego celu wydajnościowego lub wykrytej regresji.
 
+### Wdrożenie i dostęp
+
+- **Hosting (plany darmowe):** Render (API + bot w jednym kontenerze z `Dockerfile`, frontend jako Static Site), Neon (PostgreSQL), CloudAMQP (RabbitMQ), Auth0, CI w Azure DevOps (`azure-pipelines.yml`, agent lokalny). Render usypia API po 15 min bez ruchu.
+- **Zmienne środowiskowe API:** `ConnectionStrings__Marten`, `RabbitMq__Url` (`amqps://...`, bez niej `localhost/guest`), `Guest__SigningKey` (wymagany poza trybem Testing), `AllowedOrigins__0`, `ASPNETCORE_ENVIRONMENT`; opcjonalnie `Guest__MaxActive`, `Guest__TokenMinutes`.
+- **Tryb gościa:** `POST /auth/guest` wystawia token HS256 (issuer `splendor-guest`), `GuestSession` w Marten pilnuje limitu aktywnych gości. Schemat uwierzytelniania `Smart` wybiera Auth0 albo gościa po `iss`.
+- **Rate limiting:** polityki z sekcji `RateLimits` (`GuestAuth` po IP, `GameActions` po użytkowniku), rejestrowane w `Api/Auth/RateLimitingExtensions.cs`; nowy limit to wpis w konfiguracji i `[EnableRateLimiting("Nazwa")]`. Za proxy Rendera działa `UseForwardedHeaders`.
+- **Scheduler tur:** `AddMessageScheduler` + `UseInMemoryScheduler` (CloudAMQP Free nie ma delayed exchange), więc zaplanowane timery giną przy restarcie procesu.
+- **Lokalnie:** hasła nie trafiają do `appsettings.json` w git.
 ### Integration Tests
 | Plik | Opis |
 |------|------|
@@ -195,11 +203,12 @@ record GemCollection(int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx,
 
 | Metoda | Endpoint | Opis |
 |---|---|---|
+| POST | `/auth/guest` | Token gościa (60 min, limit aktywnych gości, rate limit po IP) |
 | GET | `/games` | Lista gier |
 | POST | `/games` | Tworzenie gry |
 | GET | `/games/{id}` | Aktualny stan gry |
 | GET | `/games/{id}/history` | Historia zdarzeń gry |
-| DELETE | `/games/{id}` | Usuwanie gry |
+| DELETE | `/games/{id}` | Usuwanie gry (tylko twórca) |
 | POST | `/games/{id}/players` | Dołączanie gracza |
 | DELETE | `/games/{id}/players/{playerId}` | Opuszczanie lobby |
 | POST | `/games/{id}/invite` | Zapraszanie użytkownika do gry |
@@ -288,7 +297,6 @@ npm start
 **Frontend:**
 - [ ] Nazywanie gry (przy tworzeniu)
 - [ ] Wyświetlanie nazw graczy w games-list
-- [ ] Total gems dla gracza w gameplay view
 
 **Bot worker:**
 - [ ] Rozważyć `IBotGameRegistry` jako cache gier i playerów kontrolowanych przez bota; cache nie może być źródłem prawdy i musi umieć odbudować stan po restarcie workera.
