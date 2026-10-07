@@ -13,7 +13,7 @@ public record InvitePlayerCommand : IAuthoredCommand, IRequest
 {
     public Guid GameId { get; init; }
     public string OwnerId { get; init; } = string.Empty;
-    public string InviteeId { get; init; } = string.Empty;
+    public required UserId InviteeId { get; init; }
 }
 
 public class InvitePlayerCommandHandler : IRequestHandler<InvitePlayerCommand>
@@ -39,8 +39,6 @@ public class InvitePlayerCommandHandler : IRequestHandler<InvitePlayerCommand>
     private static IEnumerable<IDomainEvent> Decide(InvitePlayerCommand command, SplendorGameState state)
     {
         if (state.Id == Guid.Empty) throw new InvalidOperationException("GameId missing in history");
-        if (string.IsNullOrWhiteSpace(command.InviteeId) || command.InviteeId.Length > 128)
-            throw new ArgumentException("InviteeId must be 1-128 characters.");
 
         if (state.Status == GameStatus.Started) throw new InvalidOperationException("Game is already started.");
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game is already finished.");
@@ -49,9 +47,9 @@ public class InvitePlayerCommandHandler : IRequestHandler<InvitePlayerCommand>
         if (!state.Players.Values.Any(player => player.OwnerId == command.OwnerId))
             throw new InvalidOperationException("You do not control a player in this game");
 
-        if (state.Players.Values.Any(player => player.OwnerId == command.InviteeId))
+        if (state.Players.Values.Any(player => player.OwnerId == command.InviteeId.Value))
             throw new InvalidOperationException("Player already in game");
 
-        yield return new PlayerInvited(state.Id, command.OwnerId, command.InviteeId, DateTimeOffset.UtcNow);
+        yield return new PlayerInvited(state.Id, command.OwnerId, command.InviteeId.Value, DateTimeOffset.UtcNow);
     }
 }

@@ -58,19 +58,19 @@ public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
         {
             GameId = gameId,
             OwnerId = owner1,
-            Name = "Alice"
+            Name = PlayerName.Create("Alice")
         }, CancellationToken.None));
         await Execute(session => new JoinGameCommandHandler(session).Handle(new JoinGameCommand
         {
             GameId = gameId,
             OwnerId = owner2,
-            Name = "Bob"
+            Name = PlayerName.Create("Bob")
         }, CancellationToken.None));
         await Execute(session => new InvitePlayerCommandHandler(session).Handle(new InvitePlayerCommand
         {
             GameId = gameId,
             OwnerId = owner1,
-            InviteeId = "owner-3"
+            InviteeId = UserId.Create("owner-3")
         }, CancellationToken.None));
         await Execute(session => new StartGameCommandHandler(session, TimeProvider.System).Handle(
             new StartGameCommand(gameId, owner1), CancellationToken.None));
@@ -235,7 +235,7 @@ public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
         {
             GameId = gameId,
             OwnerId = ownerId,
-            Name = name
+            Name = PlayerName.Create(name)
         }, CancellationToken.None));
 
     private static PlayerJoined Joined(Guid gameId, string ownerId, string name) =>

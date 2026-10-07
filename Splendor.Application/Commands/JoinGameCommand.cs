@@ -14,7 +14,7 @@ public record JoinGameCommand : IAuthoredCommand, IRequest
 {
     public Guid GameId { get; init; }
     public string OwnerId { get; init; } = string.Empty;
-    public string Name { get; init; } = string.Empty;
+    public required PlayerName Name { get; init; }
 }
 
 public class JoinGameCommandHandler : IRequestHandler<JoinGameCommand>
@@ -42,8 +42,7 @@ public class JoinGameCommandHandler : IRequestHandler<JoinGameCommand>
 
     private static IReadOnlyList<IDomainEvent> Decide(JoinGameCommand command, SplendorGameState state, JoinGameDecisionState ownerState)
     {
-        var name = command.Name.Trim();
-        if (name.Length is < 1 or > 20) throw new ArgumentException("Player name must be 1-20 characters.");
+        var name = command.Name.Value;
         if (state.Status == GameStatus.Started) throw new InvalidOperationException("Game is already started.");
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game is already finished.");
         if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game has been deleted.");

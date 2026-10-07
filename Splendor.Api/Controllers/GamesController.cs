@@ -7,6 +7,7 @@ using Splendor.Application.Queries;
 using Splendor.Application.Common.Interfaces;
 using Splendor.Application.ReadModels;
 using Splendor.Contracts.Games;
+using Splendor.Domain.ValueObjects;
 
 
 namespace Splendor.Api.Controllers;
@@ -64,7 +65,7 @@ public class GamesController : ControllerBase
         { 
             GameId = gameId, 
             OwnerId = userId, 
-            Name = request.Name 
+            Name = PlayerName.Create(request.Name)
         });
         return Ok();
     }
@@ -99,7 +100,7 @@ public class GamesController : ControllerBase
         {
             GameId = gameId,
             OwnerId = userId,
-            InviteeId = request.InviteeId
+            InviteeId = UserId.Create(request.InviteeId)
         });
 
         return Ok();
