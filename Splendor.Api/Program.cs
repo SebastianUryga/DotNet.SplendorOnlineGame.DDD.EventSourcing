@@ -15,6 +15,7 @@ using Splendor.Infrastructure;
 using Splendor.Infrastructure.Projections;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 16 * 1024);
 
 
 builder.Services.AddControllers();

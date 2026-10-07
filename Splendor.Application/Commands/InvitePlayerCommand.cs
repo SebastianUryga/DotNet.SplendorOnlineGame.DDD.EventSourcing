@@ -39,6 +39,8 @@ public class InvitePlayerCommandHandler : IRequestHandler<InvitePlayerCommand>
     private static IEnumerable<IDomainEvent> Decide(InvitePlayerCommand command, SplendorGameState state)
     {
         if (state.Id == Guid.Empty) throw new InvalidOperationException("GameId missing in history");
+        if (string.IsNullOrWhiteSpace(command.InviteeId) || command.InviteeId.Length > 128)
+            throw new ArgumentException("InviteeId must be 1-128 characters.");
 
         if (state.Status == GameStatus.Started) throw new InvalidOperationException("Game is already started.");
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game is already finished.");

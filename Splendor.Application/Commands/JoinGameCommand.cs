@@ -42,6 +42,8 @@ public class JoinGameCommandHandler : IRequestHandler<JoinGameCommand>
 
     private static IReadOnlyList<IDomainEvent> Decide(JoinGameCommand command, SplendorGameState state, JoinGameDecisionState ownerState)
     {
+        var name = command.Name.Trim();
+        if (name.Length is < 1 or > 20) throw new ArgumentException("Player name must be 1-20 characters.");
         if (state.Status == GameStatus.Started) throw new InvalidOperationException("Game is already started.");
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game is already finished.");
         if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game has been deleted.");
@@ -50,13 +52,13 @@ public class JoinGameCommandHandler : IRequestHandler<JoinGameCommand>
         //    throw new InvalidOperationException("You already control a player in this game.");
         if (ownerState.ActiveGameIds.Count >= 2)
             throw new InvalidOperationException("You cannot be active in more than 2 games.");
-        if (state.Players.Values.Any(player => string.Equals(player.Name, command.Name, StringComparison.OrdinalIgnoreCase)))
-            throw new InvalidOperationException($"Player with name '{command.Name}' already exists in this game.");
+        if (state.Players.Values.Any(player => string.Equals(player.Name, name, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Player with name '{name}' already exists in this game.");
 
-        var playerId = Guid.NewGuid() + " " + command.Name;
+        var playerId = Guid.NewGuid() + " " + name;
         return new List<IDomainEvent>
         {
-            new PlayerJoined(command.GameId, playerId, command.OwnerId, command.Name, DateTimeOffset.UtcNow)
+            new PlayerJoined(command.GameId, playerId, command.OwnerId, name, DateTimeOffset.UtcNow)
         };
     }
 }

@@ -25,10 +25,13 @@ public class ExpireTurnCommandHandler : IRequestHandler<ExpireTurnCommand>
     public async Task Handle(ExpireTurnCommand command, CancellationToken cancellationToken)
     {
         var stream = await _session.Events.FetchForWriting<SplendorGameState>(command.GameId, cancellationToken);
-        var state = stream.Aggregate ?? throw new InvalidOperationException("Game not found.");
+        // Late timer messages (deleted game, clock not started) are no-ops, not errors.
+        var state = stream.Aggregate;
+        if (state is null) return;
         var turnClock = await _session.Events.FetchForWritingByTags<TurnClockState>(
             TurnClockState.Query(command.GameId), cancellationToken);
-        var clock = turnClock.Aggregate ?? throw new InvalidOperationException("Turn clock not started.");
+        var clock = turnClock.Aggregate;
+        if (clock is null) return;
 
         var events = Decide(command, state, clock, _timeProvider.GetUtcNow());
         if (events.Count == 0) return;
