@@ -8,6 +8,7 @@ import { GemCollection, EMPTY_GEMS } from '../../models/gem-collection.model';
 import { Card } from '../../models/card.model';
 import { interval, Subscription, startWith } from 'rxjs';
 import { SignalRService } from '../../core/services/signalr.service';
+import { ToastService } from '../../core/services/toast.service';
 import { ChooseNobleRequest } from '../../models/requests.model';
 
 
@@ -34,7 +35,8 @@ export class GameComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private gameService: GameService,
-    private signalRService: SignalRService
+    private signalRService: SignalRService,
+    private toastService: ToastService
   ) { }
 
   async ngOnInit(): Promise<void> {
@@ -47,7 +49,11 @@ export class GameComponent implements OnInit, OnDestroy {
     // Listen for updates
     this.signalrSubscription = this.signalRService.gameUpdated$
       .subscribe(gameView => {
+        const turnChanged = this.game && this.game.currentPlayerId !== gameView.currentPlayerId;
         this.game = gameView;
+        if (turnChanged && this.getCurrentPlayer()?.id === gameView.currentPlayerId) {
+          this.toastService.show('Your turn');
+        }
         this.gameService.updateGameCache(gameView);
       });
     this.clockSubscription = interval(1000).pipe(startWith(0)).subscribe(() => {

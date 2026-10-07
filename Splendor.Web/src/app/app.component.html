@@ -19,3 +19,7 @@
 <footer class="app-footer">
   Splendor DDD Event Sourcing Project &copy; 2026
 </footer>
+
+<div class="toasts">
+  <div class="toast" *ngFor="let t of toastService.toasts$ | async" data-testid="toast">{{ t.text }}</div>
+</div>

@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { AuthService } from './core/services/auth.service';
 import { environment } from '../environments/environment';
+import { ToastService } from './core/services/toast.service';
 
 @Component({
   selector: 'app-root',
@@ -18,7 +19,7 @@ export class AppComponent {
   hasToken: boolean = false;
   guestError: string = '';
 
-  constructor(private authService: AuthService, private http: HttpClient) {
+  constructor(private authService: AuthService, private http: HttpClient, public toastService: ToastService) {
     this.token = this.authService.getToken() || '';
     this.authService.token$.subscribe(t => {
       this.hasToken = !!t;

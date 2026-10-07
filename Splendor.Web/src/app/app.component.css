@@ -19,3 +19,6 @@
 .content-area { padding-top: 0; }
 
 .app-footer { padding: 20px; text-align: center; color: #444; font-size: 0.8em; border-top: 1px solid rgba(255,255,255,0.05); }
+
+.toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 1000; }
+.toast { background: #333; color: #fff; padding: 10px 16px; border-radius: 6px; max-width: 320px; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
