@@ -1,3 +1,4 @@
+using System.Text.Json;
 using MassTransit;
 using Microsoft.AspNetCore.SignalR;
 using Splendor.Api.Hubs;
@@ -7,8 +8,14 @@ using Splendor.Contracts.Messages;
 
 namespace Splendor.Api.Consumers;
 
+public record GameNotification(string Type, string? PlayerId);
+
 public class GameUpdatedConsumer : IConsumer<Batch<GameUpdatedMessage>>
 {
+    // Only these events reach clients, and only their type and acting player (no deck contents etc.).
+    private static readonly HashSet<string> NotifiableEvents =
+        ["gems_taken", "card_purchased", "card_reserved", "noble_acquired", "turn_expired"];
+
     private readonly IHubContext<GameHub> _hubContext;
     private readonly IMediator _mediator;
 
@@ -20,24 +27,33 @@ public class GameUpdatedConsumer : IConsumer<Batch<GameUpdatedMessage>>
 
     public async Task Consume(ConsumeContext<Batch<GameUpdatedMessage>> context)
     {
-        // Group by GameId to process each game only once per batch
-        var uniqueGames = context.Message
-            .Select(m => m.Message)
-            .GroupBy(m => m.GameId)
-            .Select(g => g.First()); // We just need the ID to trigger a refresh
+        var byGame = context.Message.Select(m => m.Message).GroupBy(m => m.GameId);
 
-        foreach (var message in uniqueGames)
+        foreach (var messages in byGame)
         {
-            // Get latest GameView
-            var gameView = await _mediator.Send(new GetGameQuery(message.GameId));
+            var gameView = await _mediator.Send(new GetGameQuery(messages.Key));
+            if (gameView == null) continue;
 
-            if (gameView != null)
-            {
-                // Send to all clients in the game group
-                await _hubContext.Clients
-                    .Group(message.GameId.ToString())
-                    .SendAsync("GameUpdated", gameView);
-            }
+            var notifications = messages
+                .Where(m => NotifiableEvents.Contains(m.EventType))
+                .OrderBy(m => m.StreamVersion)
+                .Select(ToNotification)
+                .ToList();
+
+            await _hubContext.Clients
+                .Group(messages.Key.ToString())
+                .SendAsync("GameUpdated", gameView, notifications);
         }
+    }
+
+    private static GameNotification ToNotification(GameUpdatedMessage message)
+    {
+        string? playerId = null;
+        if (message.Data != null)
+        {
+            using var doc = JsonDocument.Parse(message.Data);
+            if (doc.RootElement.TryGetProperty("PlayerId", out var p)) playerId = p.GetString();
+        }
+        return new GameNotification(message.EventType, playerId);
     }
 }

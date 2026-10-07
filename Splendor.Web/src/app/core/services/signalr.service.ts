@@ -4,6 +4,8 @@ import { Subject } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { GameView } from '../../models/game-view.model';
 
+export interface GameNotification { type: string; playerId?: string; }
+
 @Injectable({
     providedIn: 'root'
 })
@@ -12,6 +14,9 @@ export class SignalRService {
     private gameUpdated = new Subject<GameView>();
 
     gameUpdated$ = this.gameUpdated.asObservable();
+
+    private notifications = new Subject<GameNotification>();
+    notifications$ = this.notifications.asObservable();
 
     async connect(): Promise<void> {
         if (this.hubConnection) return;
@@ -22,8 +27,9 @@ export class SignalRService {
             .configureLogging(LogLevel.Information)
             .build();
 
-        this.hubConnection.on('GameUpdated', (gameView: GameView) => {
+        this.hubConnection.on('GameUpdated', (gameView: GameView, events: GameNotification[] = []) => {
             this.gameUpdated.next(gameView);
+            events.forEach(e => this.notifications.next(e));
         });
 
         await this.hubConnection.start();

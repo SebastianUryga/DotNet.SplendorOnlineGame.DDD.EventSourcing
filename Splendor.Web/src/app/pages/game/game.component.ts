@@ -21,6 +21,14 @@ import { ChooseNobleRequest } from '../../models/requests.model';
   styleUrls: ['./game.component.css']
 })
 export class GameComponent implements OnInit, OnDestroy {
+  private static readonly notificationTexts: Record<string, string> = {
+    gems_taken: 'took gems',
+    card_purchased: 'bought a card',
+    card_reserved: 'reserved a card',
+    noble_acquired: 'got a noble',
+    turn_expired: 'ran out of time'
+  };
+
   gameId!: string;
   game: GameView | null = null;
   selectedGems: any = { diamond: 0, sapphire: 0, emerald: 0, ruby: 0, onyx: 0 };
@@ -56,6 +64,13 @@ export class GameComponent implements OnInit, OnDestroy {
         }
         this.gameService.updateGameCache(gameView);
       });
+    this.signalrSubscription.add(this.signalRService.notifications$.subscribe(n => {
+      const text = GameComponent.notificationTexts[n.type];
+      const player = this.game?.players.find(p => p.id === n.playerId);
+      if (text && player && player.id !== this.getCurrentPlayer()?.id) {
+        this.toastService.show(`${player.name} ${text}`);
+      }
+    }));
     this.clockSubscription = interval(1000).pipe(startWith(0)).subscribe(() => {
       const expiresAt = this.game?.expiresAt;
       this.turnSecondsRemaining = expiresAt
