@@ -54,4 +54,10 @@ public class DeleteGameTests
     [InlineData(PlatformRules.MaxActiveGames, false)]
     public void ActiveGamesLimit(int active, bool allowed) =>
         PlatformRules.CanJoinAnotherGame(active).Should().Be(allowed);
+
+    [Theory]
+    [InlineData(PlatformRules.MaxOpenCreatedGames - 1, true)]
+    [InlineData(PlatformRules.MaxOpenCreatedGames, false)]
+    public void OpenCreatedGamesLimit(int open, bool allowed) =>
+        PlatformRules.CanCreateGame(open).Should().Be(allowed);
 }
