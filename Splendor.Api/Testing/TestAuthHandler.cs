@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
+using Splendor.Api.Auth;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -20,11 +21,13 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
             ? headerValue.ToString()
             : "ui-test-user";
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(ClaimTypes.Name, "UI Test User"),
             new Claim(ClaimTypes.NameIdentifier, userId)
         };
+        if (Request.Headers.TryGetValue("X-Test-Roles", out var roles))
+            claims.AddRange(roles.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries).Select(r => new Claim(RoleClaims.Type, r)));
         var identity = new ClaimsIdentity(claims, "Test");
         var principal = new ClaimsPrincipal(identity);
         var ticket = new AuthenticationTicket(principal, "Test");

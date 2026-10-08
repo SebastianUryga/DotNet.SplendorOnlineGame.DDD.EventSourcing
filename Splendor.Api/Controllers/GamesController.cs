@@ -38,10 +38,10 @@ public class GamesController : ControllerBase
     [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateGame([FromBody] CreateGameRequest request)
     {
-        var userId = _currentUserService.UserId;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var caller = _currentUserService.Caller;
+        if (caller is null) return Unauthorized();
 
-        var gameId = await _mediator.Send(new CreateGameCommand { OwnerId = userId });
+        var gameId = await _mediator.Send(new CreateGameCommand { Caller = caller });
         return CreatedAtAction(nameof(GetGame), new { gameId }, new { id = gameId });
     }
 
@@ -58,13 +58,13 @@ public class GamesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> JoinGame(Guid gameId, [FromBody] JoinGameRequest request)
     {
-        var userId = _currentUserService.UserId;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var caller = _currentUserService.Caller;
+        if (caller is null) return Unauthorized();
 
         await _mediator.Send(new JoinGameCommand 
         { 
             GameId = gameId, 
-            OwnerId = userId, 
+            Caller = caller, 
             Name = PlayerName.Create(request.Name)
         });
         return Ok();
@@ -74,10 +74,10 @@ public class GamesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> LeaveGame(Guid gameId, string playerId)
     {
-        var userId = _currentUserService.UserId;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var caller = _currentUserService.Caller;
+        if (caller is null) return Unauthorized();
 
-        await _mediator.Send(new LeaveGameCommand { GameId = gameId, PlayerId = playerId, OwnerId = userId });
+        await _mediator.Send(new LeaveGameCommand { GameId = gameId, PlayerId = playerId, Caller = caller });
         return NoContent();
     }
 
@@ -93,13 +93,13 @@ public class GamesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> InvitePlayer(Guid gameId, [FromBody] InvitePlayerRequest request)
     {
-        var userId = _currentUserService.UserId;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var caller = _currentUserService.Caller;
+        if (caller is null) return Unauthorized();
 
         await _mediator.Send(new InvitePlayerCommand
         {
             GameId = gameId,
-            OwnerId = userId,
+            Caller = caller,
             InviteeId = UserId.Create(request.InviteeId)
         });
 
@@ -117,10 +117,10 @@ public class GamesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> StartGame(Guid gameId, [FromBody] StartGameRequest request)
     {
-        var userId = _currentUserService.UserId;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var caller = _currentUserService.Caller;
+        if (caller is null) return Unauthorized();
 
-        await _mediator.Send(new StartGameCommand { GameId = gameId, OwnerId = userId });
+        await _mediator.Send(new StartGameCommand(gameId, caller));
         return Ok();
     }
 
@@ -137,13 +137,13 @@ public class GamesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> TakeGems(Guid gameId, [FromBody] TakeGemsRequest request)
     {
-        var userId = _currentUserService.UserId;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var caller = _currentUserService.Caller;
+        if (caller is null) return Unauthorized();
 
         await _mediator.Send(new TakeGemsCommand 
         { 
             GameId = gameId,
-            OwnerId = userId,
+            Caller = caller,
             PlayerId = request.PlayerId,
             Diamond = request.Diamond,
             Sapphire = request.Sapphire,
@@ -168,13 +168,13 @@ public class GamesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> BuyCard(Guid gameId, [FromBody] BuyCardRequest request)
     {
-        var userId = _currentUserService.UserId;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var caller = _currentUserService.Caller;
+        if (caller is null) return Unauthorized();
 
         await _mediator.Send(new BuyCardCommand 
         { 
             GameId = gameId,
-            OwnerId = userId,
+            Caller = caller,
             PlayerId = request.PlayerId,
             CardId = request.CardId
         });
@@ -187,7 +187,7 @@ public class GamesController : ControllerBase
     /// <returns>A list of card definitions.</returns>
     [HttpGet("/cards")]
     [AllowAnonymous]
-    [ProducesResponseType(typeof(IReadOnlyList<Splendor.Domain.ValueObjects.Card>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IReadOnlyList<Card>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCards()
     {
         var cards = await _mediator.Send(new GetCardsQuery());
@@ -200,7 +200,7 @@ public class GamesController : ControllerBase
     /// <returns>A list of noble definitions.</returns>
     [HttpGet("/nobles")]
     [AllowAnonymous]
-    [ProducesResponseType(typeof(IReadOnlyList<Splendor.Domain.ValueObjects.Noble>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IReadOnlyList<Noble>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetNobles()
     {
         var nobles = await _mediator.Send(new GetNoblesQuery());
@@ -229,10 +229,10 @@ public class GamesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteGame(Guid id)
     {
-        var userId = _currentUserService.UserId;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var caller = _currentUserService.Caller;
+        if (caller is null) return Unauthorized();
 
-        await _mediator.Send(new DeleteGameCommand(id, userId));
+        await _mediator.Send(new DeleteGameCommand(id, caller));
         return NoContent();
     }
 
@@ -271,13 +271,13 @@ public class GamesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ReserveCard(Guid gameId, [FromBody] ReserveCardRequest request)
     {
-        var userId = _currentUserService.UserId;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var caller = _currentUserService.Caller;
+        if (caller is null) return Unauthorized();
 
         await _mediator.Send(new ReserveCardCommand
         {
             GameId = gameId,
-            OwnerId = userId,
+            Caller = caller,
             PlayerId = request.PlayerId,
             CardId = request.CardId,
             Level = request.Level
@@ -311,13 +311,13 @@ public class GamesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ResolveGemLimit(Guid gameId, [FromBody] ResolveGemLimitRequest request)
     {
-        var userId = _currentUserService.UserId;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var caller = _currentUserService.Caller;
+        if (caller is null) return Unauthorized();
 
         await _mediator.Send(new ResolveGemLimitCommand
         {
             GameId = gameId,
-            OwnerId = userId,
+            Caller = caller,
             PlayerId = request.PlayerId,
             Diamond = request.Diamond,
             Sapphire = request.Sapphire,
@@ -336,13 +336,13 @@ public class GamesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ChooseNoble(Guid gameId, [FromBody] ChooseNobleRequest request)
     {
-        var userId = _currentUserService.UserId;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var caller = _currentUserService.Caller;
+        if (caller is null) return Unauthorized();
 
         await _mediator.Send(new ChooseNobleCommand
         {
             GameId = gameId,
-            OwnerId = userId,
+            Caller = caller,
             PlayerId = request.PlayerId,
             NobleId = request.NobleId
         });

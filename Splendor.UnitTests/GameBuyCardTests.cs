@@ -1,3 +1,4 @@
+using Splendor.Domain.Rules;
 using System;
 using FluentAssertions;
 using Splendor.Application.Commands;
@@ -32,7 +33,7 @@ public class GameBuyCardTests
         var command = new BuyCardCommand
         {
             GameId = gameId,
-            OwnerId = owner1,
+            Caller = Caller.User(owner1),
             PlayerId = player1Id,
             CardId = cardId
         };
@@ -67,7 +68,7 @@ public class GameBuyCardTests
         var command = new BuyCardCommand
         {
             GameId = gameId,
-            OwnerId = owner1,
+            Caller = Caller.User(owner1),
             PlayerId = player1Id,
             CardId = emeraldCard.Id
         };

@@ -1,3 +1,4 @@
+using Splendor.Domain.Rules;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,7 +25,7 @@ public class GameReserveCardTests
         var command = new ReserveCardCommand
         {
             GameId = gameId,
-            OwnerId = owner1,
+            Caller = Caller.User(owner1),
             PlayerId = player1Id,
             Level = 2
         };
@@ -63,7 +64,7 @@ public class GameReserveCardTests
         var command = new ReserveCardCommand
         {
             GameId = gameId,
-            OwnerId = owner1,
+            Caller = Caller.User(owner1),
             PlayerId = player1Id,
             CardId = cardId
         };
@@ -98,7 +99,7 @@ public class GameReserveCardTests
         var command = new ReserveCardCommand
         {
             GameId = gameId,
-            OwnerId = owner1,
+            Caller = Caller.User(owner1),
             PlayerId = player1Id,
             CardId = game.Market1.First()
         };

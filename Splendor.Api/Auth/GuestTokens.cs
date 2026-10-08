@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
+using Splendor.Domain.Rules;
 
 namespace Splendor.Api.Auth;
 
@@ -21,7 +22,7 @@ public static class GuestTokens
         new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {
             Issuer = Issuer,
-            Claims = new Dictionary<string, object> { ["sub"] = guestId },
+            Claims = new Dictionary<string, object> { ["sub"] = guestId, [RoleClaims.Type] = new[] { Caller.GuestRole } },
             Expires = expires,
             SigningCredentials = new SigningCredentials(
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),

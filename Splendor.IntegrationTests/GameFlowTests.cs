@@ -119,6 +119,22 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
         after.ExpiresAt.Should().BeAfter(DateTimeOffset.UtcNow);
     }
 
+    [Theory]
+    [InlineData(null, HttpStatusCode.BadRequest)]
+    [InlineData("admin", HttpStatusCode.NoContent)]
+    public async Task DeleteGame_OfAnotherUser_RequiresAdminRole(string? role, HttpStatusCode expected)
+    {
+        var gameId = await CreateAndStartGame("del-creator", "del-other", "P1", "P2");
+
+        using (TestUserContext.SetUser("del-intruder"))
+        {
+            var request = new HttpRequestMessage(HttpMethod.Delete, $"/games/{gameId}");
+            if (role != null) request.Headers.Add("X-Test-Roles", role);
+            var response = await _client.SendAsync(request);
+            response.StatusCode.Should().Be(expected);
+        }
+    }
+
     private async Task<Guid> CreateAndStartGame(string user1, string user2, string player1Name, string player2Name)
     {
         var response = await PostAsUserAsync(user1, "/games", new { }, HttpStatusCode.Created);

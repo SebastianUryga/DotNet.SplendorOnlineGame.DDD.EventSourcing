@@ -12,16 +12,15 @@ using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Application.Commands;
 
-public record StartGameCommand : IAuthoredCommand, IRequest
+public record StartGameCommand : IAuthorizedCommand, IRequest
 {
     public Guid GameId { get; init; }
-    public string OwnerId { get; init; } = string.Empty;
+    public Caller Caller { get; init; }
 
-    public StartGameCommand() { }
-    public StartGameCommand(Guid gameId, string ownerId)
+    public StartGameCommand(Guid gameId, Caller caller)
     {
         GameId = gameId;
-        OwnerId = ownerId;
+        Caller = caller;
     }
 }
 
@@ -56,8 +55,8 @@ public class StartGameCommandHandler : IRequestHandler<StartGameCommand>
         if (state.PlayerOrder.Count < 2) throw new InvalidOperationException("Need at least 2 players.");
         if (state.PlayerOrder.Count > 4) throw new InvalidOperationException("Too many players.");
 
-        var isCreator = state.CreatorId == command.OwnerId;
-        var isParticipant = state.Players.Values.Any(p => p.OwnerId == command.OwnerId);
+        var isCreator = state.CreatorId == command.Caller.UserId.Value;
+        var isParticipant = state.Players.Values.Any(p => p.OwnerId == command.Caller.UserId.Value);
 
         if (!isCreator && !isParticipant)
         {

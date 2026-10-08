@@ -1,3 +1,4 @@
+using Splendor.Domain.Rules;
 using FluentAssertions;
 using Splendor.Application.Commands;
 using Splendor.Domain;
@@ -34,7 +35,7 @@ public class ChooseNobleCommandHandlerTests : IClassFixture<SplendorApiFactory>
         await _game.ExecuteAsync(session => new ChooseNobleCommandHandler(session).Handle(new ChooseNobleCommand
         {
             GameId = gameId,
-            OwnerId = "owner-1",
+            Caller = Caller.User("owner-1"),
             PlayerId = "player-1",
             NobleId = "N_01"
         }, CancellationToken.None));

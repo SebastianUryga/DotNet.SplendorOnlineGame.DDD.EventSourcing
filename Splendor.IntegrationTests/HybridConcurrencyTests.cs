@@ -10,6 +10,7 @@ using Splendor.Application.Snapshots;
 using Splendor.Domain;
 using Splendor.Domain.Events;
 using Splendor.Domain.ValueObjects;
+using Splendor.Domain.Rules;
 
 namespace Splendor.IntegrationTests;
 
@@ -39,7 +40,7 @@ public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
             .Which.Message.Should().Be("You cannot be active in more than 2 games.");
 
         await Execute(session => new DeleteGameCommandHandler(session).Handle(
-            new DeleteGameCommand(firstGameId, $"creator-{firstGameId}"), CancellationToken.None));
+            new DeleteGameCommand(firstGameId, Caller.User($"creator-{firstGameId}")), CancellationToken.None));
         await Join(thirdGameId, ownerId, "Carol");
 
         await using var session = _store.LightweightSession();
@@ -57,25 +58,25 @@ public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
         await Execute(session => new JoinGameCommandHandler(session).Handle(new JoinGameCommand
         {
             GameId = gameId,
-            OwnerId = owner1,
+            Caller = Caller.User(owner1),
             Name = PlayerName.Create("Alice")
         }, CancellationToken.None));
         await Execute(session => new JoinGameCommandHandler(session).Handle(new JoinGameCommand
         {
             GameId = gameId,
-            OwnerId = owner2,
+            Caller = Caller.User(owner2),
             Name = PlayerName.Create("Bob")
         }, CancellationToken.None));
         await Execute(session => new InvitePlayerCommandHandler(session).Handle(new InvitePlayerCommand
         {
             GameId = gameId,
-            OwnerId = owner1,
+            Caller = Caller.User(owner1),
             InviteeId = UserId.Create("owner-3")
         }, CancellationToken.None));
         await Execute(session => new StartGameCommandHandler(session, TimeProvider.System).Handle(
-            new StartGameCommand(gameId, owner1), CancellationToken.None));
+            new StartGameCommand(gameId, Caller.User(owner1)), CancellationToken.None));
         await Execute(session => new DeleteGameCommandHandler(session).Handle(
-            new DeleteGameCommand(gameId, owner1), CancellationToken.None));
+            new DeleteGameCommand(gameId, Caller.User(owner1)), CancellationToken.None));
 
         await using var freshSession = _store.LightweightSession();
         var state = (await freshSession.Events.FetchForWriting<SplendorGameState>(gameId)).Aggregate;
@@ -234,7 +235,7 @@ public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
         Execute(session => new JoinGameCommandHandler(session).Handle(new JoinGameCommand
         {
             GameId = gameId,
-            OwnerId = ownerId,
+            Caller = Caller.User(ownerId),
             Name = PlayerName.Create(name)
         }, CancellationToken.None));
 

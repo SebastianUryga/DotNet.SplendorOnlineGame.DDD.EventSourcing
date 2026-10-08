@@ -1,3 +1,4 @@
+using Splendor.Domain.Rules;
 using Marten;
 using MediatR;
 using Splendor.Application.Common.Interfaces;
@@ -9,10 +10,10 @@ using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Application.Commands;
 
-public record ResolveGemLimitCommand : IAuthoredCommand, IRequest
+public record ResolveGemLimitCommand : IAuthorizedCommand, IRequest
 {
     public Guid GameId { get; init; }
-    public string OwnerId { get; init; } = string.Empty;
+    public required Caller Caller { get; init; }
     public string PlayerId { get; init; } = string.Empty;
     public int Diamond { get; init; }
     public int Sapphire { get; init; }
@@ -56,7 +57,7 @@ public class ResolveGemLimitCommandHandler : IRequestHandler<ResolveGemLimitComm
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game finished.");
         if (state.Status != GameStatus.Started) throw new InvalidOperationException("Game not started.");
         if (!state.Players.TryGetValue(command.PlayerId, out var player)) throw new InvalidOperationException("Player not found.");
-        if (player.OwnerId != command.OwnerId) throw new InvalidOperationException("You do not control this player.");
+        if (player.OwnerId != command.Caller.UserId.Value) throw new InvalidOperationException("You do not control this player.");
         if (state.PendingGemReturnPlayerId != command.PlayerId) throw new InvalidOperationException("No gem return is required for this player.");
 
         var returnedGems = new GemCollection(command.Diamond, command.Sapphire, command.Emerald, command.Ruby, command.Onyx, command.Gold);

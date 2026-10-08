@@ -11,10 +11,10 @@ using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Application.Commands;
 
-public record ChooseNobleCommand : IAuthoredCommand, IRequest
+public record ChooseNobleCommand : IAuthorizedCommand, IRequest
 {
     public Guid GameId { get; init; }
-    public string OwnerId { get; init; } = string.Empty;
+    public required Caller Caller { get; init; }
     public string PlayerId { get; init; } = string.Empty;
     public string NobleId { get; init; } = string.Empty;
 }
@@ -54,7 +54,7 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
         if (state.Status != GameStatus.Started) throw new InvalidOperationException("Game is not active.");
         if (state.CurrentPlayerId != command.PlayerId) throw new InvalidOperationException("Not your turn.");
         if (!state.Players.TryGetValue(command.PlayerId, out var player)) throw new InvalidOperationException("Player not found.");
-        if (player.OwnerId != command.OwnerId) throw new InvalidOperationException("You do not control this player.");
+        if (player.OwnerId != command.Caller.UserId.Value) throw new InvalidOperationException("You do not control this player.");
         if (state.PendingNobleSelectionPlayerId != command.PlayerId)
             throw new InvalidOperationException("No noble selection is pending for this player.");
         if (!state.EligibleNobleIds.Contains(command.NobleId))

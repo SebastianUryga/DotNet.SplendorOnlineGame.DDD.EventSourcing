@@ -5,10 +5,11 @@ using Splendor.Application.Snapshots;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
 using Splendor.Domain.ValueObjects;
+using Splendor.Domain.Rules;
 
 namespace Splendor.Application.Commands;
 
-public record DeleteGameCommand(Guid GameId, string OwnerId) : IRequest;
+public record DeleteGameCommand(Guid GameId, Caller Caller) : IRequest;
 
 public class DeleteGameCommandHandler : IRequestHandler<DeleteGameCommand>
 {
@@ -33,7 +34,7 @@ public class DeleteGameCommandHandler : IRequestHandler<DeleteGameCommand>
     internal static IEnumerable<IDomainEvent> Decide(DeleteGameCommand command, SplendorGameState state)
     {
         if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game is already deleted.");
-        if (state.CreatorId != command.OwnerId) throw new InvalidOperationException("Only the creator can delete the game.");
+        if (!PlatformRules.CanDeleteGame(command.Caller, state.CreatorId)) throw new InvalidOperationException("Only the creator can delete the game.");
 
         var now = DateTimeOffset.UtcNow;
         var events = new List<IDomainEvent>

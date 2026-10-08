@@ -1,3 +1,4 @@
+using Splendor.Domain.Rules;
 using FluentAssertions;
 using Splendor.Application.Commands;
 using Splendor.Application.Snapshots;
@@ -24,7 +25,7 @@ public class ChooseNobleTests
         var events = ChooseNobleCommandHandler.Decide(new ChooseNobleCommand
         {
             GameId = gameId,
-            OwnerId = ownerId,
+            Caller = Caller.User(ownerId),
             PlayerId = playerId,
             NobleId = "N_06"
         }, state).ToList();

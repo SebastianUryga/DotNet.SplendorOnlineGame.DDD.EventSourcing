@@ -1,3 +1,4 @@
+using Splendor.Domain.Rules;
 using FluentAssertions;
 using Splendor.Application.Commands;
 using Splendor.Application.DecisionStates;
@@ -26,7 +27,7 @@ public class GameTakeGemsTests
         var command = new TakeGemsCommand
         {
             GameId = gameId,
-            OwnerId = owner1,
+            Caller = Caller.User(owner1),
             PlayerId = player1Id,
             Diamond = 1,
             Sapphire = 1
@@ -59,7 +60,7 @@ public class GameTakeGemsTests
         var command = new TakeGemsCommand
         {
             GameId = gameId,
-            OwnerId = owner1,
+            Caller = Caller.User(owner1),
             PlayerId = player1Id,
             Diamond = 1,
             Sapphire = 1,

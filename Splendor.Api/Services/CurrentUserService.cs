@@ -1,5 +1,7 @@
 using System.Security.Claims;
+using Splendor.Api.Auth;
 using Splendor.Application.Common.Interfaces;
+using Splendor.Domain.Rules;
 
 namespace Splendor.Api.Services;
 
@@ -12,5 +14,11 @@ public class CurrentUserService : ICurrentUserService
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public string? UserId => _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    private ClaimsPrincipal? User => _httpContextAccessor.HttpContext?.User;
+
+    public string? UserId => User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+    public Caller? Caller => string.IsNullOrEmpty(UserId)
+        ? null
+        : new Caller(Splendor.Domain.ValueObjects.UserId.Create(UserId), User!.FindAll(RoleClaims.Type).Select(c => c.Value).ToHashSet());
 }

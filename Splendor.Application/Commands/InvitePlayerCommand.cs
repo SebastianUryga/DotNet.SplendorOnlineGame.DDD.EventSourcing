@@ -6,13 +6,14 @@ using Splendor.Application.Snapshots;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
 using Splendor.Domain.ValueObjects;
+using Splendor.Domain.Rules;
 
 namespace Splendor.Application.Commands;
 
-public record InvitePlayerCommand : IAuthoredCommand, IRequest
+public record InvitePlayerCommand : IAuthorizedCommand, IRequest
 {
     public Guid GameId { get; init; }
-    public string OwnerId { get; init; } = string.Empty;
+    public required Caller Caller { get; init; }
     public required UserId InviteeId { get; init; }
 }
 
@@ -44,12 +45,12 @@ public class InvitePlayerCommandHandler : IRequestHandler<InvitePlayerCommand>
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game is already finished.");
         if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game has been deleted.");
 
-        if (!state.Players.Values.Any(player => player.OwnerId == command.OwnerId))
+        if (!state.Players.Values.Any(player => player.OwnerId == command.Caller.UserId.Value))
             throw new InvalidOperationException("You do not control a player in this game");
 
         if (state.Players.Values.Any(player => player.OwnerId == command.InviteeId.Value))
             throw new InvalidOperationException("Player already in game");
 
-        yield return new PlayerInvited(state.Id, command.OwnerId, command.InviteeId.Value, DateTimeOffset.UtcNow);
+        yield return new PlayerInvited(state.Id, command.Caller.UserId.Value, command.InviteeId.Value, DateTimeOffset.UtcNow);
     }
 }

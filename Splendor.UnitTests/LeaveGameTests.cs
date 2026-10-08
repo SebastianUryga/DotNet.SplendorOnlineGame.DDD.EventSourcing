@@ -1,3 +1,4 @@
+using Splendor.Domain.Rules;
 using FluentAssertions;
 using Splendor.Application.Commands;
 using Splendor.Application.DecisionStates;
@@ -21,7 +22,7 @@ public class LeaveGameTests
         {
             GameId = gameId,
             PlayerId = "player-1",
-            OwnerId = "owner-1"
+            Caller = Caller.User("owner-1")
         }, state).Should().BeOfType<PlayerLeft>().Subject;
 
         state.Apply(left);
@@ -47,7 +48,7 @@ public class LeaveGameTests
         {
             GameId = gameId,
             PlayerId = "player-2",
-            OwnerId = "owner-1"
+            Caller = Caller.User("owner-1")
         }, state);
 
         act.Should().Throw<InvalidOperationException>()
@@ -65,7 +66,7 @@ public class LeaveGameTests
         {
             GameId = setup.GameId,
             PlayerId = setup.Player1Id,
-            OwnerId = setup.Owner1
+            Caller = Caller.User(setup.Owner1)
         }, state);
 
         act.Should().Throw<InvalidOperationException>()

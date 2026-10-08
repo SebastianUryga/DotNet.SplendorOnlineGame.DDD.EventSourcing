@@ -1,3 +1,4 @@
+using Splendor.Domain.Rules;
 using Marten;
 using MediatR;
 using Splendor.Application.Common.Interfaces;
@@ -10,11 +11,11 @@ using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Application.Commands;
 
-public record LeaveGameCommand : IAuthoredCommand, IRequest
+public record LeaveGameCommand : IAuthorizedCommand, IRequest
 {
     public Guid GameId { get; init; }
     public string PlayerId { get; init; } = string.Empty;
-    public string OwnerId { get; init; } = string.Empty;
+    public required Caller Caller { get; init; }
 }
 
 public class LeaveGameCommandHandler : IRequestHandler<LeaveGameCommand>
@@ -31,7 +32,7 @@ public class LeaveGameCommandHandler : IRequestHandler<LeaveGameCommand>
         var stream = await _session.Events.FetchForWriting<SplendorGameState>(command.GameId, cancellationToken);
         var state = stream.Aggregate ?? throw new InvalidOperationException("Game not found.");
         await _session.Events.FetchForWritingByTags<JoinGameDecisionState>(
-            JoinGameDecisionState.Query(command.OwnerId), cancellationToken);
+            JoinGameDecisionState.Query(command.Caller.UserId.Value), cancellationToken);
 
         stream.AppendOne(_session.TagEvent(Decide(command, state)));
         await _session.SaveChangesAsync(cancellationToken);
@@ -44,9 +45,9 @@ public class LeaveGameCommandHandler : IRequestHandler<LeaveGameCommand>
 
         if (!state.Players.TryGetValue(command.PlayerId, out var player))
             throw new InvalidOperationException("Player not found.");
-        if (player.OwnerId != command.OwnerId)
+        if (player.OwnerId != command.Caller.UserId.Value)
             throw new InvalidOperationException("You do not control a player in this game.");
 
-        return new PlayerLeft(command.GameId, command.PlayerId, command.OwnerId, DateTimeOffset.UtcNow);
+        return new PlayerLeft(command.GameId, command.PlayerId, command.Caller.UserId.Value, DateTimeOffset.UtcNow);
     }
 }

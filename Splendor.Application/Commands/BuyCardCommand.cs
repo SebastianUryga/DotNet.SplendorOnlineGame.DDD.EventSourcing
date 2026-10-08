@@ -11,10 +11,10 @@ using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Application.Commands;
 
-public record BuyCardCommand : IAuthoredCommand, IRequest
+public record BuyCardCommand : IAuthorizedCommand, IRequest
 {
     public Guid GameId { get; init; }
-    public string OwnerId { get; init; } = string.Empty;
+    public required Caller Caller { get; init; }
     public string PlayerId { get; init; } = string.Empty;
     public string CardId { get; init; } = string.Empty;
 }
@@ -56,7 +56,7 @@ public class BuyCardCommandHandler : IRequestHandler<BuyCardCommand>
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game finished.");
         if (state.Status != GameStatus.Started) throw new InvalidOperationException("Game not started.");
         if (!state.Players.TryGetValue(command.PlayerId, out var player)) throw new InvalidOperationException("Player not found.");
-        if (player.OwnerId != command.OwnerId) throw new InvalidOperationException("You do not control this player.");
+        if (player.OwnerId != command.Caller.UserId.Value) throw new InvalidOperationException("You do not control this player.");
         if (state.CurrentPlayerId != command.PlayerId) throw new InvalidOperationException("Not your turn.");
         if (state.PendingGemReturnPlayerId is not null) throw new InvalidOperationException("A gem overflow resolution is pending.");
         if (state.PendingNobleSelectionPlayerId is not null) throw new InvalidOperationException("A noble selection is pending.");

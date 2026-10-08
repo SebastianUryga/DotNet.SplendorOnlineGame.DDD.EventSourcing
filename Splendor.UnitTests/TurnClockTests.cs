@@ -1,3 +1,4 @@
+using Splendor.Domain.Rules;
 using FluentAssertions;
 using Splendor.Application.Commands;
 using Splendor.Application.DecisionStates;
@@ -21,7 +22,7 @@ public class TurnClockTests
         var act = () => TakeGemsCommandHandler.Decide(new TakeGemsCommand
         {
             GameId = gameId,
-            OwnerId = ownerId,
+            Caller = Caller.User(ownerId),
             PlayerId = playerId,
             Diamond = 1,
             Sapphire = 1,
