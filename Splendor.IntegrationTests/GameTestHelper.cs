@@ -49,7 +49,7 @@ public class GameTestHelper
     public async Task AppendAsync(Guid gameId, params IDomainEvent[] events)
     {
         await using var session = _store.LightweightSession();
-        session.Events.Append(gameId, events.Select(session.TagEvent));
+        session.Events.Append(gameId, events.Select(e => session.TagEvent(e)));
         await session.SaveChangesAsync();
     }
 

@@ -158,7 +158,7 @@ static async Task<Guid> SeedGame(IDocumentStore store, int eventCount, string ev
     }
 
     await using var session = store.LightweightSession();
-    session.Events.StartStream(gameId, events.Select(session.TagEvent).ToArray());
+    session.Events.StartStream(gameId, events.Select(e => session.TagEvent(e)).ToArray());
     await session.SaveChangesAsync();
     return gameId;
 }

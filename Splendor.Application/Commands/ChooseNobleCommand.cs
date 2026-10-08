@@ -43,7 +43,7 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
         events.AddRange(completionEvents);
 
         // Tag and append events to the stream
-        stream.AppendMany(events.Select(e => _session.TagEvent(e)));
+        stream.AppendMany(events.Select(e => _session.TagEvent(e, state.CreatorId)));
         await _session.SaveChangesAsync(cancellationToken);
     }
 

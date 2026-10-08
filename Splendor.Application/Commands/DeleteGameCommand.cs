@@ -27,7 +27,7 @@ public class DeleteGameCommandHandler : IRequestHandler<DeleteGameCommand>
 
         var events = Decide(command, state);
 
-        stream.AppendMany(events.Select(e => _session.TagEvent(e)));
+        stream.AppendMany(events.Select(e => _session.TagEvent(e, state.CreatorId)));
         await _session.SaveChangesAsync(cancellationToken);
     }
 

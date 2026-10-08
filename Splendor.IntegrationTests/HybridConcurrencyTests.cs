@@ -109,6 +109,42 @@ public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
     }
 
     [Fact]
+    public async Task CreateGame_RejectsStaleCreatorBoundary()
+    {
+        const string creatorId = "shared-creator";
+        await using var first = _store.LightweightSession();
+        await using var second = _store.LightweightSession();
+        await first.Events.FetchForWritingByTags<CreateGameDecisionState>(CreateGameDecisionState.Query(creatorId));
+        await second.Events.FetchForWritingByTags<CreateGameDecisionState>(CreateGameDecisionState.Query(creatorId));
+
+        var (firstId, secondId) = (Guid.NewGuid(), Guid.NewGuid());
+        first.Events.StartStream(firstId, first.TagEvent(new GameCreated(firstId, creatorId, DateTimeOffset.UtcNow)));
+        second.Events.StartStream(secondId, second.TagEvent(new GameCreated(secondId, creatorId, DateTimeOffset.UtcNow)));
+
+        await first.SaveChangesAsync();
+        var exception = await Record.ExceptionAsync(() => second.SaveChangesAsync());
+
+        exception.Should().BeOfType<DcbConcurrencyException>();
+    }
+
+    [Fact]
+    public async Task CreateGame_LimitsOpenGamesAndFreesSlotAfterDelete()
+    {
+        var creator = Caller.User($"limit-{Guid.NewGuid()}");
+        Task<Guid> Create() => Execute(session => new CreateGameCommandHandler(session).Handle(
+            new CreateGameCommand { Caller = creator }, CancellationToken.None));
+
+        var firstId = await Create();
+        await Create();
+        var third = await Record.ExceptionAsync(Create);
+        third.Should().BeOfType<InvalidOperationException>();
+
+        await Execute(session => new DeleteGameCommandHandler(session).Handle(
+            new DeleteGameCommand(firstId, creator), CancellationToken.None));
+        await Create();
+    }
+
+    [Fact]
     public async Task FetchForWritingByTags_RejectsStaleOwnerBoundaryAcrossStreams()
     {
         var firstGameId = await SeedCreatedGame();
@@ -223,6 +259,12 @@ public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
             session.TagEvent(new GameCreated(gameId, creatorId ?? $"creator-{gameId}", DateTimeOffset.UtcNow)));
         await session.SaveChangesAsync();
         return gameId;
+    }
+
+    private async Task<T> Execute<T>(Func<IDocumentSession, Task<T>> action)
+    {
+        await using var session = _store.LightweightSession();
+        return await action(session);
     }
 
     private async Task Execute(Func<IDocumentSession, Task> action)

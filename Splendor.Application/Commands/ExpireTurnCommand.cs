@@ -36,7 +36,7 @@ public class ExpireTurnCommandHandler : IRequestHandler<ExpireTurnCommand>
         var events = Decide(command, state, clock, _timeProvider.GetUtcNow());
         if (events.Count == 0) return;
 
-        stream.AppendMany(events.Select(_session.TagEvent));
+        stream.AppendMany(events.Select(e => _session.TagEvent(e, state.CreatorId)));
         await _session.SaveChangesAsync(cancellationToken);
     }
 

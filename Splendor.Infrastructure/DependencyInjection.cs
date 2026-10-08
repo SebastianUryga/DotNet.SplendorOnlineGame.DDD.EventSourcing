@@ -29,14 +29,8 @@ public static class DependencyInjection
             // Events configuration
             options.Events.StreamIdentity = StreamIdentity.AsGuid;
             options.Events.RegisterTagType<GameTag>("game");
-            options.Events.RegisterTagType<OwnerTag>("owner");
-            options.Events.TagEventsBy(@event => @event switch
-            {
-                GameCreated created => [new GameTag(created.GameId), new OwnerTag(created.CreatorId)],
-                PlayerJoined joined => [new GameTag(joined.GameId), new OwnerTag(joined.OwnerId)],
-                IDomainEvent domainEvent => [new GameTag(domainEvent.GameId)],
-                _ => []
-            });
+            options.Events.RegisterTagType<PlayerOwnerTag>("owner");
+            options.Events.RegisterTagType<GameCreatorTag>("game_creator");
             // Snapshots
             options.Projections.Snapshot<SplendorGameState>(SnapshotLifecycle.Async);
 
