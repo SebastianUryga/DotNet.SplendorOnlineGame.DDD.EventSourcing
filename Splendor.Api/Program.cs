@@ -1,3 +1,4 @@
+using Splendor.Api.Services;
 using Marten;
 using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -125,6 +126,11 @@ else
         });
 }
 
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddHostedService<GameCleanupTimer>();
+}
+
 if (builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddMassTransit(x =>
@@ -132,6 +138,9 @@ if (builder.Environment.IsEnvironment("Testing"))
         x.AddDelayedMessageScheduler();
         x.AddConsumer<GameUpdatedConsumer>();
         x.AddConsumer<ExpireTurnConsumer>();
+        x.AddConsumer<CleanUpGamesConsumer>();
+        x.AddConsumer<DeleteStaleGameConsumer>();
+        // x.AddConsumer<HardDeleteGameConsumer>(); // disabled, see HardDeleteGameCommand.cs
         x.UsingInMemory((context, cfg) =>
         {
             cfg.UseDelayedMessageScheduler();
@@ -145,6 +154,9 @@ else
     {
         x.AddMessageScheduler(new Uri("queue:scheduler"));
         x.AddConsumer<ExpireTurnConsumer>();
+        x.AddConsumer<CleanUpGamesConsumer>();
+        x.AddConsumer<DeleteStaleGameConsumer>();
+        // x.AddConsumer<HardDeleteGameConsumer>(); // disabled, see HardDeleteGameCommand.cs
         x.AddConsumer<GameUpdatedConsumer>(c =>
         {
             c.Options<BatchOptions>(o =>
@@ -188,13 +200,16 @@ else
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddConfiguredRateLimiting(builder.Configuration);
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
+if (builder.Environment.IsEnvironment("Production"))
 {
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    // ponytail: trusts any proxy; fine behind Render's edge, restrict KnownProxies if exposed directly
-    options.KnownIPNetworks.Clear();
-    options.KnownProxies.Clear();
-});
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        // ponytail: trusts any proxy; fine behind Render's edge, restrict KnownProxies if exposed directly
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+}
 builder.Services.AddScoped<Splendor.Application.Common.Interfaces.ICurrentUserService, Splendor.Api.Services.CurrentUserService>();
 
 var app = builder.Build();

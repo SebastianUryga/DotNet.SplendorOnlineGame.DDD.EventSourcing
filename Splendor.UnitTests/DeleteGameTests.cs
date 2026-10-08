@@ -60,4 +60,25 @@ public class DeleteGameTests
     [InlineData(PlatformRules.MaxOpenCreatedGames, false)]
     public void OpenCreatedGamesLimit(int open, bool allowed) =>
         PlatformRules.CanCreateGame(open).Should().Be(allowed);
+
+    [Fact]
+    public void GameIsStaleOnlyAfterStaleGameAge()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        PlatformRules.IsStale(now - PlatformRules.StaleGameAge + TimeSpan.FromMinutes(1), now).Should().BeFalse();
+        PlatformRules.IsStale(now - PlatformRules.StaleGameAge - TimeSpan.FromMinutes(1), now).Should().BeTrue();
+    }
+
+    [Fact]
+    public void SystemCallerCanDeleteAnyGame()
+    {
+        var gameId = Guid.NewGuid();
+        var state = new SplendorGameState();
+        state.Apply(new GameCreated(gameId, "owner-1", DateTimeOffset.UtcNow));
+
+        var events = DeleteGameCommandHandler.Decide(new DeleteGameCommand(gameId, Caller.System), state).ToList();
+
+        events.Should().ContainSingle(@event => @event is GameDeleted);
+    }
 }

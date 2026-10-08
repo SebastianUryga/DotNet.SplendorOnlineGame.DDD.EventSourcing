@@ -52,6 +52,8 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 | Plik | Opis |
 |------|------|
 | `Domain/Rules/SplendorRules.cs` | Czyste reguły domenowe: bonusy, punkty prestiżu, wymagania arystokratów, walidacja żetonów, płatność za karty, limit rezerwacji i wybór zwycięzcy. |
+| `Domain/Rules/PlatformRules.cs` | Reguły platformy (nie gry): kto usuwa grę (twórca lub admin), limity aktywnych i utworzonych gier, wiek nieaktywnej gry. |
+| `Domain/Rules/Caller.cs` | Kto wywołuje komendę: `UserId` (value object) i role (`admin`, `guest`); `Caller.System` dla zadań w tle. |
 | `Domain/Events/GameEvents.cs` | Zdarzenia domenowe: utworzenie i rozpoczęcie gry, tury, żetony, przekroczenie i rozwiązanie limitu żetonów, zakup/rezerwacja/odsłonięcie kart, arystokraci, zakończenie i usunięcie gry. |
 | `Domain/Entities/Player.cs` | Gracz: identyfikatory, nazwa, żetony, kupione i zarezerwowane karty oraz zdobyci arystokraci. |
 | `Domain/ValueObjects/GemCollection.cs` | Kolekcja żetonów: Diamond, Sapphire, Emerald, Ruby, Onyx i Gold. |
@@ -78,6 +80,9 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 | `Application/Commands/ExpireTurnCommand.cs` | Automatyczne zakończenie przeterminowanej tury |
 | `Application/ReadModels/GameView.cs` | Read model gry (GameView, PlayerView) |
 | `Application/Behaviors/CommandMetricsBehavior.cs` | MediatR pipeline behavior mierzący czas, aktywne i zakończone operacje. |
+| `Application/Behaviors/EventMetadataBehavior.cs` | Ustawia na sesji Martena `UserName` (z `Caller`, `system` dla komend ze schedulera) i `CorrelationId` zapisywane w metadanych eventów. |
+| `Application/Events/EventTagger.cs` | Jedyne miejsce tagowania eventów (`GameTag`, `PlayerOwnerTag`, `GameCreatorTag`); `GameDeleted`/`GameFinished` dostają twórcę z `state.GameCreatorId`. |
+| `Application/DecisionStates/CreateGameDecisionState.cs` | Granica DCB limitu utworzonych gier (po `GameCreatorTag`). |
 
 ### Infrastructure Layer
 | Plik | Opis |
@@ -93,6 +98,10 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 | `Api/Controllers/GamesController.cs` | REST API dla gier i kart |
 | `Api/Program.cs` | Konfiguracja aplikacji (CORS, JWT, etc.) |
 | `Api/Middleware/` | Custom middleware (ExceptionHandling) |
+| `Api/Services/GameCleanupTimer.cs` | `BackgroundService`: co godzinę publikuje `CleanUpGamesMessage` (przez singletonowy `IBus`); działa tylko gdy API nie śpi, nie jest rejestrowany w trybie Testing. |
+| `Api/Consumers/CleanUpGamesConsumer.cs` | Sprzątanie gier: wybiera przez `GetGamesQuery` gry nieaktywne >48 h i publikuje po jednej `DeleteStaleGameMessage` na grę; scope, retry i kolejka `_error` per gra pochodzą z MassTransit. Fizyczne kasowanie (`HardDeleteGame`) jest wyłączone (zakomentowane). |
+| `Api/Consumers/DeleteStaleGameConsumer.cs` | Wysyła `DeleteGameCommand` jako `Caller.System`. `HardDeleteGameConsumer` i `HardDeleteGameCommand` są zakomentowane: `DeleteSingleEventStreamAsync` nie czyści tabel tagów `mt_event_tag_*`. |
+| `Api/Auth/RoleClaims.cs` | Nazwa claima z rolami (`https://splendoronlinegame-web.onrender.com/roles`), dodawanego przez Auth0 Action oraz w tokenie gościa. |
 
 ### Obserwowalność
 
@@ -110,6 +119,10 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 - **Rate limiting:** polityki z sekcji `RateLimits` (`GuestAuth` po IP, `GameActions` po użytkowniku), rejestrowane w `Api/Auth/RateLimitingExtensions.cs`; nowy limit to wpis w konfiguracji i `[EnableRateLimiting("Nazwa")]`. Za proxy Rendera działa `UseForwardedHeaders`.
 - **Scheduler tur:** `AddMessageScheduler` + `UseInMemoryScheduler` (CloudAMQP Free nie ma delayed exchange), więc zaplanowane timery giną przy restarcie procesu.
 - **Lokalnie:** hasła nie trafiają do `appsettings.json` w git.
+- **Caller i role:** komendy implementują `IAuthorizedCommand` i niosą `Caller` (id + role z claima `RoleClaims.Type`) zamiast `OwnerId`; kontroler bierze go z `ICurrentUserService.Caller`. Rola `admin` pochodzi z Auth0 (rola + Action w flow post-login), gość dostaje `guest` w swoim tokenie. Reguły platformy leżą w `PlatformRules` i są wołane z `Decide`; limity wymagające spójności (aktywne i utworzone gry) idą przez granice DCB (`JoinGameDecisionState`, `CreateGameDecisionState`). W testach rolę podaje nagłówek `X-Test-Roles`.
+- **Nazwy a zapisany JSON:** `GameCreatorId`, `PlayerOwnerId` mają `[JsonPropertyName("CreatorId"/"OwnerId")]`, więc eventy i snapshot w Neonie pozostają czytelne bez przebudowy (`StoredJsonCompatibilityTests`). Modele odczytu, front i bot nadal używają `OwnerId`.
+- **Metadane eventów:** `UserName` i `CorrelationId` zapisują się dla nowych eventów, stare mają `NULL`.
+- **Sprzątanie gier:** `StaleGameCleanupService` na Renderze działa wewnątrz procesu API, więc tylko gdy API nie śpi; po obudzeniu pierwszy przebieg startuje po ok. minucie.
 ### Integration Tests
 | Plik | Opis |
 |------|------|
@@ -162,7 +175,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 
 ### Identyfikatory (ważne!)
 - **GameId**: `Guid` - identyfikator gry
-- **OwnerId**: `string` - identyfikator użytkownika (np. z JWT sub claim)
+- **OwnerId**: `string` - identyfikator użytkownika (z JWT `sub`); w komendach jako `Caller.UserId`, w stanie jako `PlayerOwnerId`
 - **PlayerId**: `string` - wewnętrzny identyfikator gracza w grze (generowany jako `Guid + " " + Name`)
 
 Jeden OwnerId może mieć wielu Players w różnych grach. PlayerId jest unikalny w ramach gry.
@@ -288,6 +301,9 @@ npm start
 - REST API, Swagger, JWT/Auth0, SignalR oraz MassTransit/RabbitMQ.
 - Podstawowe metryki aplikacji i Martena przez `System.Diagnostics.Metrics` oraz eksport OpenTelemetry do lokalnego Aspire Dashboard.
 - ETag/`304 Not Modified` dla `GET /games/{id}` i polling wersji gry.
+- Role i reguły platformy: `Caller`, `PlatformRules`, admin usuwa cudze gry, limity (max 2 aktywne i max 2 utworzone, nieukończone gry), walidacja wejścia przez value objecty `PlayerName` i `UserId` oraz limit body 16 KB.
+- Metadane eventów (`UserName`, `CorrelationId`) oraz sprzątanie gier: logiczne usuwanie po 48 h nieaktywności (fizyczne kasowanie wyłączone).
+- Frontend: `ToastService` (komunikaty 400 z API, „Your turn”, ruchy przeciwników z listy powiadomień wysyłanej obok `GameView` przez SignalR).
 - Testy jednostkowe decyzji gameplayu w `Splendor.UnitTests`.
 - Testy integracyjne z Testcontainers oraz testy UI Selenium z Page Object Model.
 
