@@ -17,10 +17,12 @@ namespace Splendor.IntegrationTests;
 public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
 {
     private readonly IDocumentStore _store;
+    private readonly IServiceProvider _services;
 
     public HybridConcurrencyTests(SplendorApiFactory factory)
     {
         _store = factory.Services.GetRequiredService<IDocumentStore>();
+        _services = factory.Services;
     }
 
     [Fact]
@@ -106,6 +108,21 @@ public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
         var exception = await Record.ExceptionAsync(() => second.SaveChangesAsync());
 
         exception.Should().BeOfType<EventStreamUnexpectedMaxEventIdException>();
+    }
+
+    [Fact]
+    public async Task Command_StampsEventsWithCallerAndCorrelationId()
+    {
+        var userId = $"meta-{Guid.NewGuid()}";
+        using var scope = _services.CreateScope();
+        var gameId = await scope.ServiceProvider.GetRequiredService<MediatR.IMediator>()
+            .Send(new CreateGameCommand { Caller = Caller.User(userId) });
+
+        await using var query = _store.QuerySession();
+        var created = (await query.Events.FetchStreamAsync(gameId)).Single();
+
+        created.UserName.Should().Be(userId);
+        created.CorrelationId.Should().NotBeNullOrEmpty();
     }
 
     [Fact]

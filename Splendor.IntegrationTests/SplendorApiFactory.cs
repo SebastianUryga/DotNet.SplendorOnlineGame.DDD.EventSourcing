@@ -35,6 +35,8 @@ public class SplendorApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
                 // Events configuration
                 options.Events.StreamIdentity = StreamIdentity.AsGuid;
+                options.Events.MetadataConfig.CorrelationIdEnabled = true;
+                options.Events.MetadataConfig.UserNameEnabled = true;
                 options.Events.RegisterTagType<GameTag>("game");
                 options.Events.RegisterTagType<PlayerOwnerTag>("owner");
             options.Events.RegisterTagType<GameCreatorTag>("game_creator");

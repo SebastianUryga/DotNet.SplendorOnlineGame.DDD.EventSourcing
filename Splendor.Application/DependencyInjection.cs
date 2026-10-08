@@ -13,6 +13,7 @@ public static class DependencyInjection
         {
             cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
             cfg.AddOpenBehavior(typeof(CommandMetricsBehavior<,>));
+            cfg.AddOpenBehavior(typeof(EventMetadataBehavior<,>));
             cfg.AddOpenBehavior(typeof(EventStoreRetryBehavior<,>));
         });
         return services;
