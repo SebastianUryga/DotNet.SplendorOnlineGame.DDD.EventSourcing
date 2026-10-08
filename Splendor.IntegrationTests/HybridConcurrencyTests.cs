@@ -45,7 +45,7 @@ public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
 
         await using var session = _store.LightweightSession();
         var state = (await session.Events.FetchForWriting<SplendorGameState>(thirdGameId)).Aggregate;
-        state!.Players.Values.Should().ContainSingle(player => player.OwnerId == ownerId);
+        state!.Players.Values.Should().ContainSingle(player => player.PlayerOwnerId == ownerId);
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
         var stream = await freshSession.Events.FetchStreamAsync(gameId);
 
         state.Should().NotBeNull();
-        state!.CreatorId.Should().Be(owner1);
+        state!.GameCreatorId.Should().Be(owner1);
         state.Status.Should().Be(GameStatus.Deleted);
         state.Players.Should().HaveCount(2);
         stream.Should().Contain(e => e.Data is PlayerInvited);
@@ -239,7 +239,7 @@ public class HybridConcurrencyTests : IClassFixture<SplendorApiFactory>
         var snapshot = await freshSession.LoadAsync<SplendorGameState>(gameId);
 
         snapshot.Should().NotBeNull();
-        snapshot!.CreatorId.Should().Be("owner-1");
+        snapshot!.GameCreatorId.Should().Be("owner-1");
         snapshot.PlayerOrder.Should().Equal("player-1");
         snapshot.Players.Should().ContainKey("player-1");
         snapshot.Deck1.Should().Equal(level1.Skip(4));

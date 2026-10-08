@@ -76,7 +76,7 @@ internal static class TurnCompletion
             var winner = SelectWinner(state, playerId, pointsFromAcquiredNoble);
             events.Add(new GameFinished(gameId, winner.PlayerId, winner.OwnerId, winner.Name, winner.PrestigePoints, now));
             events.AddRange(state.Players.Select(candidate =>
-                (IDomainEvent)new PlayerParticipationEnded(gameId, candidate.Key, candidate.Value.OwnerId, now)));
+                (IDomainEvent)new PlayerParticipationEnded(gameId, candidate.Key, candidate.Value.PlayerOwnerId, now)));
             return events;
         }
 
@@ -93,7 +93,7 @@ internal static class TurnCompletion
 
             return new PlayerScoreCandidate(
                 PlayerId: player.Key,
-                OwnerId: player.Value.OwnerId,
+                OwnerId: player.Value.PlayerOwnerId,
                 Name: player.Value.Name,
                 PrestigePoints: SplendorRules.GetPrestigePoints(player.Value.OwnedCardIds, player.Value.OwnedNobleIds) + extraPoints,
                 PurchasedCardCount: player.Value.OwnedCardIds.Count,

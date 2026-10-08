@@ -45,7 +45,7 @@ public class LeaveGameCommandHandler : IRequestHandler<LeaveGameCommand>
 
         if (!state.Players.TryGetValue(command.PlayerId, out var player))
             throw new InvalidOperationException("Player not found.");
-        if (player.OwnerId != command.Caller.UserId.Value)
+        if (player.PlayerOwnerId != command.Caller.UserId.Value)
             throw new InvalidOperationException("You do not control a player in this game.");
 
         return new PlayerLeft(command.GameId, command.PlayerId, command.Caller.UserId.Value, DateTimeOffset.UtcNow);

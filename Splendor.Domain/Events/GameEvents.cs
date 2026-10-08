@@ -1,10 +1,11 @@
+using System.Text.Json.Serialization;
 using Splendor.Domain.Common;
 using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Domain.Events;
 
 public record GameCreated(Guid GameId, string CreatorId, DateTimeOffset Timestamp) : IDomainEvent;
-public record PlayerJoined(Guid GameId, string PlayerId, string OwnerId, string Name, DateTimeOffset Timestamp) : IDomainEvent;
+public record PlayerJoined(Guid GameId, string PlayerId, [property: JsonPropertyName("OwnerId")] string PlayerOwnerId, string Name, DateTimeOffset Timestamp) : IDomainEvent;
 public record PlayerInvited(Guid GameId, string InviterId, string InviteeId, DateTimeOffset Timestamp) : IDomainEvent;
 public record GameStarted(Guid GameId, GemCollection MarketGems, List<string> Deck1, List<string> Deck2, List<string> Deck3, List<string> Market1, List<string> Market2, List<string> Market3, List<string> Nobles, DateTimeOffset Timestamp) : IDomainEvent;
 public record TurnStarted(Guid GameId, string PlayerId, DateTimeOffset Timestamp) : IDomainEvent;
@@ -21,5 +22,5 @@ public record NobleSelectionRequired(Guid GameId, string PlayerId, List<string> 
 public record NobleAcquired(Guid GameId, string PlayerId, string NobleId, DateTimeOffset Timestamp) : IDomainEvent;
 public record GameFinished(Guid GameId, string WinnerId, string WinnerOwnerId, string WinnerName, int PrestigePoints, DateTimeOffset Timestamp) : IDomainEvent;
 public record GameDeleted(Guid GameId, DateTimeOffset Timestamp) : IDomainEvent;
-public record PlayerLeft(Guid GameId, string PlayerId, string OwnerId, DateTimeOffset Timestamp) : IDomainEvent;
-public record PlayerParticipationEnded(Guid GameId, string PlayerId, string OwnerId, DateTimeOffset Timestamp) : IDomainEvent;
+public record PlayerLeft(Guid GameId, string PlayerId, [property: JsonPropertyName("OwnerId")] string PlayerOwnerId, DateTimeOffset Timestamp) : IDomainEvent;
+public record PlayerParticipationEnded(Guid GameId, string PlayerId, [property: JsonPropertyName("OwnerId")] string PlayerOwnerId, DateTimeOffset Timestamp) : IDomainEvent;

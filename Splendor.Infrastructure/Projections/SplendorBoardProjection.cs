@@ -21,7 +21,7 @@ public partial class SplendorBoardProjection : SingleStreamProjection<SplendorBo
         view.Players.Add(new PlayerBoardView
         {
             Id = e.PlayerId,
-            OwnerId = e.OwnerId,
+            OwnerId = e.PlayerOwnerId,
             Name = e.Name
         });
         SetProjectionMetadata(view, e.Timestamp);

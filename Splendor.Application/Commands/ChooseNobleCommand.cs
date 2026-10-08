@@ -43,7 +43,7 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
         events.AddRange(completionEvents);
 
         // Tag and append events to the stream
-        stream.AppendMany(events.Select(e => _session.TagEvent(e, state.CreatorId)));
+        stream.AppendMany(events.Select(e => _session.TagEvent(e, state.GameCreatorId)));
         await _session.SaveChangesAsync(cancellationToken);
     }
 
@@ -54,7 +54,7 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
         if (state.Status != GameStatus.Started) throw new InvalidOperationException("Game is not active.");
         if (state.CurrentPlayerId != command.PlayerId) throw new InvalidOperationException("Not your turn.");
         if (!state.Players.TryGetValue(command.PlayerId, out var player)) throw new InvalidOperationException("Player not found.");
-        if (player.OwnerId != command.Caller.UserId.Value) throw new InvalidOperationException("You do not control this player.");
+        if (player.PlayerOwnerId != command.Caller.UserId.Value) throw new InvalidOperationException("You do not control this player.");
         if (state.PendingNobleSelectionPlayerId != command.PlayerId)
             throw new InvalidOperationException("No noble selection is pending for this player.");
         if (!state.EligibleNobleIds.Contains(command.NobleId))

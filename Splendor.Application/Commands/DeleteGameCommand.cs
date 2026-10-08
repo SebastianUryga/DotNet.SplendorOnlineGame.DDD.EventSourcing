@@ -27,14 +27,14 @@ public class DeleteGameCommandHandler : IRequestHandler<DeleteGameCommand>
 
         var events = Decide(command, state);
 
-        stream.AppendMany(events.Select(e => _session.TagEvent(e, state.CreatorId)));
+        stream.AppendMany(events.Select(e => _session.TagEvent(e, state.GameCreatorId)));
         await _session.SaveChangesAsync(cancellationToken);
     }
 
     internal static IEnumerable<IDomainEvent> Decide(DeleteGameCommand command, SplendorGameState state)
     {
         if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game is already deleted.");
-        if (!PlatformRules.CanDeleteGame(command.Caller, state.CreatorId)) throw new InvalidOperationException("Only the creator can delete the game.");
+        if (!PlatformRules.CanDeleteGame(command.Caller, state.GameCreatorId)) throw new InvalidOperationException("Only the creator can delete the game.");
 
         var now = DateTimeOffset.UtcNow;
         var events = new List<IDomainEvent>
@@ -45,7 +45,7 @@ public class DeleteGameCommandHandler : IRequestHandler<DeleteGameCommand>
         if (state.Status != GameStatus.Finished)
         {
             events.AddRange(state.Players.Select(player =>
-                (IDomainEvent)new PlayerParticipationEnded(command.GameId, player.Key, player.Value.OwnerId, now)));
+                (IDomainEvent)new PlayerParticipationEnded(command.GameId, player.Key, player.Value.PlayerOwnerId, now)));
         }
 
         return events;

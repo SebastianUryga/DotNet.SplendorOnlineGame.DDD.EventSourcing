@@ -51,7 +51,7 @@ public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
         events.AddRange(completionEvents);
 
         // Tag and append events to the stream
-        stream.AppendMany(events.Select(e => _session.TagEvent(e, state.CreatorId)));
+        stream.AppendMany(events.Select(e => _session.TagEvent(e, state.GameCreatorId)));
         await _session.SaveChangesAsync(cancellationToken);
     }
 
@@ -63,7 +63,7 @@ public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game finished.");
         if (state.Status != GameStatus.Started) throw new InvalidOperationException("Game not started.");
         if (!state.Players.TryGetValue(command.PlayerId, out var player)) throw new InvalidOperationException("Player not found.");
-        if (player.OwnerId != command.Caller.UserId.Value) throw new InvalidOperationException("You do not control this player.");
+        if (player.PlayerOwnerId != command.Caller.UserId.Value) throw new InvalidOperationException("You do not control this player.");
         if (state.CurrentPlayerId != command.PlayerId) throw new InvalidOperationException("Not your turn.");
         if (state.PendingGemReturnPlayerId is not null) throw new InvalidOperationException("A gem overflow resolution is pending.");
         if (state.PendingNobleSelectionPlayerId is not null) throw new InvalidOperationException("A noble selection is pending.");

@@ -48,7 +48,7 @@ public class JoinGameCommandHandler : IRequestHandler<JoinGameCommand>
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game is already finished.");
         if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game has been deleted.");
         if (state.Players.Count >= 4) throw new InvalidOperationException("Game full.");
-        //if (state.Players.Values.Any(player => player.OwnerId == command.Caller.UserId.Value))
+        //if (state.Players.Values.Any(player => player.PlayerOwnerId == command.Caller.UserId.Value))
         //    throw new InvalidOperationException("You already control a player in this game.");
         if (!PlatformRules.CanJoinAnotherGame(ownerState.ActiveGameIds.Count))
             throw new InvalidOperationException($"You cannot be active in more than {PlatformRules.MaxActiveGames} games.");

@@ -47,7 +47,7 @@ public class ResolveGemLimitCommandHandler : IRequestHandler<ResolveGemLimitComm
         events.AddRange(completionEvents);
 
         // Tag and append events to the stream
-        stream.AppendMany(events.Select(e => _session.TagEvent(e, state.CreatorId)));
+        stream.AppendMany(events.Select(e => _session.TagEvent(e, state.GameCreatorId)));
         await _session.SaveChangesAsync(cancellationToken);
     }
 
@@ -57,7 +57,7 @@ public class ResolveGemLimitCommandHandler : IRequestHandler<ResolveGemLimitComm
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game finished.");
         if (state.Status != GameStatus.Started) throw new InvalidOperationException("Game not started.");
         if (!state.Players.TryGetValue(command.PlayerId, out var player)) throw new InvalidOperationException("Player not found.");
-        if (player.OwnerId != command.Caller.UserId.Value) throw new InvalidOperationException("You do not control this player.");
+        if (player.PlayerOwnerId != command.Caller.UserId.Value) throw new InvalidOperationException("You do not control this player.");
         if (state.PendingGemReturnPlayerId != command.PlayerId) throw new InvalidOperationException("No gem return is required for this player.");
 
         var returnedGems = new GemCollection(command.Diamond, command.Sapphire, command.Emerald, command.Ruby, command.Onyx, command.Gold);

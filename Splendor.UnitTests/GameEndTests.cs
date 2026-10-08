@@ -46,7 +46,7 @@ public class GameEndTests
         finished.WinnerId.Should().Be(player1Id);
         finished.PrestigePoints.Should().Be(15);
         produced.OfType<PlayerParticipationEnded>()
-            .Select(e => (e.PlayerId, e.OwnerId))
+            .Select(e => (e.PlayerId, e.PlayerOwnerId))
             .Should().BeEquivalentTo(new[]
             {
                 (player1Id, "owner-1"),

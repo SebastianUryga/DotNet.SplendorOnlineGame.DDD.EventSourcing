@@ -25,13 +25,13 @@ public static class EventTagger
                     ?? throw new ArgumentNullException(nameof(creatorId), $"{@event.GetType().Name} must be tagged with the game creator.")));
                 break;
             case PlayerJoined joined:
-                tagged.WithTag(new PlayerOwnerTag(joined.OwnerId));
+                tagged.WithTag(new PlayerOwnerTag(joined.PlayerOwnerId));
                 break;
             case PlayerLeft left:
-                tagged.WithTag(new PlayerOwnerTag(left.OwnerId));
+                tagged.WithTag(new PlayerOwnerTag(left.PlayerOwnerId));
                 break;
             case PlayerParticipationEnded ended:
-                tagged.WithTag(new PlayerOwnerTag(ended.OwnerId));
+                tagged.WithTag(new PlayerOwnerTag(ended.PlayerOwnerId));
                 break;
         }
 

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Splendor.Domain.ValueObjects;
 using Splendor.Domain.Events;
 
@@ -5,13 +6,14 @@ namespace Splendor.Application.DecisionStates;
 
 public class PlayerState
 {
-    public PlayerState(string ownerId, string name)
+    public PlayerState(string playerOwnerId, string name)
     {
-        OwnerId = ownerId;
+        PlayerOwnerId = playerOwnerId;
         Name = name;
     }
 
-    public string OwnerId { get; set; }
+    [JsonPropertyName("OwnerId")]
+    public string PlayerOwnerId { get; set; }
     public string Name { get; set; }
     public GemCollection Gems { get; set; } = GemCollection.Empty;
     public List<string> OwnedCardIds { get; set; } = new();
@@ -20,7 +22,7 @@ public class PlayerState
 
     public PlayerState Clone()
     {
-        var clone = new PlayerState(OwnerId, Name)
+        var clone = new PlayerState(PlayerOwnerId, Name)
         {
             Gems = Gems
         };

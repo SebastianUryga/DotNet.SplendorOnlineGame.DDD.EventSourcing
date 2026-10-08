@@ -55,8 +55,8 @@ public class StartGameCommandHandler : IRequestHandler<StartGameCommand>
         if (state.PlayerOrder.Count < 2) throw new InvalidOperationException("Need at least 2 players.");
         if (state.PlayerOrder.Count > 4) throw new InvalidOperationException("Too many players.");
 
-        var isCreator = state.CreatorId == command.Caller.UserId.Value;
-        var isParticipant = state.Players.Values.Any(p => p.OwnerId == command.Caller.UserId.Value);
+        var isCreator = state.GameCreatorId == command.Caller.UserId.Value;
+        var isParticipant = state.Players.Values.Any(p => p.PlayerOwnerId == command.Caller.UserId.Value);
 
         if (!isCreator && !isParticipant)
         {

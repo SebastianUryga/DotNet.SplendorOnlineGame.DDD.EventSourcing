@@ -8,7 +8,8 @@ namespace Splendor.Application.Snapshots;
 public class SplendorGameState
 {
     public Guid Id { get; set; }
-    public string CreatorId { get; set; } = string.Empty;
+    [JsonPropertyName("CreatorId")]
+    public string GameCreatorId { get; set; } = string.Empty;
     public GameStatus Status { get; set; }
     public string? CurrentPlayerId { get; set; }
     public string? PendingGemReturnPlayerId { get; set; }
@@ -33,7 +34,7 @@ public class SplendorGameState
     public void Apply(GameCreated e)
     {
         Id = e.GameId;
-        CreatorId = e.CreatorId;
+        GameCreatorId = e.CreatorId;
         Status = GameStatus.Created;
     }
 
@@ -71,7 +72,7 @@ public class SplendorGameState
             PlayerOrder.Add(e.PlayerId);
         }
 
-        Players[e.PlayerId] = new PlayerState(e.OwnerId, e.Name);
+        Players[e.PlayerId] = new PlayerState(e.PlayerOwnerId, e.Name);
     }
 
     public void Apply(PlayerLeft e)
