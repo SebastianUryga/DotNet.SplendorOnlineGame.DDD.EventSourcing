@@ -1,9 +1,10 @@
 using System.Security.Cryptography;
-using Marten;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Splendor.Api.Auth;
+using Splendor.Application.Commands;
 
 namespace Splendor.Api.Controllers;
 
@@ -11,12 +12,12 @@ namespace Splendor.Api.Controllers;
 [Route("auth")]
 public class AuthController : ControllerBase
 {
-    private readonly IDocumentSession _session;
+    private readonly IMediator _mediator;
     private readonly IConfiguration _configuration;
 
-    public AuthController(IDocumentSession session, IConfiguration configuration)
+    public AuthController(IMediator mediator, IConfiguration configuration)
     {
-        _session = session;
+        _mediator = mediator;
         _configuration = configuration;
     }
 
@@ -30,22 +31,16 @@ public class AuthController : ControllerBase
     [HttpPost("guest")]
     public async Task<IActionResult> CreateGuest(CancellationToken cancellationToken)
     {
-        var now = DateTimeOffset.UtcNow;
-        var maxActive = _configuration.GetValue("Guest:MaxActive", 10);
+        var guest = await _mediator.Send(new CreateGuestSessionCommand(
+            _configuration.GetValue("Guest:MaxActive", 10),
+            TimeSpan.FromMinutes(_configuration.GetValue("Guest:TokenMinutes", 60))), cancellationToken);
 
-        // ponytail: count-then-insert can overshoot the limit by a request or two under a race; use a DB constraint if it matters
-        var active = await _session.Query<GuestSession>().CountAsync(g => g.ExpiresAt > now, cancellationToken);
-        if (active >= maxActive)
+        if (guest is null)
         {
             return StatusCode(StatusCodes.Status429TooManyRequests, new { message = "Guest limit reached. Try again later." });
         }
 
-        var expiresAt = now.AddMinutes(_configuration.GetValue("Guest:TokenMinutes", 60));
-        var guestId = $"guest-{Guid.NewGuid():N}";
-        _session.Store(new GuestSession { Id = guestId, ExpiresAt = expiresAt });
-        await _session.SaveChangesAsync(cancellationToken);
-
-        var token = GuestTokens.Create(_configuration["Guest:SigningKey"]!, guestId, expiresAt.UtcDateTime);
-        return Ok(new GuestResponse(token, $"Guest-{RandomNumberGenerator.GetInt32(1000, 10000)}", expiresAt));
+        var token = GuestTokens.Create(_configuration["Guest:SigningKey"]!, guest.Id, guest.ExpiresAt.UtcDateTime);
+        return Ok(new GuestResponse(token, $"Guest-{RandomNumberGenerator.GetInt32(1000, 10000)}", guest.ExpiresAt));
     }
 }
