@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import { GameService } from '../../core/services/game.service';
 import { GameSummary } from '../../models/game-view.model';
@@ -9,12 +10,14 @@ import { GameSummary } from '../../models/game-view.model';
 @Component({
     selector: 'app-games-list',
     standalone: true,
-    imports: [CommonModule, RouterModule],
+    imports: [CommonModule, RouterModule, FormsModule],
     templateUrl: './games-list.component.html',
     styleUrls: ['./games-list.component.css']
 })
 export class GamesListComponent implements OnInit, OnDestroy {
     games: GameSummary[] = [];
+    newGameName = '';
+    turnDurationSeconds = 60;
     private tokenSubscription?: Subscription;
 
     constructor(private gameService: GameService, private router: Router, private authService: AuthService) { }
@@ -35,7 +38,7 @@ export class GamesListComponent implements OnInit, OnDestroy {
     }
 
     createNewGame(): void {
-        this.gameService.createGame().subscribe(res => {
+        this.gameService.createGame(this.newGameName.trim() || undefined, this.turnDurationSeconds).subscribe(res => {
             this.router.navigate(['/games', res.id, 'lobby']);
         });
     }

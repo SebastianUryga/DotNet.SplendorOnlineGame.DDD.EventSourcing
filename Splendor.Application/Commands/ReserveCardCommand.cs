@@ -44,7 +44,7 @@ public class ReserveCardCommandHandler : IRequestHandler<ReserveCardCommand>
         state.Apply(events);
 
         // Turn completion may produce additional events; merge them
-        var completionEvents = TurnCompletion.DecideAfterAction(command.GameId, command.PlayerId, state, DateTimeOffset.UtcNow);
+        var completionEvents = TurnCompletion.DecideAfterAction(state, clock, DateTimeOffset.UtcNow);
         events.AddRange(completionEvents);
 
         // Tag and append events to the stream

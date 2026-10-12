@@ -11,6 +11,7 @@ public partial class SplendorBoardProjection : SingleStreamProjection<SplendorBo
     public SplendorBoardView Create(GameCreated e) => new()
     {
         Id = e.GameId,
+        Name = e.Name,
         Status = GameStatus.Created,
         UpdatedAt = e.Timestamp,
         GameVersion = 1

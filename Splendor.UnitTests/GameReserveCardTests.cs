@@ -72,17 +72,19 @@ public class GameReserveCardTests
         var produced = ReserveCardCommandHandler.Decide(
             command, game, TestHelpers.CreateActiveTurnClock(gameId, player1Id, now)).ToList();
         game.Apply(produced);
-        produced.AddRange(TurnCompletion.DecideAfterAction(gameId, player1Id, game, DateTimeOffset.UtcNow));
+        produced.AddRange(TurnCompletion.DecideAfterAction(game, new TurnClockState(), DateTimeOffset.UtcNow));
 
-        // assert - expect GemsTaken (gold), CardReserved, CardRevealed, then GemsOverflowDetected with excess = 1
-        produced.Should().HaveCountGreaterOrEqualTo(4);
+        // assert - expect GemsTaken (gold), CardReserved, CardRevealed, GemsOverflowDetected with excess = 1,
+        // then a fresh deadline for returning gems
+        produced.Should().HaveCountGreaterOrEqualTo(5);
         produced[0].Should().BeOfType<GemsTaken>();
         produced[1].Should().BeOfType<CardReserved>();
         // CardRevealed should be present (replacement from deck)
         produced[2].Should().BeOfType<CardRevealed>();
-        var overflow = produced.Last().Should().BeOfType<GemsOverflowDetected>().Subject;
+        var overflow = produced[3].Should().BeOfType<GemsOverflowDetected>().Subject;
         overflow.ExcessCount.Should().Be(1);
         overflow.PlayerId.Should().Be(player1Id);
+        produced[4].Should().BeOfType<TurnDeadlineStarted>().Which.PlayerId.Should().Be(player1Id);
     }
 
     [Fact]

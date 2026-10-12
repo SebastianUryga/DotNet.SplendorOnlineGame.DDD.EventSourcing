@@ -32,7 +32,7 @@ public record ChooseNobleRequest(
     string PlayerId,
     string NobleId);
 
-public record CreateGameRequest();
+public record CreateGameRequest(string? Name = null, int? TurnDurationSeconds = null);
 public record JoinGameRequest(string Name);
 public record InvitePlayerRequest(
     string InviteeId);

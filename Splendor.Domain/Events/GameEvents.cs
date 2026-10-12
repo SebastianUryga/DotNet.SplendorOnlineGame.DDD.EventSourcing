@@ -4,7 +4,8 @@ using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Domain.Events;
 
-public record GameCreated(Guid GameId, string CreatorId, DateTimeOffset Timestamp) : IDomainEvent;
+// Name and TurnDurationSeconds have defaults so events stored before they existed still deserialize.
+public record GameCreated(Guid GameId, string CreatorId, DateTimeOffset Timestamp, string? Name = null, int TurnDurationSeconds = 60) : IDomainEvent;
 public record PlayerJoined(Guid GameId, string PlayerId, [property: JsonPropertyName("OwnerId")] string PlayerOwnerId, string Name, DateTimeOffset Timestamp) : IDomainEvent;
 public record PlayerInvited(Guid GameId, string InviterId, string InviteeId, DateTimeOffset Timestamp) : IDomainEvent;
 public record GameStarted(Guid GameId, GemCollection MarketGems, List<string> Deck1, List<string> Deck2, List<string> Deck3, List<string> Market1, List<string> Market2, List<string> Market3, List<string> Nobles, DateTimeOffset Timestamp) : IDomainEvent;

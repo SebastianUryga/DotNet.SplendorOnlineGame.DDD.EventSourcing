@@ -1,5 +1,5 @@
 <div class="container" *ngIf="game">
-  <h1>Game Lobby</h1>
+  <h1>{{ game.name || 'Game Lobby' }}</h1>
   <div class="info">
     <p>Game ID: <span>{{ game.id }}</span></p>
     <p>Status: <span class="status" data-testid="game-status">{{ game.status }}</span></p>

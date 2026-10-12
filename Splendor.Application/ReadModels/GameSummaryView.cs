@@ -3,6 +3,7 @@ namespace Splendor.Application.ReadModels;
 public class GameSummaryView
 {
     public Guid Id { get; set; }
+    public string? Name { get; set; }
     public string GameType { get; set; } = "Splendor";
     public string Status { get; set; } = "Created";
     public int PlayerCount { get; set; }

@@ -5,6 +5,7 @@ using FluentAssertions;
 using Splendor.Application.Commands;
 using Splendor.Application.DecisionStates;
 using Splendor.Application.Snapshots;
+using Splendor.Domain.Common;
 using Splendor.Domain.Events;
 using Splendor.Domain.ValueObjects;
 using Xunit;
@@ -22,7 +23,7 @@ public class GameEndTests
         var game = new SplendorGameState();
         TestHelpers.ApplyHistory(game, history);
 
-        var produced = TurnCompletion.DecideAfterAction(gameId, player1Id, game, DateTimeOffset.UtcNow).ToList();
+        var produced = TurnCompletion.DecideAfterAction(game, new TurnClockState(), DateTimeOffset.UtcNow).ToList();
 
         produced.OfType<GameFinished>().Should().BeEmpty();
         produced.OfType<TurnEnded>().Should().ContainSingle(e => e.PlayerId == player1Id);
@@ -40,7 +41,7 @@ public class GameEndTests
         var game = new SplendorGameState();
         TestHelpers.ApplyHistory(game, history);
 
-        var produced = TurnCompletion.DecideAfterAction(gameId, player2Id, game, DateTimeOffset.UtcNow).ToList();
+        var produced = TurnCompletion.DecideAfterAction(game, new TurnClockState(), DateTimeOffset.UtcNow).ToList();
 
         var finished = produced.OfType<GameFinished>().Should().ContainSingle().Subject;
         finished.WinnerId.Should().Be(player1Id);
@@ -54,7 +55,7 @@ public class GameEndTests
             });
     }
 
-    private static void AddPurchasedCards(List<object> history, Guid gameId, string playerId, params string[] cardIds)
+    private static void AddPurchasedCards(List<IDomainEvent> history, Guid gameId, string playerId, params string[] cardIds)
     {
         foreach (var cardId in cardIds)
         {

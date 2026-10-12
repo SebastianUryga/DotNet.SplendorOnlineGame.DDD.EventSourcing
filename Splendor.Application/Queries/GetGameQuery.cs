@@ -25,6 +25,7 @@ public class GetGameQueryHandler : IRequestHandler<GetGameQuery, GameView?>
     {
         Id = board.Id,
         Version = board.GameVersion,
+        Name = board.Name,
         Status = board.Status.ToString(),
         Players = board.Players.Select(player => new PlayerView
         {

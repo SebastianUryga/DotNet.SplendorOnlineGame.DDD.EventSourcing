@@ -1,6 +1,7 @@
 using Splendor.Domain.Rules;
 using FluentAssertions;
 using Splendor.Application.Commands;
+using Splendor.Application.DecisionStates;
 using Splendor.Application.Snapshots;
 using Splendor.Domain.Events;
 using Splendor.Domain.ValueObjects;
@@ -30,7 +31,7 @@ public class ChooseNobleTests
             NobleId = "N_06"
         }, state).ToList();
         state.Apply(events);
-        events.AddRange(TurnCompletion.DecideAfterNobleSelection(gameId, playerId, state, DateTimeOffset.UtcNow));
+        events.AddRange(TurnCompletion.DecideAfterNobleSelection(state, new TurnClockState(), DateTimeOffset.UtcNow));
 
         events.OfType<NobleAcquired>().Should().ContainSingle()
             .Which.NobleId.Should().Be("N_06");

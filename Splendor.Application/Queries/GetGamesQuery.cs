@@ -30,7 +30,7 @@ public class GetGamesQueryHandler : IRequestHandler<GetGamesQuery, IEnumerable<G
         }
 
         return await query
-            .Select(g => new GameSummaryDto(g.Id, g.Status, g.PlayerCount, g.UpdatedAt))
+            .Select(g => new GameSummaryDto(g.Id, g.Status, g.PlayerCount, g.UpdatedAt, g.Name))
             .ToListAsync(cancellationToken);
     }
 }

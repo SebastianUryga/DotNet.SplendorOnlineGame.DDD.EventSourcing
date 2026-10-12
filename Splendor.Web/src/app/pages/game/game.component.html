@@ -97,7 +97,7 @@
   <!-- Main: Market -->
   <div class="main-board">
     <div class="header">
-      <h2>Splendor Table</h2>
+      <h2>{{ game.name || 'Splendor Table' }}</h2>
       <div class="game-meta">
         <span>ID: {{ game.id.substring(0,8) }}</span>
         <span class="version-badge">Version {{ game.version }}</span>

@@ -5,6 +5,7 @@ using Splendor.Application.Events;
 using Splendor.Application.Snapshots;
 using Splendor.Domain.Common;
 using Splendor.Domain.Events;
+using Splendor.Domain.Rules;
 using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Application.Commands;
@@ -33,9 +34,17 @@ public class ExpireTurnCommandHandler : IRequestHandler<ExpireTurnCommand>
         var clock = turnClock.Aggregate;
         if (clock is null) return;
 
-        var events = Decide(command, state, clock, _timeProvider.GetUtcNow());
+        var now = _timeProvider.GetUtcNow();
+        var events = Decide(command, state, clock, now).ToList();
         if (events.Count == 0) return;
 
+        // Apply decision events to local state
+        state.Apply(events);
+
+        // Turn completion may produce additional events; merge them
+        events.AddRange(DecideCompletion(events, state, clock, now));
+
+        // Tag and append events to the stream
         stream.AppendMany(events.Select(e => _session.TagEvent(e, state.GameCreatorId)));
         await _session.SaveChangesAsync(cancellationToken);
     }
@@ -56,7 +65,29 @@ public class ExpireTurnCommandHandler : IRequestHandler<ExpireTurnCommand>
         {
             new TurnExpired(command.GameId, command.TurnId, command.PlayerId, now)
         };
-        events.AddRange(TurnCompletion.DecideAfterExpiration(command.GameId, command.PlayerId, state, now));
+
+        // A player who ran out of time while a decision was pending gets it made for them.
+        if (state.PendingGemReturnPlayerId == command.PlayerId)
+        {
+            var returned = SplendorRules.ChooseGemsToReturn(state.Players[command.PlayerId].Gems);
+            events.Add(new GemLimitResolved(command.GameId, command.PlayerId, returned, now));
+        }
+        else if (state.PendingNobleSelectionPlayerId == command.PlayerId)
+        {
+            var nobleId = state.EligibleNobleIds.Order().First();
+            events.Add(new NobleAcquired(command.GameId, command.PlayerId, nobleId, now));
+        }
+
         return events;
     }
+
+    /// <summary>
+    /// After an automatic gem return the player may still be owed a noble, so the usual end-of-action checks run.
+    /// Otherwise (nothing pending, or a noble was just picked) the turn simply ends.
+    /// </summary>
+    internal static IReadOnlyList<IDomainEvent> DecideCompletion(
+        IReadOnlyList<IDomainEvent> decisionEvents, SplendorGameState state, TurnClockState turnClock, DateTimeOffset now) =>
+        decisionEvents.OfType<GemLimitResolved>().Any()
+            ? TurnCompletion.DecideAfterAction(state, turnClock, now).ToList()
+            : TurnCompletion.DecideAfterExpiration(state, turnClock, now).ToList();
 }

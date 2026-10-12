@@ -47,7 +47,7 @@ public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
         state.Apply(events);
 
         // Turn completion may produce additional events; merge them
-        var completionEvents = TurnCompletion.DecideAfterAction(command.GameId, command.PlayerId, state, DateTimeOffset.UtcNow);
+        var completionEvents = TurnCompletion.DecideAfterAction(state, clock, DateTimeOffset.UtcNow);
         events.AddRange(completionEvents);
 
         // Tag and append events to the stream
@@ -80,9 +80,9 @@ public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
 
         // TODO: this check should be done in TrunCompletion.Decide, not here, add a test for this
         var newTotal = player.Gems + gems;
-        if (newTotal.Total > 10)
+        if (newTotal.Total > SplendorRules.MaxPlayerGems)
         {
-            events.Add(new GemsOverflowDetected(command.GameId, command.PlayerId, newTotal, newTotal.Total - 10, now));
+            events.Add(new GemsOverflowDetected(command.GameId, command.PlayerId, newTotal, newTotal.Total - SplendorRules.MaxPlayerGems, now));
             return events;
         }
 

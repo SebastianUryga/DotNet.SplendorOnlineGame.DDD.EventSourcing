@@ -13,6 +13,7 @@ export interface PlayerView {
 
 export interface GameView {
     id: string;
+    name?: string;
     version: number;
     status: string;
     players: PlayerView[];
@@ -34,6 +35,7 @@ export interface GameView {
 
 export interface GameSummary {
     id: string;
+    name?: string;
     status: string;
     playerCount: number;
 }

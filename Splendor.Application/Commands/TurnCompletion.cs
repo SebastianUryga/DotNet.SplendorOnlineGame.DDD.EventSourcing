@@ -10,19 +10,24 @@ namespace Splendor.Application.Commands;
 
 internal static class TurnCompletion
 {
-    public static IEnumerable<IDomainEvent> DecideAfterAction(Guid gameId, string playerId, SplendorGameState state, DateTimeOffset now)
+    public static IEnumerable<IDomainEvent> DecideAfterAction(SplendorGameState state, TurnClockState clock, DateTimeOffset now)
     {
-        if (state.PendingGemReturnPlayerId == playerId) return Enumerable.Empty<IDomainEvent>();
+        var playerId = CurrentPlayerId(state);
+
+        // The overflow was already detected by the action; the player gets a fresh deadline to return gems.
+        if (state.PendingGemReturnPlayerId == playerId)
+            return new List<IDomainEvent> { CreateTurnDeadlineStarted(state, clock, playerId, now) };
         if (state.PendingGemReturnPlayerId is not null) throw new InvalidOperationException("A gem overflow resolution is pending.");
         if (state.PendingNobleSelectionPlayerId == playerId) throw new InvalidOperationException("A noble selection is pending.");
 
         if (!state.Players.TryGetValue(playerId, out var player)) throw new InvalidOperationException("Player not found.");
 
-        if (player.Gems.Total > 10)
+        if (player.Gems.Total > SplendorRules.MaxPlayerGems)
         {
             return new List<IDomainEvent>
             {
-                new GemsOverflowDetected(gameId, playerId, player.Gems, player.Gems.Total - 10, now)
+                new GemsOverflowDetected(state.Id, playerId, player.Gems, player.Gems.Total - SplendorRules.MaxPlayerGems, now),
+                CreateTurnDeadlineStarted(state, clock, playerId, now)
             };
         }
 
@@ -37,7 +42,8 @@ internal static class TurnCompletion
         {
             return new List<IDomainEvent>
             {
-                new NobleSelectionRequired(gameId, playerId, eligible.Select(noble => noble.Id).ToList(), now)
+                new NobleSelectionRequired(state.Id, playerId, eligible.Select(noble => noble.Id).ToList(), now),
+                CreateTurnDeadlineStarted(state, clock, playerId, now)
             };
         }
 
@@ -45,21 +51,21 @@ internal static class TurnCompletion
         var acquired = eligible.Count == 1 ? eligible.Single() : null;
         if (acquired != null)
         {
-            events.Add(new NobleAcquired(gameId, playerId, acquired.Id, now));
+            events.Add(new NobleAcquired(state.Id, playerId, acquired.Id, now));
         }
 
         var pointsFromAcquiredNoble = acquired?.PrestigePoints ?? 0;
-        events.AddRange(DecideTurnEnd(gameId, playerId, state, pointsFromAcquiredNoble, now));
+        events.AddRange(DecideTurnEnd(playerId, state, clock, pointsFromAcquiredNoble, now));
         return events;
     }
 
-    public static IEnumerable<IDomainEvent> DecideAfterNobleSelection(Guid gameId, string playerId, SplendorGameState state, DateTimeOffset now) =>
-        DecideTurnEnd(gameId, playerId, state, 0, now);
+    public static IEnumerable<IDomainEvent> DecideAfterNobleSelection(SplendorGameState state, TurnClockState clock, DateTimeOffset now) =>
+        DecideTurnEnd(CurrentPlayerId(state), state, clock, 0, now);
 
-    public static IEnumerable<IDomainEvent> DecideAfterExpiration(Guid gameId, string playerId, SplendorGameState state, DateTimeOffset now) =>
-        DecideTurnEnd(gameId, playerId, state, 0, now);
+    public static IEnumerable<IDomainEvent> DecideAfterExpiration(SplendorGameState state, TurnClockState clock, DateTimeOffset now) =>
+        DecideTurnEnd(CurrentPlayerId(state), state, clock, 0, now);
 
-    private static IEnumerable<IDomainEvent> DecideTurnEnd(Guid gameId, string playerId, SplendorGameState state, int pointsFromAcquiredNoble, DateTimeOffset now)
+    private static IEnumerable<IDomainEvent> DecideTurnEnd(string playerId, SplendorGameState state, TurnClockState clock, int pointsFromAcquiredNoble, DateTimeOffset now)
     {
         if (!state.Players.TryGetValue(playerId, out var player)) throw new InvalidOperationException("Player not found.");
 
@@ -67,23 +73,29 @@ internal static class TurnCompletion
         var nextPlayerId = state.NextPlayerAfter(playerId);
         var isRoundComplete = nextPlayerId == state.PlayerOrder[0];
         var playerPoints = SplendorRules.GetPrestigePoints(player.OwnedCardIds, player.OwnedNobleIds) + pointsFromAcquiredNoble;
-        var hasEndGameStarted = playerPoints >= 15 || state.Players.Values.Any(p => SplendorRules.GetPrestigePoints(p.OwnedCardIds, p.OwnedNobleIds) >= 15);
+        var hasEndGameStarted = playerPoints >= SplendorRules.EndGamePrestigePoints || state.Players.Values.Any(p => SplendorRules.GetPrestigePoints(p.OwnedCardIds, p.OwnedNobleIds) >= SplendorRules.EndGamePrestigePoints);
 
-        events.Add(new TurnEnded(gameId, playerId, now));
+        events.Add(new TurnEnded(state.Id, playerId, now));
 
         if (hasEndGameStarted && isRoundComplete)
         {
             var winner = SelectWinner(state, playerId, pointsFromAcquiredNoble);
-            events.Add(new GameFinished(gameId, winner.PlayerId, winner.OwnerId, winner.Name, winner.PrestigePoints, now));
+            events.Add(new GameFinished(state.Id, winner.PlayerId, winner.OwnerId, winner.Name, winner.PrestigePoints, now));
             events.AddRange(state.Players.Select(candidate =>
-                (IDomainEvent)new PlayerParticipationEnded(gameId, candidate.Key, candidate.Value.PlayerOwnerId, now)));
+                (IDomainEvent)new PlayerParticipationEnded(state.Id, candidate.Key, candidate.Value.PlayerOwnerId, now)));
             return events;
         }
 
-        events.Add(new TurnStarted(gameId, nextPlayerId, now));
-        events.Add(TurnClockState.Start(gameId, nextPlayerId, now));
+        events.Add(new TurnStarted(state.Id, nextPlayerId, now));
+        events.Add(CreateTurnDeadlineStarted(state, clock, nextPlayerId, now));
         return events;
     }
+
+    private static string CurrentPlayerId(SplendorGameState state) =>
+        state.CurrentPlayerId ?? throw new InvalidOperationException("No current player.");
+
+    private static TurnDeadlineStarted CreateTurnDeadlineStarted(SplendorGameState state, TurnClockState clock, string playerId, DateTimeOffset now) =>
+        new(state.Id, Guid.NewGuid(), playerId, now.AddSeconds(clock.DurationSeconds), now);
 
     private static PlayerScoreCandidate SelectWinner(SplendorGameState state, string currentPlayerId, int currentPlayerExtraPoints)
     {

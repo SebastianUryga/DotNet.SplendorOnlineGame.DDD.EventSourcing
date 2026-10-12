@@ -21,6 +21,7 @@ public partial class GameSummaryProjection : MultiStreamProjection<GameSummaryVi
     public GameSummaryView Create(GameCreated e) => new()
     {
         Id = e.GameId,
+        Name = e.Name,
         Status = "Created",
         UpdatedAt = e.Timestamp,
         GameVersion = 1

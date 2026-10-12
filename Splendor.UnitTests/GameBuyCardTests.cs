@@ -2,6 +2,7 @@ using Splendor.Domain.Rules;
 using System;
 using FluentAssertions;
 using Splendor.Application.Commands;
+using Splendor.Application.DecisionStates;
 using Splendor.Application.Snapshots;
 using Splendor.Domain;
 using Splendor.Domain.Events;
@@ -76,7 +77,7 @@ public class GameBuyCardTests
         var produced = BuyCardCommandHandler.Decide(
             command, game, TestHelpers.CreateActiveTurnClock(gameId, player1Id, now)).ToList();
         game.Apply(produced);
-        produced.AddRange(TurnCompletion.DecideAfterAction(gameId, player1Id, game, DateTimeOffset.UtcNow));
+        produced.AddRange(TurnCompletion.DecideAfterAction(game, new TurnClockState(), DateTimeOffset.UtcNow));
 
         produced.OfType<NobleAcquired>().Should().ContainSingle();
         produced.FindIndex(e => e is NobleAcquired).Should().BeLessThan(produced.FindIndex(e => e is TurnEnded));

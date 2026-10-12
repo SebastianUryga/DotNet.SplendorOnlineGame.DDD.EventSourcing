@@ -2,14 +2,14 @@ using JasperFx.Events.Aggregation;
 using JasperFx.Events.Tags;
 using Splendor.Application.Events;
 using Splendor.Domain.Events;
+using Splendor.Domain.Rules;
 
 namespace Splendor.Application.DecisionStates;
 
 [BoundaryAggregate]
 internal class TurnClockState
 {
-    private static readonly TimeSpan Duration = TimeSpan.FromMinutes(1);
-
+    public int DurationSeconds { get; private set; } = PlatformRules.DefaultTurnSeconds;
     public Guid TurnId { get; private set; }
     public string PlayerId { get; private set; } = string.Empty;
     public DateTimeOffset ExpiresAt { get; private set; }
@@ -17,6 +17,7 @@ internal class TurnClockState
 
     public static EventTagQuery Query(Guid gameId) =>
         new EventTagQuery()
+            .Or<GameCreated, GameTag>(new GameTag(gameId))
             .Or<TurnDeadlineStarted, GameTag>(new GameTag(gameId))
             .Or<GemsTaken, GameTag>(new GameTag(gameId))
             .Or<CardPurchased, GameTag>(new GameTag(gameId))
@@ -26,11 +27,10 @@ internal class TurnClockState
             .Or<GameFinished, GameTag>(new GameTag(gameId))
             .Or<GameDeleted, GameTag>(new GameTag(gameId));
 
-    public static TurnDeadlineStarted Start(Guid gameId, string playerId, DateTimeOffset now) =>
-        new(gameId, Guid.NewGuid(), playerId, now.Add(Duration), now);
-
     public bool CanStartAction(string playerId) =>
         IsWaitingForAction && PlayerId == playerId && DateTimeOffset.UtcNow < ExpiresAt;
+
+    public void Apply(GameCreated e) => DurationSeconds = e.TurnDurationSeconds;
 
     public void Apply(TurnDeadlineStarted e)
     {

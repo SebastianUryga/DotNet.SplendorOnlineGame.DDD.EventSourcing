@@ -7,6 +7,7 @@ using Splendor.Application.Queries;
 using Splendor.Application.Common.Interfaces;
 using Splendor.Application.ReadModels;
 using Splendor.Contracts.Games;
+using Splendor.Domain.Rules;
 using Splendor.Domain.ValueObjects;
 
 
@@ -41,7 +42,12 @@ public class GamesController : ControllerBase
         var caller = _currentUserService.Caller;
         if (caller is null) return Unauthorized();
 
-        var gameId = await _mediator.Send(new CreateGameCommand { Caller = caller });
+        var gameId = await _mediator.Send(new CreateGameCommand
+        {
+            Caller = caller,
+            Name = string.IsNullOrWhiteSpace(request.Name) ? null : GameName.Create(request.Name),
+            TurnDurationSeconds = request.TurnDurationSeconds ?? PlatformRules.DefaultTurnSeconds
+        });
         return CreatedAtAction(nameof(GetGame), new { gameId }, new { id = gameId });
     }
 

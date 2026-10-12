@@ -2,6 +2,7 @@ using Splendor.Domain.Rules;
 using Marten;
 using MediatR;
 using Splendor.Application.Common.Interfaces;
+using Splendor.Application.DecisionStates;
 using Splendor.Application.Events;
 using Splendor.Application.Snapshots;
 using Splendor.Domain.Common;
@@ -36,6 +37,9 @@ public class ResolveGemLimitCommandHandler : IRequestHandler<ResolveGemLimitComm
     {
         var stream = await _session.Events.FetchForWriting<SplendorGameState>(command.GameId, cancellationToken);
         var state = stream.Aggregate ?? throw new InvalidOperationException("Game not found.");
+        var turnClock = await _session.Events.FetchForWritingByTags<TurnClockState>(
+            TurnClockState.Query(command.GameId), cancellationToken);
+        var clock = turnClock.Aggregate ?? throw new InvalidOperationException("Game not found.");
 
         var events = Decide(command, state).ToList();
 
@@ -43,7 +47,7 @@ public class ResolveGemLimitCommandHandler : IRequestHandler<ResolveGemLimitComm
         state.Apply(events);
 
         // Turn completion may produce additional events; merge them
-        var completionEvents = TurnCompletion.DecideAfterAction(command.GameId, command.PlayerId, state, DateTimeOffset.UtcNow);
+        var completionEvents = TurnCompletion.DecideAfterAction(state, clock, DateTimeOffset.UtcNow);
         events.AddRange(completionEvents);
 
         // Tag and append events to the stream
@@ -67,7 +71,7 @@ public class ResolveGemLimitCommandHandler : IRequestHandler<ResolveGemLimitComm
         if (returnedGems.Ruby > player.Gems.Ruby) throw new InvalidOperationException("Cannot return more rubies than owned.");
         if (returnedGems.Onyx > player.Gems.Onyx) throw new InvalidOperationException("Cannot return more onyxes than owned.");
         if (returnedGems.Gold > player.Gems.Gold) throw new InvalidOperationException("Cannot return more gold than owned.");
-        if ((player.Gems - returnedGems).Total > 10) throw new InvalidOperationException("Returned gems do not reduce total to allowed limit.");
+        if ((player.Gems - returnedGems).Total > SplendorRules.MaxPlayerGems) throw new InvalidOperationException("Returned gems do not reduce total to allowed limit.");
 
         return new List<IDomainEvent>
         {

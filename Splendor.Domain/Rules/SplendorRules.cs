@@ -4,6 +4,8 @@ namespace Splendor.Domain.Rules;
 
 public static class SplendorRules
 {
+    public const int MaxPlayerGems = 10;
+    public const int EndGamePrestigePoints = 15;
     private const int MaxReservedCards = 3;
     private const int MaxDifferentGemColorsTaken = 3;
     private const int SameColorGemsTaken = 2;
@@ -43,6 +45,23 @@ public static class SplendorRules
         }
 
         return new GemCollection(diamond, sapphire, emerald, ruby, onyx, 0);
+    }
+
+    /// <summary>Gems a player who ran out of time returns: the most numerous colour first, gold only when nothing else is left.</summary>
+    public static GemCollection ChooseGemsToReturn(GemCollection owned)
+    {
+        var counts = new[] { owned.Diamond, owned.Sapphire, owned.Emerald, owned.Ruby, owned.Onyx };
+        var returned = new int[5];
+        var returnedGold = 0;
+
+        for (var excess = owned.Total - MaxPlayerGems; excess > 0; excess--)
+        {
+            var index = Array.IndexOf(counts, counts.Max());
+            if (counts[index] > 0) { counts[index]--; returned[index]++; }
+            else returnedGold++;
+        }
+
+        return new GemCollection(returned[0], returned[1], returned[2], returned[3], returned[4], returnedGold);
     }
 
     public static int GetPrestigePoints(IEnumerable<string> ownedCardIds, IEnumerable<string> ownedNobleIds) =>

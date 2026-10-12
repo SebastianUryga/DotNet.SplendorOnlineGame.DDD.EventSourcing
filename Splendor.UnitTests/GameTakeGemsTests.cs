@@ -70,7 +70,7 @@ public class GameTakeGemsTests
         var produced = TakeGemsCommandHandler.Decide(
             command, game, TestHelpers.CreateActiveTurnClock(gameId, player1Id, now)).ToList();
         game.Apply(produced);
-        produced.AddRange(TurnCompletion.DecideAfterAction(gameId, player1Id, game, DateTimeOffset.UtcNow));
+        produced.AddRange(TurnCompletion.DecideAfterAction(game, new TurnClockState(), DateTimeOffset.UtcNow));
 
         var selection = produced.OfType<NobleSelectionRequired>().Single();
         selection.EligibleNobleIds.Should().BeEquivalentTo("N_06", "N_07");

@@ -39,14 +39,17 @@ public class StartGameCommandHandler : IRequestHandler<StartGameCommand>
     {
         var stream = await _session.Events.FetchForWriting<SplendorGameState>(command.GameId, cancellationToken);
         var state = stream.Aggregate ?? throw new InvalidOperationException("Game not found.");
+        var turnClock = await _session.Events.FetchForWritingByTags<TurnClockState>(
+            TurnClockState.Query(command.GameId), cancellationToken);
+        var clock = turnClock.Aggregate ?? throw new InvalidOperationException("Game not found.");
 
-        var events = Decide(command, state, _timeProvider.GetUtcNow());
+        var events = Decide(command, state, clock, _timeProvider.GetUtcNow());
 
         stream.AppendMany(events.Select(e => _session.TagEvent(e)));
         await _session.SaveChangesAsync(cancellationToken);
     }
 
-    private static IReadOnlyList<IDomainEvent> Decide(StartGameCommand command, SplendorGameState state, DateTimeOffset now)
+    private static IReadOnlyList<IDomainEvent> Decide(StartGameCommand command, SplendorGameState state, TurnClockState clock, DateTimeOffset now)
     {
         if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game deleted.");
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game finished.");
@@ -98,7 +101,7 @@ public class StartGameCommandHandler : IRequestHandler<StartGameCommand>
                 nobleIds,
                 now),
             new TurnStarted(command.GameId, state.PlayerOrder[0], now),
-            TurnClockState.Start(command.GameId, state.PlayerOrder[0], now)
+            new TurnDeadlineStarted(command.GameId, Guid.NewGuid(), state.PlayerOrder[0], now.AddSeconds(clock.DurationSeconds), now)
         };
     }
 }

@@ -1,6 +1,7 @@
 using Splendor.Application.Snapshots;
 using Splendor.Application.DecisionStates;
 using Splendor.Domain;
+using Splendor.Domain.Common;
 using Splendor.Domain.Events;
 using Splendor.Domain.Rules;
 using Splendor.Domain.ValueObjects;
@@ -16,17 +17,17 @@ public static class TestHelpers
         return clock;
     }
 
-    // Apply a list of domain events to an aggregate using dynamic dispatch
-    public static void ApplyHistory(SplendorGameState game, IEnumerable<object> history)
+    // Apply a list of domain events to the game state
+    public static void ApplyHistory(SplendorGameState game, IEnumerable<IDomainEvent> history)
     {
         foreach (var e in history)
         {
-            game.Apply((dynamic)e);
+            game.Apply(e);
         }
     }
 
     // Create a started game with two players and populated decks/markets. Returns tuple with ids and history events.
-    public static (Guid GameId, string Owner1, string Owner2, string Player1Id, string Player2Id, List<object> History) CreateStartedGame(List<string>? nobles = null)
+    public static (Guid GameId, string Owner1, string Owner2, string Player1Id, string Player2Id, List<IDomainEvent> History) CreateStartedGame(List<string>? nobles = null)
     {
         var gameId = Guid.NewGuid();
         var owner1 = "owner-1";
@@ -44,7 +45,7 @@ public static class TestHelpers
         var market2 = deck2.Take(4).ToList(); deck2 = deck2.Skip(4).ToList();
         var market3 = deck3.Take(4).ToList(); deck3 = deck3.Skip(4).ToList();
 
-        var history = new List<object>
+        var history = new List<IDomainEvent>
         {
             new GameCreated(gameId, owner1, DateTimeOffset.UtcNow),
             new PlayerJoined(gameId, player1Id, owner1, "Alice", DateTimeOffset.UtcNow),
@@ -56,7 +57,7 @@ public static class TestHelpers
         return (gameId, owner1, owner2, player1Id, player2Id, history);
     }
 
-    public static void AddPurchasedCardsWithBonus(List<object> history, Guid gameId, string playerId, GemType bonusType, int count)
+    public static void AddPurchasedCardsWithBonus(List<IDomainEvent> history, Guid gameId, string playerId, GemType bonusType, int count)
     {
         foreach (var card in CardDefinitions.AllCards.Where(card => card.BonusType == bonusType).Take(count))
         {

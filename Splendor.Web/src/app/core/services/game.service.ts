@@ -59,8 +59,8 @@ export class GameService {
         return this.http.get<GameSummary[]>(this.gamesUrl);
     }
 
-    createGame(): Observable<{ id: string }> {
-        return this.http.post<{ id: string }>(this.gamesUrl, {});
+    createGame(name?: string, turnDurationSeconds?: number): Observable<{ id: string }> {
+        return this.http.post<{ id: string }>(this.gamesUrl, { name, turnDurationSeconds });
     }
 
     getGame(id: string): Observable<GameView> {
