@@ -51,12 +51,13 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 ### Domain Layer
 | Plik | Opis |
 |------|------|
-| `Domain/Rules/SplendorRules.cs` | Czyste reguły domenowe: bonusy, punkty prestiżu, wymagania arystokratów, walidacja żetonów, płatność za karty, limit rezerwacji i wybór zwycięzcy. |
-| `Domain/Rules/PlatformRules.cs` | Reguły platformy (nie gry): kto usuwa grę (twórca lub admin), limity aktywnych i utworzonych gier, wiek nieaktywnej gry. |
+| `Domain/Rules/SplendorRules.cs` | Czyste reguły domenowe: bonusy, punkty prestiżu, wymagania arystokratów, walidacja żetonów, płatność za karty, limit rezerwacji, wybór zwycięzcy, limit żetonów (`MaxPlayerGems`), próg końca gry (`EndGamePrestigePoints`) i automatyczny wybór żetonów do zwrotu (`ChooseGemsToReturn`). |
+| `Domain/Rules/PlatformRules.cs` | Reguły platformy (nie gry): kto usuwa grę (twórca lub admin), limity aktywnych i utworzonych gier, wiek nieaktywnej gry, granice czasu tury (domyślnie 60 s, 30-300 s). |
 | `Domain/Rules/Caller.cs` | Kto wywołuje komendę: `UserId` (value object) i role (`admin`, `guest`); `Caller.System` dla zadań w tle. |
-| `Domain/Events/GameEvents.cs` | Zdarzenia domenowe: utworzenie i rozpoczęcie gry, tury, żetony, przekroczenie i rozwiązanie limitu żetonów, zakup/rezerwacja/odsłonięcie kart, arystokraci, zakończenie i usunięcie gry. |
+| `Domain/Events/GameEvents.cs` | Zdarzenia domenowe: utworzenie i rozpoczęcie gry, tury, żetony, przekroczenie i rozwiązanie limitu żetonów, zakup/rezerwacja/odsłonięcie kart, arystokraci, zakończenie i usunięcie gry. `GameCreated` niesie opcjonalne `Name` i `TurnDurationSeconds` (domyślnie 60). |
 | `Domain/Entities/Player.cs` | Gracz: identyfikatory, nazwa, żetony, kupione i zarezerwowane karty oraz zdobyci arystokraci. |
 | `Domain/ValueObjects/GemCollection.cs` | Kolekcja żetonów: Diamond, Sapphire, Emerald, Ruby, Onyx i Gold. |
+| `Domain/ValueObjects/GameName.cs` | Nazwa gry: 1-40 znaków po trim; tworzona w kontrolerze. |
 | `Domain/ValueObjects/Card.cs` | Karta rozwoju: identyfikator, poziom, bonus, punkty prestiżu i koszt. |
 | `Domain/ValueObjects/Noble.cs` | Arystokrata: identyfikator, punkty prestiżu i wymagane bonusy kart. |
 | `Domain/ValueObjects/GemType.cs` | Enum kolorów żetonów i bonusów kart. |
@@ -77,7 +78,10 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 | `Application/Commands/ResolveGemLimitCommand.cs` | Rozwiązywanie limitu gemów |
 | `Application/Commands/ReserveCardCommand.cs` | Rezerwacja karty |
 | `Application/Commands/ChooseNobleCommand.cs` | Wybór arystokraty |
-| `Application/Commands/ExpireTurnCommand.cs` | Automatyczne zakończenie przeterminowanej tury |
+| `Application/Commands/ExpireTurnCommand.cs` | Automatyczne zakończenie przeterminowanej tury; oczekujący zwrot żetonów lub wybór arystokraty jest rozstrzygany automatycznie |
+| `Application/Commands/CreateGuestSessionCommand.cs` | Sesja gościa: pilnuje limitu aktywnych gości; zwraca `null`, gdy limit osiągnięty (kontroler odpowiada 429). |
+| `Application/Commands/TurnCompletion.cs` | Koniec akcji i tury: przepełnienie żetonów, arystokraci, koniec gry, następna tura i deadline. |
+| `Application/DecisionStates/TurnClockState.cs` | Granica DCB zegara tury; niesie `DurationSeconds` z `GameCreated`. |
 | `Application/ReadModels/GameView.cs` | Read model gry (GameView, PlayerView) |
 | `Application/Behaviors/CommandMetricsBehavior.cs` | MediatR pipeline behavior mierzący czas, aktywne i zakończone operacje. |
 | `Application/Behaviors/EventMetadataBehavior.cs` | Ustawia na sesji Martena `UserName` (z `Caller`, `system` dla komend ze schedulera) i `CorrelationId` zapisywane w metadanych eventów. |
@@ -96,6 +100,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 | Plik | Opis |
 |------|------|
 | `Api/Controllers/GamesController.cs` | REST API dla gier i kart |
+| `Api/Controllers/AuthController.cs` | `POST /auth/guest`: wysyła `CreateGuestSessionCommand`, token HS256 wystawia `GuestTokens`. |
 | `Api/Program.cs` | Konfiguracja aplikacji (CORS, JWT, etc.) |
 | `Api/Middleware/` | Custom middleware (ExceptionHandling) |
 | `Api/Services/GameCleanupTimer.cs` | `BackgroundService`: co godzinę publikuje `CleanUpGamesMessage` (przez singletonowy `IBus`); działa tylko gdy API nie śpi, nie jest rejestrowany w trybie Testing. |
@@ -115,7 +120,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 
 - **Hosting (plany darmowe):** Render (API + bot w jednym kontenerze z `Dockerfile`, frontend jako Static Site), Neon (PostgreSQL), CloudAMQP (RabbitMQ), Auth0, CI w Azure DevOps (`azure-pipelines.yml`, agent lokalny). Render usypia API po 15 min bez ruchu.
 - **Zmienne środowiskowe API:** `ConnectionStrings__Marten`, `RabbitMq__Url` (`amqps://...`, bez niej `localhost/guest`), `Guest__SigningKey` (wymagany poza trybem Testing), `AllowedOrigins__0`, `ASPNETCORE_ENVIRONMENT`; opcjonalnie `Guest__MaxActive`, `Guest__TokenMinutes`.
-- **Tryb gościa:** `POST /auth/guest` wystawia token HS256 (issuer `splendor-guest`), `GuestSession` w Marten pilnuje limitu aktywnych gości. Schemat uwierzytelniania `Smart` wybiera Auth0 albo gościa po `iss`.
+- **Tryb gościa:** `POST /auth/guest` wystawia token HS256 (issuer `splendor-guest`), `CreateGuestSessionCommand` zapisuje `GuestSession` w Marten i pilnuje limitu aktywnych gości. Schemat uwierzytelniania `Smart` wybiera Auth0 albo gościa po `iss`.
 - **Rate limiting:** polityki z sekcji `RateLimits` (`GuestAuth` po IP, `GameActions` po użytkowniku), rejestrowane w `Api/Auth/RateLimitingExtensions.cs`; nowy limit to wpis w konfiguracji i `[EnableRateLimiting("Nazwa")]`. Za proxy Rendera działa `UseForwardedHeaders`.
 - **Scheduler tur:** `AddMessageScheduler` + `UseInMemoryScheduler` (CloudAMQP Free nie ma delayed exchange), więc zaplanowane timery giną przy restarcie procesu.
 - **Lokalnie:** hasła nie trafiają do `appsettings.json` w git.
@@ -165,6 +170,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 | `src/app/core/services/auth.service.ts` | Zarządzanie JWT tokenem (localStorage) |
 | `src/app/core/services/game.service.ts` | Komunikacja z API + cache kart |
 | `src/app/core/interceptors/auth.interceptor.ts` | Dodaje Bearer token do requestów |
+| `src/app/core/interceptors/error.interceptor.ts` | Toast dla 400; 401 otwiera dialog ponownego logowania (`AuthService.requireLogin`). |
 | `src/app/pages/games-list/` | Lista gier + tworzenie nowej |
 | `src/app/pages/lobby/` | Lobby gry (dołączanie, start) |
 | `src/app/pages/game/` | Widok rozgrywki (rynek gemów, karty, gracze) |
@@ -196,7 +202,7 @@ record GemCollection(int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx,
 
 ## Przepływ gry (eventy)
 
-1. `GameCreated` - utworzenie gry przez CreatorId
+1. `GameCreated` - utworzenie gry przez CreatorId, z opcjonalną nazwą i czasem tury
 2. `PlayerJoined` - dołączenie gracza (2-4 graczy)
 3. `GameStarted` - rozpoczęcie (tasowanie talii, setup rynku)
 4. `TurnStarted` + `TurnDeadlineStarted` - początek tury i zaplanowanie jej deadline'u
@@ -206,7 +212,7 @@ record GemCollection(int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx,
 6. Gdy gracz osiągnie ≥ 15 punktów prestiżu, gra trwa do końca bieżącej rundy.
 7. Po domknięciu rundy `GameFinished` wskazuje zwycięzcę: najwięcej punktów prestiżu, a przy remisie mniej zakupionych kart.
 8. W przeciwnym wypadku `TurnEnded` - koniec tury i powrót do punktu 4 (następny gracz).
-9. Po przekroczeniu deadline'u scheduler wywołuje `ExpireTurnCommand`; aktualna tura emituje `TurnExpired`, a spóźnione wiadomości są ignorowane dzięki `TurnId`.
+9. Po przekroczeniu deadline'u scheduler wywołuje `ExpireTurnCommand`; aktualna tura emituje `TurnExpired`, a spóźnione wiadomości są ignorowane dzięki `TurnId`. Po przekroczeniu limitu żetonów lub `NobleSelectionRequired` powstaje świeży `TurnDeadlineStarted`; po jego upływie `ExpireTurnCommand` zwraca żetony automatycznie (najliczniejszy kolor, złoto na końcu) albo wybiera arystokratę (pierwszy po sortowaniu id).
 10. `PlayerLeft` usuwa gracza z lobby, a `PlayerParticipationEnded` zwalnia jego aktywny udział po zakończeniu lub usunięciu gry.
 
 
@@ -218,7 +224,7 @@ record GemCollection(int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx,
 |---|---|---|
 | POST | `/auth/guest` | Token gościa (60 min, limit aktywnych gości, rate limit po IP) |
 | GET | `/games` | Lista gier |
-| POST | `/games` | Tworzenie gry |
+| POST | `/games` | Tworzenie gry (opcjonalne `name` 1-40 znaków i `turnDurationSeconds` 30-300) |
 | GET | `/games/{id}` | Aktualny stan gry |
 | GET | `/games/{id}/history` | Historia zdarzeń gry |
 | DELETE | `/games/{id}` | Usuwanie gry (tylko twórca) |
@@ -304,6 +310,9 @@ npm start
 - Role i reguły platformy: `Caller`, `PlatformRules`, admin usuwa cudze gry, limity (max 2 aktywne i max 2 utworzone, nieukończone gry), walidacja wejścia przez value objecty `PlayerName` i `UserId` oraz limit body 16 KB.
 - Metadane eventów (`UserName`, `CorrelationId`) oraz sprzątanie gier: logiczne usuwanie po 48 h nieaktywności (fizyczne kasowanie wyłączone).
 - Frontend: `ToastService` (komunikaty 400 z API, „Your turn”, ruchy przeciwników z listy powiadomień wysyłanej obok `GameView` przez SignalR).
+- Nazwa gry i czas tury (30-300 s) jako pola `GameCreated`; czas tury czyta `TurnClockState`.
+- Automatyczne rozstrzyganie wygasłej tury z oczekującym zwrotem żetonów lub wyborem arystokraty (świeży deadline na fazę oczekiwania).
+- Dialog ponownego logowania przy 401 (gość, wklejony token, przeładowanie strony po zalogowaniu).
 - Testy jednostkowe decyzji gameplayu w `Splendor.UnitTests`.
 - Testy integracyjne z Testcontainers oraz testy UI Selenium z Page Object Model.
 
@@ -311,7 +320,7 @@ npm start
 ### Do zrobienia
 
 **Frontend:**
-- [ ] Nazywanie gry (przy tworzeniu)
+- [x] Nazywanie gry (przy tworzeniu)
 - [ ] Wyświetlanie nazw graczy w games-list
 
 **Bot worker:**
@@ -330,3 +339,5 @@ npm start
 - Komendy obsługiwane przez MediatR handlery
 - Projekcje Marten aktualizują dokumentowe read modele
 - Elementy UI testowalne oznaczane atrybutem `data-testid` w szablonach Angular
+- Dane ustalane przy tworzeniu gry są polami `GameCreated` z wartościami domyślnymi, żeby stare eventy się deserializowały
+- Liczby reguł gry (limit żetonów, próg końca gry) żyją w `SplendorRules`, nie jako literały
