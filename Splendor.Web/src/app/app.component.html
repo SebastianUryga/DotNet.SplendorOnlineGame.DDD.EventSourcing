@@ -20,6 +20,20 @@
   Splendor DDD Event Sourcing Project &copy; 2026
 </footer>
 
+<div class="modal-backdrop" *ngIf="authService.loginRequired$ | async" data-testid="login-dialog">
+  <div class="modal">
+    <h2>Session expired</h2>
+    <p>Sign in to continue. Guest sessions last 60 minutes, and a new guest starts without the previous guest's games.</p>
+    <button (click)="playAsGuest(true)" class="btn-save" data-testid="dialog-guest-btn">Play as guest</button>
+    <span class="status-text" *ngIf="guestError">{{ guestError }}</span>
+    <div class="modal-token">
+      <input [(ngModel)]="token" placeholder="Paste JWT Token here..." class="token-input" (keyup.enter)="saveToken(true)" data-testid="dialog-token-input" />
+      <button (click)="saveToken(true)" class="btn-save" data-testid="dialog-set-token-btn">Set Token</button>
+    </div>
+    <button (click)="authService.dismissLogin()" class="btn-close" data-testid="dialog-close-btn">Close</button>
+  </div>
+</div>
+
 <div class="toasts">
   <div class="toast" *ngFor="let t of toastService.toasts$ | async" data-testid="toast">{{ t.text }}</div>
 </div>

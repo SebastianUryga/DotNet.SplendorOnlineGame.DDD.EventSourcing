@@ -20,5 +20,14 @@
 
 .app-footer { padding: 20px; text-align: center; color: #444; font-size: 0.8em; border-top: 1px solid rgba(255,255,255,0.05); }
 
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+.modal { background: #1a1a1a; border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 28px; width: 440px; max-width: 90vw; color: #eee; display: flex; flex-direction: column; gap: 16px; }
+.modal h2 { margin: 0; color: #fff; }
+.modal p { margin: 0; color: #bbb; line-height: 1.4; }
+.modal-token { display: flex; gap: 10px; }
+.modal-token .token-input { flex: 1; width: auto; min-width: 0; }
+.btn-close { align-self: flex-end; background: none; border: none; color: #888; cursor: pointer; text-decoration: underline; }
+.btn-close:hover { color: #ccc; }
+
 .toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 1000; }
 .toast { background: #333; color: #fff; padding: 10px 16px; border-radius: 6px; max-width: 320px; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
