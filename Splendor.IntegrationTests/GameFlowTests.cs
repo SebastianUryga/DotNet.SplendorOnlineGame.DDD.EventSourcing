@@ -135,6 +135,30 @@ public class GameFlowTests : IClassFixture<SplendorApiFactory>
         }
     }
 
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("admin", true)]
+    public async Task GetGames_IncludeDeleted_IsHonoredOnlyForAdmin(string? role, bool expectedVisible)
+    {
+        var response = await PostAsUserAsync("list-creator", "/games", new { }, HttpStatusCode.Created);
+        var gameId = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        using (TestUserContext.SetUser("list-creator"))
+        {
+            (await _client.DeleteAsync($"/games/{gameId}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        }
+
+        using (TestUserContext.SetUser("list-viewer"))
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, "/games?includeDeleted=true");
+            if (role != null) request.Headers.Add("X-Test-Roles", role);
+            var listResponse = await _client.SendAsync(request);
+
+            listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            var games = await listResponse.Content.ReadFromJsonAsync<List<GameSummaryDto>>(JsonOptions);
+            games!.Any(g => g.Id == gameId).Should().Be(expectedVisible);
+        }
+    }
+
     private async Task<Guid> CreateAndStartGame(string user1, string user2, string player1Name, string player2Name)
     {
         var response = await PostAsUserAsync(user1, "/games", new { }, HttpStatusCode.Created);

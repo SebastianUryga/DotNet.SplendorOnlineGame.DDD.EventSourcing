@@ -8,6 +8,7 @@ public static class PlatformRules
     public const int DefaultTurnSeconds = 60;
     public const int MinTurnSeconds = 30;
     public const int MaxTurnSeconds = 300;
+    public const int MaxListedGames = 100;
     public static readonly TimeSpan StaleGameAge = TimeSpan.FromHours(48);
     public static readonly TimeSpan DeletedGameRetention = TimeSpan.FromDays(7);
 

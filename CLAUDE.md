@@ -121,7 +121,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 - **Hosting (plany darmowe):** Render (API + bot w jednym kontenerze z `Dockerfile`, frontend jako Static Site), Neon (PostgreSQL), CloudAMQP (RabbitMQ), Auth0, CI w Azure DevOps (`azure-pipelines.yml`, agent lokalny). Render usypia API po 15 min bez ruchu.
 - **Zmienne środowiskowe API:** `ConnectionStrings__Marten`, `RabbitMq__Url` (`amqps://...`, bez niej `localhost/guest`), `Guest__SigningKey` (wymagany poza trybem Testing), `AllowedOrigins__0`, `ASPNETCORE_ENVIRONMENT`; opcjonalnie `Guest__MaxActive`, `Guest__TokenMinutes`.
 - **Tryb gościa:** `POST /auth/guest` wystawia token HS256 (issuer `splendor-guest`), `CreateGuestSessionCommand` zapisuje `GuestSession` w Marten i pilnuje limitu aktywnych gości. Schemat uwierzytelniania `Smart` wybiera Auth0 albo gościa po `iss`.
-- **Rate limiting:** polityki z sekcji `RateLimits` (`GuestAuth` po IP, `GameActions` po użytkowniku), rejestrowane w `Api/Auth/RateLimitingExtensions.cs`; nowy limit to wpis w konfiguracji i `[EnableRateLimiting("Nazwa")]`. Za proxy Rendera działa `UseForwardedHeaders`.
+- **Rate limiting:** polityki z sekcji `RateLimits` (`GuestAuth` po IP, `GameActions` po użytkowniku), rejestrowane w `Api/Auth/RateLimitingExtensions.cs`; nowy limit to wpis w konfiguracji i `[EnableRateLimiting("Nazwa")]`. Wpis `Global` (domyślnie 60 żądań/10 s po użytkowniku, fallback na IP) to `GlobalLimiter` obejmujący każdy endpoint, także bez atrybutu. Za proxy Rendera działa `UseForwardedHeaders`.
 - **Scheduler tur:** `AddMessageScheduler` + `UseInMemoryScheduler` (CloudAMQP Free nie ma delayed exchange), więc zaplanowane timery giną przy restarcie procesu.
 - **Lokalnie:** hasła nie trafiają do `appsettings.json` w git.
 - **Caller i role:** komendy implementują `IAuthorizedCommand` i niosą `Caller` (id + role z claima `RoleClaims.Type`) zamiast `OwnerId`; kontroler bierze go z `ICurrentUserService.Caller`. Rola `admin` pochodzi z Auth0 (rola + Action w flow post-login), gość dostaje `guest` w swoim tokenie. Reguły platformy leżą w `PlatformRules` i są wołane z `Decide`; limity wymagające spójności (aktywne i utworzone gry) idą przez granice DCB (`JoinGameDecisionState`, `CreateGameDecisionState`). W testach rolę podaje nagłówek `X-Test-Roles`.
@@ -135,6 +135,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 | `IntegrationTests/BasicTests.cs` | Podstawowe testy API (Swagger, Create Game) |
 | `IntegrationTests/GameFlowTests.cs` | Przepływ gry, autoryzacja ruchu i zmiana deadline'u tury |
 | `IntegrationTests/HybridConcurrencyTests.cs` | Routing do jednego strumienia, snapshoty oraz konflikty stream/DCB |
+| `IntegrationTests/RateLimitingTests.cs` | Limit `GameActions`: 11. żądanie użytkownika w oknie -> 429, limit liczony per użytkownik |
 | `IntegrationTests/ChooseNobleCommandHandlerTests.cs` | Integracja wyboru arystokraty |
 | `IntegrationTests/TurnExpirationSchedulingTests.cs` | Scheduler → consumer → `ExpireTurnCommand` → `TurnExpired` |
 | `IntegrationTests/TestAuthHandler.cs` | Fake authentication handler - czyta X-Test-User-Id header |
@@ -223,7 +224,7 @@ record GemCollection(int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx,
 | Metoda | Endpoint | Opis |
 |---|---|---|
 | POST | `/auth/guest` | Token gościa (60 min, limit aktywnych gości, rate limit po IP) |
-| GET | `/games` | Lista gier |
+| GET | `/games` | Lista gier: max 100 ostatnio zmienionych (`PlatformRules.MaxListedGames`); `includeDeleted` tylko dla admina |
 | POST | `/games` | Tworzenie gry (opcjonalne `name` 1-40 znaków i `turnDurationSeconds` 30-300) |
 | GET | `/games/{id}` | Aktualny stan gry |
 | GET | `/games/{id}/history` | Historia zdarzeń gry |

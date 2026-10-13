@@ -216,13 +216,16 @@ public class GamesController : ControllerBase
     /// <summary>
     /// Retrieves a list of all games.
     /// </summary>
-    /// <param name="includeDeleted">Whether to include deleted games in the result.</param>
-    /// <returns>A list of game summaries.</returns>
+    /// <param name="includeDeleted">Whether to include deleted games in the result (honored for admins only).</param>
+    /// <returns>Up to <see cref="PlatformRules.MaxListedGames"/> most recently updated game summaries.</returns>
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<GameSummaryDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetGames([FromQuery] bool includeDeleted = false)
     {
-        var games = await _mediator.Send(new GetGamesQuery(includeDeleted));
+        var isAdmin = _currentUserService.Caller?.IsAdmin == true;
+        var games = await _mediator.Send(new GetGamesQuery(
+            IncludeDeleted: includeDeleted && isAdmin,
+            Limit: PlatformRules.MaxListedGames));
         return Ok(games);
     }
     

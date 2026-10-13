@@ -4,7 +4,7 @@ using Splendor.Application.ReadModels;
 
 namespace Splendor.Application.Queries;
 
-public record GetGamesQuery(bool IncludeDeleted = false, DateTimeOffset? UpdatedBefore = null) : IRequest<IEnumerable<GameSummaryDto>>;
+public record GetGamesQuery(bool IncludeDeleted = false, DateTimeOffset? UpdatedBefore = null, int? Limit = null) : IRequest<IEnumerable<GameSummaryDto>>;
 
 public class GetGamesQueryHandler : IRequestHandler<GetGamesQuery, IEnumerable<GameSummaryDto>>
 {
@@ -27,6 +27,11 @@ public class GetGamesQueryHandler : IRequestHandler<GetGamesQuery, IEnumerable<G
         if (request.UpdatedBefore is { } before)
         {
             query = query.Where(g => g.UpdatedAt < before);
+        }
+
+        if (request.Limit is { } limit)
+        {
+            query = query.OrderByDescending(g => g.UpdatedAt).Take(limit);
         }
 
         return await query
