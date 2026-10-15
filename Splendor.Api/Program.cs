@@ -29,7 +29,8 @@ var openTelemetry = builder.Services
         .AddMeter("Splendor.Infrastructure")
         .AddMeter("Microsoft.AspNetCore.Hosting")
         .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
-        .AddMeter("System.Net.Http"))
+        .AddMeter("System.Net.Http")
+        .AddMeter("System.Runtime"))
     .WithTracing(tracing => tracing
         .AddSource("Splendor.Application")
         .AddSource("Splendor.Infrastructure")
@@ -41,6 +42,13 @@ if (Uri.TryCreate(otlpEndpoint, UriKind.Absolute, out var otlpUri))
     openTelemetry
         .WithMetrics(metrics => metrics.AddOtlpExporter(options => options.Endpoint = otlpUri))
         .WithTracing(tracing => tracing.AddOtlpExporter(options => options.Endpoint = otlpUri));
+}
+else if (!string.IsNullOrEmpty(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
+{
+    // production: standard OTEL_EXPORTER_OTLP_* variables (endpoint, protocol, headers)
+    openTelemetry
+        .WithMetrics(metrics => metrics.AddOtlpExporter())
+        .WithTracing(tracing => tracing.AddOtlpExporter());
 }
 
 builder.Services.AddCors(options =>
