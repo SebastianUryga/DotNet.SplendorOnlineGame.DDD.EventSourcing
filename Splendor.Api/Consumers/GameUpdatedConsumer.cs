@@ -5,14 +5,15 @@ using Splendor.Api.Hubs;
 using Splendor.Application.Queries;
 using MediatR;
 using Splendor.Contracts.Messages;
+using Splendor.Domain.ValueObjects;
 
 namespace Splendor.Api.Consumers;
 
-public record GameNotification(string Type, string? PlayerId);
+public record GameNotification(string Type, string? PlayerId, object? Data = null);
 
 public class GameUpdatedConsumer : IConsumer<Batch<GameUpdatedMessage>>
 {
-    // Only these events reach clients, and only their type and acting player (no deck contents etc.).
+    // Only these events reach clients, with a whitelisted subset of fields (no deck contents etc.).
     private static readonly HashSet<string> NotifiableEvents =
         ["gems_taken", "card_purchased", "card_reserved", "noble_acquired", "turn_expired"];
 
@@ -46,14 +47,36 @@ public class GameUpdatedConsumer : IConsumer<Batch<GameUpdatedMessage>>
         }
     }
 
-    private static GameNotification ToNotification(GameUpdatedMessage message)
+    private static readonly JsonSerializerOptions EventJson = new() { PropertyNameCaseInsensitive = true };
+
+    // Data is built by hand per event type (whitelist): a new event field never leaks to clients.
+    // card_reserved carries no card id: a blind reservation from a deck would reveal the hidden card.
+    public static GameNotification ToNotification(GameUpdatedMessage message)
     {
-        string? playerId = null;
-        if (message.Data != null)
+        if (message.Data == null) return new GameNotification(message.EventType, null);
+
+        using var doc = JsonDocument.Parse(message.Data);
+        var root = doc.RootElement;
+        var playerId = root.TryGetProperty("PlayerId", out var p) ? p.GetString() : null;
+
+        object? data = message.EventType switch
         {
-            using var doc = JsonDocument.Parse(message.Data);
-            if (doc.RootElement.TryGetProperty("PlayerId", out var p)) playerId = p.GetString();
-        }
-        return new GameNotification(message.EventType, playerId);
+            "card_purchased" => new
+            {
+                CardId = root.TryGetProperty("CardId", out var c) ? c.GetString() : null,
+                PaidGems = root.TryGetProperty("PaidGems", out var g) ? g.Deserialize<GemCollection>(EventJson) : null
+            },
+            "gems_taken" => new
+            {
+                Gems = root.TryGetProperty("Gems", out var g) ? g.Deserialize<GemCollection>(EventJson) : null
+            },
+            "noble_acquired" => new
+            {
+                NobleId = root.TryGetProperty("NobleId", out var n) ? n.GetString() : null
+            },
+            _ => null
+        };
+
+        return new GameNotification(message.EventType, playerId, data);
     }
 }

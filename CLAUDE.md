@@ -105,6 +105,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 | `Api/Middleware/` | Custom middleware (ExceptionHandling) |
 | `Api/Services/GameCleanupTimer.cs` | `BackgroundService`: co godzinę publikuje `CleanUpGamesMessage` (przez singletonowy `IBus`); działa tylko gdy API nie śpi, nie jest rejestrowany w trybie Testing. |
 | `Api/Consumers/CleanUpGamesConsumer.cs` | Sprzątanie gier: wybiera przez `GetGamesQuery` gry nieaktywne >48 h i publikuje po jednej `DeleteStaleGameMessage` na grę; scope, retry i kolejka `_error` per gra pochodzą z MassTransit. Fizyczne kasowanie (`HardDeleteGame`) jest wyłączone (zakomentowane). |
+| `Api/Consumers/GameUpdatedConsumer.cs` | Wysyła `GameView` i listę `GameNotification(Type, PlayerId, Data)` do grupy SignalR. `Data` budowane ręcznie per typ (biała lista): `card_purchased` → `cardId`, `paidGems`; `gems_taken` → `gems`; `noble_acquired` → `nobleId`; `card_reserved` bez `cardId` (rezerwacja z talii ujawniłaby zakrytą kartę). |
 | `Api/Consumers/DeleteStaleGameConsumer.cs` | Wysyła `DeleteGameCommand` jako `Caller.System`. `HardDeleteGameConsumer` i `HardDeleteGameCommand` są zakomentowane: `DeleteSingleEventStreamAsync` nie czyści tabel tagów `mt_event_tag_*`. |
 | `Api/Auth/RoleClaims.cs` | Nazwa claima z rolami (`https://splendoronlinegame-web.onrender.com/roles`), dodawanego przez Auth0 Action oraz w tokenie gościa. |
 

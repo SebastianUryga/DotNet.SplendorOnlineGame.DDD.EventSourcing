@@ -3,8 +3,14 @@ import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signal
 import { Subject } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { GameView } from '../../models/game-view.model';
+import { GemCollection } from '../../models/gem-collection.model';
 
-export interface GameNotification { type: string; playerId?: string; }
+export interface GameNotification {
+    type: string;
+    playerId?: string;
+    // card_purchased: { cardId, paidGems }, gems_taken: { gems }, noble_acquired: { nobleId }
+    data?: { cardId?: string; paidGems?: GemCollection; gems?: GemCollection; nobleId?: string };
+}
 
 @Injectable({
     providedIn: 'root'
