@@ -110,7 +110,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 
 ### Obserwowalność
 
-- API eksportuje metryki i trace’y przez OpenTelemetry Protocol do Aspire Dashboard.
+- API eksportuje metryki i trace’y przez OpenTelemetry Protocol do Aspire Dashboard. Na produkcji eksport idzie do Grafana Cloud przez standardowe zmienne `OTEL_EXPORTER_OTLP_ENDPOINT/PROTOCOL/HEADERS` (lokalnie `OpenTelemetry:Endpoint`); meter `System.Runtime` daje pamięć procesu API. Bot nie ma instrumentacji.
 - MediatR mierzy `splendor.command.duration`, `splendor.command.executed` i `splendor.command.active`.
 - Marten mierzy operacje odczytu i zapisu przez `MartenMetricsLogger`.
 - Dashboard lokalny jest dostępny pod `http://localhost:18888` po uruchomieniu `docker-compose up -d`.
@@ -308,7 +308,7 @@ npm start
 - REST API, Swagger, JWT/Auth0, SignalR oraz MassTransit/RabbitMQ.
 - Podstawowe metryki aplikacji i Martena przez `System.Diagnostics.Metrics` oraz eksport OpenTelemetry do lokalnego Aspire Dashboard.
 - ETag/`304 Not Modified` dla `GET /games/{id}` i polling wersji gry.
-- Role i reguły platformy: `Caller`, `PlatformRules`, admin usuwa cudze gry, limity (max 2 aktywne i max 2 utworzone, nieukończone gry), walidacja wejścia przez value objecty `PlayerName` i `UserId` oraz limit body 16 KB.
+- Role i reguły platformy: `Caller`, `PlatformRules`, admin usuwa cudze gry, limity (max 2 aktywne i max 2 utworzone, nieukończone gry; dla roli `bot` 40 aktywnych i 20 utworzonych), walidacja wejścia przez value objecty `PlayerName` i `UserId` oraz limit body 16 KB.
 - Metadane eventów (`UserName`, `CorrelationId`) oraz sprzątanie gier: logiczne usuwanie po 48 h nieaktywności (fizyczne kasowanie wyłączone).
 - Frontend: `ToastService` (komunikaty 400 z API, „Your turn”, ruchy przeciwników z listy powiadomień wysyłanej obok `GameView` przez SignalR).
 - Nazwa gry i czas tury (30-300 s) jako pola `GameCreated`; czas tury czyta `TurnClockState`.
