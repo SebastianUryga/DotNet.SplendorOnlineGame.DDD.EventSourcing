@@ -31,8 +31,8 @@ public class CreateGameCommandHandler : IRequestHandler<CreateGameCommand, Guid>
         var boundary = await _session.Events.FetchForWritingByTags<CreateGameDecisionState>(
             CreateGameDecisionState.Query(creatorId), cancellationToken);
         var openGames = boundary.Aggregate?.OpenGameIds.Count ?? 0;
-        if (!PlatformRules.CanCreateGame(openGames))
-            throw new InvalidOperationException($"You cannot have more than {PlatformRules.MaxOpenCreatedGames} unfinished games.");
+        if (!PlatformRules.CanCreateGame(command.Caller, openGames))
+            throw new InvalidOperationException($"You cannot have more than {PlatformRules.MaxOpenCreatedGamesFor(command.Caller)} unfinished games.");
 
         if (!PlatformRules.IsValidTurnDuration(command.TurnDurationSeconds))
             throw new InvalidOperationException(

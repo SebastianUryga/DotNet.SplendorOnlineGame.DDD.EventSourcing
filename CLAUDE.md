@@ -52,7 +52,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 | Plik | Opis |
 |------|------|
 | `Domain/Rules/SplendorRules.cs` | Czyste reguły domenowe: bonusy, punkty prestiżu, wymagania arystokratów, walidacja żetonów, płatność za karty, limit rezerwacji, wybór zwycięzcy, limit żetonów (`MaxPlayerGems`), próg końca gry (`EndGamePrestigePoints`) i automatyczny wybór żetonów do zwrotu (`ChooseGemsToReturn`). |
-| `Domain/Rules/PlatformRules.cs` | Reguły platformy (nie gry): kto usuwa grę (twórca lub admin), limity aktywnych (2, dla roli `bot` 40) i utworzonych gier, wiek nieaktywnej gry, granice czasu tury (domyślnie 60 s, 30-300 s). |
+| `Domain/Rules/PlatformRules.cs` | Reguły platformy (nie gry): kto usuwa grę (twórca lub admin), limity aktywnych (2, dla roli `bot` 40) i utworzonych (2, dla `bot` 20) gier, wiek nieaktywnej gry, granice czasu tury (domyślnie 60 s, 30-300 s). |
 | `Domain/Rules/Caller.cs` | Kto wywołuje komendę: `UserId` (value object) i role (`admin`, `guest`, `bot`); `Caller.System` dla zadań w tle. |
 | `Domain/Events/GameEvents.cs` | Zdarzenia domenowe: utworzenie i rozpoczęcie gry, tury, żetony, przekroczenie i rozwiązanie limitu żetonów, zakup/rezerwacja/odsłonięcie kart, arystokraci, zakończenie i usunięcie gry. `GameCreated` niesie opcjonalne `Name` i `TurnDurationSeconds` (domyślnie 60). |
 | `Domain/Entities/Player.cs` | Gracz: identyfikatory, nazwa, żetony, kupione i zarezerwowane karty oraz zdobyci arystokraci. |

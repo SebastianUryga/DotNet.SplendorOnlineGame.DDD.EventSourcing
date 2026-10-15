@@ -6,6 +6,7 @@ public static class PlatformRules
     public const int MaxActiveGames = 2;
     public const int MaxActiveGamesForBots = 40;
     public const int MaxOpenCreatedGames = 2;
+    public const int MaxOpenCreatedGamesForBots = 20;
     public const int DefaultTurnSeconds = 60;
     public const int MinTurnSeconds = 30;
     public const int MaxTurnSeconds = 300;
@@ -20,7 +21,9 @@ public static class PlatformRules
 
     public static bool CanJoinAnotherGame(Caller caller, int activeGames) => activeGames < MaxActiveGamesFor(caller);
 
-    public static bool CanCreateGame(int openCreatedGames) => openCreatedGames < MaxOpenCreatedGames;
+    public static int MaxOpenCreatedGamesFor(Caller caller) => caller.IsBot ? MaxOpenCreatedGamesForBots : MaxOpenCreatedGames;
+
+    public static bool CanCreateGame(Caller caller, int openCreatedGames) => openCreatedGames < MaxOpenCreatedGamesFor(caller);
 
     public static bool IsValidTurnDuration(int seconds) => seconds is >= MinTurnSeconds and <= MaxTurnSeconds;
 
