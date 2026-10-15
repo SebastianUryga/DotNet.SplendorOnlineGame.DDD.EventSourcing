@@ -53,7 +53,14 @@ public class DeleteGameTests
     [InlineData(PlatformRules.MaxActiveGames - 1, true)]
     [InlineData(PlatformRules.MaxActiveGames, false)]
     public void ActiveGamesLimit(int active, bool allowed) =>
-        PlatformRules.CanJoinAnotherGame(active).Should().Be(allowed);
+        PlatformRules.CanJoinAnotherGame(Caller.User("user-1"), active).Should().Be(allowed);
+
+    [Theory]
+    [InlineData(PlatformRules.MaxActiveGames, true)]
+    [InlineData(PlatformRules.MaxActiveGamesForBots - 1, true)]
+    [InlineData(PlatformRules.MaxActiveGamesForBots, false)]
+    public void BotActiveGamesLimit(int active, bool allowed) =>
+        PlatformRules.CanJoinAnotherGame(Caller.User("bot-1", Caller.BotRole), active).Should().Be(allowed);
 
     [Theory]
     [InlineData(PlatformRules.MaxOpenCreatedGames - 1, true)]

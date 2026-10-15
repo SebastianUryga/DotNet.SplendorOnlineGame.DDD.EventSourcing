@@ -4,6 +4,7 @@ namespace Splendor.Domain.Rules;
 public static class PlatformRules
 {
     public const int MaxActiveGames = 2;
+    public const int MaxActiveGamesForBots = 40;
     public const int MaxOpenCreatedGames = 2;
     public const int DefaultTurnSeconds = 60;
     public const int MinTurnSeconds = 30;
@@ -15,7 +16,9 @@ public static class PlatformRules
     public static bool CanDeleteGame(Caller caller, string creatorId) =>
         caller.IsAdmin || caller.UserId.Value == creatorId;
 
-    public static bool CanJoinAnotherGame(int activeGames) => activeGames < MaxActiveGames;
+    public static int MaxActiveGamesFor(Caller caller) => caller.IsBot ? MaxActiveGamesForBots : MaxActiveGames;
+
+    public static bool CanJoinAnotherGame(Caller caller, int activeGames) => activeGames < MaxActiveGamesFor(caller);
 
     public static bool CanCreateGame(int openCreatedGames) => openCreatedGames < MaxOpenCreatedGames;
 

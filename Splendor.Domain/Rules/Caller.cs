@@ -7,9 +7,11 @@ public record Caller(UserId UserId, IReadOnlySet<string> Roles)
 {
     public const string AdminRole = "admin";
     public const string GuestRole = "guest";
+    public const string BotRole = "bot";
 
     public bool IsAdmin => Roles.Contains(AdminRole);
     public bool IsGuest => Roles.Contains(GuestRole);
+    public bool IsBot => Roles.Contains(BotRole);
 
     public static readonly Caller System = User("system", AdminRole);
 

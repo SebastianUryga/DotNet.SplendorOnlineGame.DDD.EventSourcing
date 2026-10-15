@@ -50,8 +50,8 @@ public class JoinGameCommandHandler : IRequestHandler<JoinGameCommand>
         if (state.Players.Count >= 4) throw new InvalidOperationException("Game full.");
         //if (state.Players.Values.Any(player => player.PlayerOwnerId == command.Caller.UserId.Value))
         //    throw new InvalidOperationException("You already control a player in this game.");
-        if (!PlatformRules.CanJoinAnotherGame(ownerState.ActiveGameIds.Count))
-            throw new InvalidOperationException($"You cannot be active in more than {PlatformRules.MaxActiveGames} games.");
+        if (!PlatformRules.CanJoinAnotherGame(command.Caller, ownerState.ActiveGameIds.Count))
+            throw new InvalidOperationException($"You cannot be active in more than {PlatformRules.MaxActiveGamesFor(command.Caller)} games.");
         if (state.Players.Values.Any(player => string.Equals(player.Name, name, StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException($"Player with name '{name}' already exists in this game.");
 
