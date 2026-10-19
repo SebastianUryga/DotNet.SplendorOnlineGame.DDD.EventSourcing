@@ -175,7 +175,9 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 | `src/app/core/interceptors/error.interceptor.ts` | Toast dla 400; 401 otwiera dialog ponownego logowania (`AuthService.requireLogin`). |
 | `src/app/pages/games-list/` | Lista gier + tworzenie nowej |
 | `src/app/pages/lobby/` | Lobby gry (dołączanie, start) |
-| `src/app/pages/game/` | Widok rozgrywki (rynek gemów, karty, gracze) |
+| `src/app/pages/game/` | Widok rozgrywki (rynek gemów, karty, gracze). Stan z SignalR jest renderowany dopiero po zakończeniu animacji (`receive()`); po własnych akcjach nie ma `refresh()`, stan przychodzi tylko przez SignalR. |
+| `src/app/pages/game/card/` | `CardComponent` (`app-card`): tło `assets/cards/card-<kolor>-<poziom>.webp` (rewers `card-back-<poziom>.webp`) z fallbackiem gradientem CSS; nakładka: punkty, bonus, koszt. |
+| `src/app/core/services/game-animation.service.ts` | Animacje w DOM (Web Animations API): lot karty/arystokraty do panelu gracza, kropki żetonów (pobranie, płatność), pulsowanie. Elementy po `data-snap`, `data-player-id`, `data-player-gem`, `data-market-gem`. Skip (Esc), przełącznik zapisany w `localStorage`, `whenIdle()`. |
 | `src/app/models/` | Interfejsy TS (GameView, GemCollection, Card, requests) |
 | `src/environments/environment.ts` | Konfiguracja API URL |
 
@@ -311,7 +313,8 @@ npm start
 - ETag/`304 Not Modified` dla `GET /games/{id}` i polling wersji gry.
 - Role i reguły platformy: `Caller`, `PlatformRules`, admin usuwa cudze gry, limity (max 2 aktywne i max 2 utworzone, nieukończone gry; dla roli `bot` 40 aktywnych i 20 utworzonych), walidacja wejścia przez value objecty `PlayerName` i `UserId` oraz limit body 16 KB.
 - Metadane eventów (`UserName`, `CorrelationId`) oraz sprzątanie gier: logiczne usuwanie po 48 h nieaktywności (fizyczne kasowanie wyłączone).
-- Frontend: `ToastService` (komunikaty 400 z API, „Your turn”, ruchy przeciwników z listy powiadomień wysyłanej obok `GameView` przez SignalR).
+- Frontend: `ToastService` (komunikaty 400 z API, ruchy przeciwników z listy powiadomień wysyłanej obok `GameView` przez SignalR; przy `gems_taken` z listą żetonów), toasty u góry na środku.
+- Frontend: komponent karty z obrazkami, animacje (lot karty, płatność, żetony, arystokrata), Skip/Esc i przełącznik animacji; pobranie 1-3 żetonów różnych kolorów; `getGame` obsługuje 304 jako stan z cache.
 - Nazwa gry i czas tury (30-300 s) jako pola `GameCreated`; czas tury czyta `TurnClockState`.
 - Automatyczne rozstrzyganie wygasłej tury z oczekującym zwrotem żetonów lub wyborem arystokraty (świeży deadline na fazę oczekiwania).
 - Dialog ponownego logowania przy 401 (gość, wklejony token, przeładowanie strony po zalogowaniu).

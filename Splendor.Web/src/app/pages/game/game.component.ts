@@ -134,8 +134,9 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
       const text = GameComponent.notificationTexts[n.type];
       const player = this.game?.players.find(p => p.id === n.playerId);
       if (text && player && player.id !== this.getCurrentPlayer()?.id) {
-        const gems = Object.entries(n.data?.gems ?? {}).filter(([, c]) => c > 0)
-          .map(([g, c]) => c > 1 ? `${c} ${g}` : g).join(', ');
+        const taken = (n.data?.gems ?? {}) as Record<string, number>; // also carries a computed "total"
+        const gems = this.gemTypes.filter(g => taken[g] > 0)
+          .map(g => taken[g] > 1 ? `${taken[g]} ${g}` : g).join(', ');
         this.toastService.show(`${player.name} ${text}${gems ? ': ' + gems : ''}`);
       }
     }));
