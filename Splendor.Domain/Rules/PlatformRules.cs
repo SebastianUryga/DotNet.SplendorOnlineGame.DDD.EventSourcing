@@ -7,6 +7,7 @@ public static class PlatformRules
     public const int MaxActiveGamesForBots = 40;
     public const int MaxOpenCreatedGames = 2;
     public const int MaxOpenCreatedGamesForBots = 20;
+    public const int MaxTotalCreatedGamesForGuests = 10;
     public const int DefaultTurnSeconds = 60;
     public const int MinTurnSeconds = 30;
     public const int MaxTurnSeconds = 300;
@@ -24,6 +25,10 @@ public static class PlatformRules
     public static int MaxOpenCreatedGamesFor(Caller caller) => caller.IsBot ? MaxOpenCreatedGamesForBots : MaxOpenCreatedGames;
 
     public static bool CanCreateGame(Caller caller, int openCreatedGames) => openCreatedGames < MaxOpenCreatedGamesFor(caller);
+
+    /// <summary>Guests may not create games endlessly (create + delete would never hit the open-games limit).</summary>
+    public static bool WithinTotalCreatedLimit(Caller caller, int totalCreatedGames) =>
+        !caller.IsGuest || totalCreatedGames < MaxTotalCreatedGamesForGuests;
 
     public static bool IsValidTurnDuration(int seconds) => seconds is >= MinTurnSeconds and <= MaxTurnSeconds;
 

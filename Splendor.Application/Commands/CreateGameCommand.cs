@@ -34,6 +34,9 @@ public class CreateGameCommandHandler : IRequestHandler<CreateGameCommand, Guid>
         if (!PlatformRules.CanCreateGame(command.Caller, openGames))
             throw new InvalidOperationException($"You cannot have more than {PlatformRules.MaxOpenCreatedGamesFor(command.Caller)} unfinished games.");
 
+        if (!PlatformRules.WithinTotalCreatedLimit(command.Caller, boundary.Aggregate?.TotalCreated ?? 0))
+            throw new InvalidOperationException($"Guests can create at most {PlatformRules.MaxTotalCreatedGamesForGuests} games.");
+
         if (!PlatformRules.IsValidTurnDuration(command.TurnDurationSeconds))
             throw new InvalidOperationException(
                 $"Turn duration must be {PlatformRules.MinTurnSeconds}-{PlatformRules.MaxTurnSeconds} seconds.");

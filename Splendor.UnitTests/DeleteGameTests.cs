@@ -75,6 +75,16 @@ public class DeleteGameTests
     public void BotOpenCreatedGamesLimit(int open, bool allowed) =>
         PlatformRules.CanCreateGame(Caller.User("bot-1", Caller.BotRole), open).Should().Be(allowed);
 
+    [Theory]
+    [InlineData(PlatformRules.MaxTotalCreatedGamesForGuests - 1, true)]
+    [InlineData(PlatformRules.MaxTotalCreatedGamesForGuests, false)]
+    public void GuestTotalCreatedGamesLimit(int total, bool allowed) =>
+        PlatformRules.WithinTotalCreatedLimit(Caller.User("guest-1", Caller.GuestRole), total).Should().Be(allowed);
+
+    [Fact]
+    public void TotalCreatedGamesLimitDoesNotApplyToRegisteredUsers() =>
+        PlatformRules.WithinTotalCreatedLimit(Caller.User("user-1"), 1000).Should().BeTrue();
+
     [Fact]
     public void GameIsStaleOnlyAfterStaleGameAge()
     {
