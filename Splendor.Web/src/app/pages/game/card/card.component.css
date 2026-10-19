@@ -1,0 +1,32 @@
+:host { display: block; }
+.card { position: relative; width: 7.5em; height: 10em; border-radius: .6em; overflow: hidden; display: flex;
+  flex-direction: column; justify-content: space-between; padding: .5em; box-sizing: border-box; color: #fff;
+  border: .15em solid rgba(255,255,255,.55); box-shadow: 0 .2em .6em rgba(0,0,0,.5); font-family: Georgia, serif; }
+.card.mini { font-size: 11px; }
+.card.normal { font-size: 16px; }
+.card.lg { font-size: 26px; }
+.art { position: absolute; inset: 0; background-size: cover; background-position: center; }
+.top, .cost { position: relative; display: flex; align-items: center; }
+.top { justify-content: space-between; }
+.cost { gap: .25em; flex-wrap: wrap; }
+.pts { font-size: 1.7em; font-weight: bold; text-shadow: 0 .05em .2em #000; }
+.bonus { width: 1.6em; height: 1.6em; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); border: 0; }
+.chip { width: 1.5em; height: 1.5em; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  font: bold .8em sans-serif; color: #fff; border: .12em solid rgba(255,255,255,.8); box-shadow: 0 .1em .2em rgba(0,0,0,.5); }
+.card.b-diamond { background: linear-gradient(145deg, #f5f7fa, #aab7cc); color: #223; }
+.card.b-sapphire { background: linear-gradient(145deg, #4a90e2, #1b3f78); }
+.card.b-emerald { background: linear-gradient(145deg, #2ecc71, #14613a); }
+.card.b-ruby { background: linear-gradient(145deg, #e74c3c, #7d1a10); }
+.card.b-onyx { background: linear-gradient(145deg, #55595f, #111); }
+.card.b- { background: #444; }
+.b-diamond.bonus, .b-diamond.chip { background: #fff; color: #223; }
+.b-sapphire.bonus, .b-sapphire.chip { background: #4a90e2; }
+.b-emerald.bonus, .b-emerald.chip { background: #2ecc71; }
+.b-ruby.bonus, .b-ruby.chip { background: #e74c3c; }
+.b-onyx.bonus, .b-onyx.chip { background: #333; }
+.b-.bonus { background: transparent; }
+.card.back { align-items: center; justify-content: center; border-color: #fff; }
+.card.l1 { background: linear-gradient(145deg, #2e8b57, #12402a); }
+.card.l2 { background: linear-gradient(145deg, #d4a017, #6b4f08); }
+.card.l3 { background: linear-gradient(145deg, #3a6fd8, #15296b); }
+.lvl { position: relative; font-size: 1.6em; font-weight: bold; letter-spacing: .1em; text-shadow: 0 .05em .2em #000; }

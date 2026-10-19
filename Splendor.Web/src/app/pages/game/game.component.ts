@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewChecked, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { GameService } from '../../core/services/game.service';
@@ -7,20 +7,22 @@ import { NobleView } from '../../models/noble.model';
 import { GemCollection, EMPTY_GEMS } from '../../models/gem-collection.model';
 import { Card } from '../../models/card.model';
 import { interval, Subscription, startWith } from 'rxjs';
-import { SignalRService } from '../../core/services/signalr.service';
+import { SignalRService, GameNotification } from '../../core/services/signalr.service';
 import { ToastService } from '../../core/services/toast.service';
+import { GameAnimationService } from '../../core/services/game-animation.service';
 import { ChooseNobleRequest } from '../../models/requests.model';
+import { CardComponent } from './card/card.component';
 
 
 
 @Component({
   selector: 'app-game',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, CardComponent],
   templateUrl: './game.component.html',
   styleUrls: ['./game.component.css']
 })
-export class GameComponent implements OnInit, OnDestroy {
+export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
   private static readonly notificationTexts: Record<string, string> = {
     gems_taken: 'took gems',
     card_purchased: 'bought a card',
@@ -39,36 +41,94 @@ export class GameComponent implements OnInit, OnDestroy {
   private clockSubscription?: Subscription;
   selectedCardId?: string | null = null;
   selectedCard?: Card | undefined;
+  entering = new Set<string>();
+  private recentReserved = new Map<string, string>();
 
   constructor(
     private route: ActivatedRoute,
     private gameService: GameService,
     private signalRService: SignalRService,
-    private toastService: ToastService
+    private toastService: ToastService,
+    public anim: GameAnimationService
   ) { }
+
+  @HostListener('document:keydown.escape')
+  skipAnimations(): void {
+    this.anim.skip();
+  }
+
+  ngAfterViewChecked(): void {
+    if (!this.game) return;
+    const g = this.game;
+    const reserved = g.players.map(p => (p.reservedCardIds ?? []).join(',')).join('|');
+    this.anim.snapshot([g.market1, g.market2, g.market3, g.nobles ?? []].map(a => a.join(',')).join('|') + reserved);
+  }
+
+  // All game state goes through here so market arrivals and new reservations can be diffed.
+  private setGame(view: GameView): void {
+    const prev = this.game;
+    if (prev) {
+      const old = new Set([...prev.market1, ...prev.market2, ...prev.market3]);
+      [...view.market1, ...view.market2, ...view.market3].filter(id => !old.has(id)).forEach(id => this.entering.add(id));
+      for (const p of view.players) {
+        const was = new Set(prev.players.find(x => x.id === p.id)?.reservedCardIds ?? []);
+        const added = (p.reservedCardIds ?? []).find(id => !was.has(id));
+        if (added) this.recentReserved.set(p.id, added);
+      }
+    }
+    this.game = view;
+  }
+
+  getCardLevel(id: string): number {
+    return this.gameService.getCard(id)?.level ?? 1;
+  }
+
+  private animate(n: GameNotification): void {
+    const p = n.playerId;
+    if (!p) return;
+    const d = n.data ?? {};
+    switch (n.type) {
+      case 'gems_taken':
+        this.anim.gems(d.gems as any, 'market', p);
+        break;
+      case 'card_purchased': {
+        this.anim.gems(d.paidGems as any, 'player', p);
+        if (d.cardId) this.anim.card('card:' + d.cardId, p);
+        break;
+      }
+      case 'card_reserved': { // notification has no cardId by design; the view diff tells which card it was
+        const id = this.recentReserved.get(p);
+        if (id) this.anim.card(this.anim.has('card:' + id) ? 'card:' + id : 'deck:' + this.getCardLevel(id), p);
+        break;
+      }
+      case 'noble_acquired':
+        if (d.nobleId) this.anim.card('noble:' + d.nobleId, p);
+        break;
+    }
+  }
 
   async ngOnInit(): Promise<void> {
     this.gameId = this.route.snapshot.paramMap.get('id')!;
 
-    // Connect to SignalR
-    await this.signalRService.connect();
-    await this.signalRService.joinGame(this.gameId);
+    // Load first: a slow or failing SignalR connection must not leave the view empty
+    this.refresh();
+    this.gameService.getCards().subscribe();
+    this.gameService.getNobles().subscribe();
 
     // Listen for updates
     this.signalrSubscription = this.signalRService.gameUpdated$
       .subscribe(gameView => {
-        const turnChanged = this.game && this.game.currentPlayerId !== gameView.currentPlayerId;
-        this.game = gameView;
-        if (turnChanged && this.getCurrentPlayer()?.id === gameView.currentPlayerId) {
-          this.toastService.show('Your turn');
-        }
+        this.setGame(gameView);
         this.gameService.updateGameCache(gameView);
       });
     this.signalrSubscription.add(this.signalRService.notifications$.subscribe(n => {
+      this.animate(n);
       const text = GameComponent.notificationTexts[n.type];
       const player = this.game?.players.find(p => p.id === n.playerId);
       if (text && player && player.id !== this.getCurrentPlayer()?.id) {
-        this.toastService.show(`${player.name} ${text}`);
+        const gems = Object.entries(n.data?.gems ?? {}).filter(([, c]) => c > 0)
+          .map(([g, c]) => c > 1 ? `${c} ${g}` : g).join(', ');
+        this.toastService.show(`${player.name} ${text}${gems ? ': ' + gems : ''}`);
       }
     }));
     this.clockSubscription = interval(1000).pipe(startWith(0)).subscribe(() => {
@@ -78,11 +138,8 @@ export class GameComponent implements OnInit, OnDestroy {
         : 0;
     });
 
-    // Initial load
-    this.refresh();
-    // Preload card definitions and noble definitions for UI
-    this.gameService.getCards().subscribe();
-    this.gameService.getNobles().subscribe();
+    await this.signalRService.connect();
+    await this.signalRService.joinGame(this.gameId);
   }
 
   viewCard(cardId: string): void {
@@ -161,8 +218,8 @@ export class GameComponent implements OnInit, OnDestroy {
     const total = counts.reduce((a, b) => a + b, 0);
     const distinct = this.gemTypesExcludeGold.filter(t => this.selectedGems[t] > 0).length;
 
-    // Rule 1: 3 different gems
-    if (total === 3 && distinct === 3) return true;
+    // Rule 1: up to 3 gems, all different colors (fewer than 3 is allowed)
+    if (total >= 1 && total <= 3 && distinct === total) return true;
 
     // Rule 2: 2 same gems (if >= 4 available in market)
     const doubleType = this.gemTypesExcludeGold.find(t => this.selectedGems[t] === 2);
@@ -314,6 +371,6 @@ export class GameComponent implements OnInit, OnDestroy {
   }
 
   refresh(): void {
-    this.gameService.getGame(this.gameId).subscribe(game => this.game = game);
+    this.gameService.getGame(this.gameId).subscribe(game => this.setGame(game));
   }
 }

@@ -39,25 +39,20 @@
 .btn-reset { background: transparent; border: 1px solid #555; color: #aaa; padding: 12px 20px; border-radius: 10px; cursor: pointer; }
 
 /* Card Market */
-.market-level { margin-bottom: 40px; }
+.market-level { margin-bottom: 16px; }
 .level-header { display: flex; align-items: baseline; gap: 15px; margin-bottom: 15px; }
 .deck-count { font-size: 0.85em; opacity: 0.5; }
 .cards-row { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 20px; }
 .card-item { display: flex; flex-direction: column; gap: 10px; transition: transform 0.2s; }
 .card-item:hover { transform: scale(1.02); }
-.card { width: 120px; height: 160px; background: #fff; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; border: 3px solid #ccc; color: #333; }
-.card-top { display: flex; justify-content: space-between; align-items: center; }
 .points { font-size: 1.6em; font-weight: bold; font-family: 'Georgia', serif; }
-.bonus-icon { width: 25px; height: 25px; border-radius: 6px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1); }
-.bonus-icon.diamond { background: #eee; border: 1px solid #ccc; }
-.bonus-icon.sapphire { background: #4a90e2; }
-.bonus-icon.emerald { background: #2ecc71; }
-.bonus-icon.ruby { background: #e74c3c; }
-.bonus-icon.onyx { background: #333; }
 
-.card-cost { margin-top: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.cost-token { display: flex; align-items: center; gap: 4px; font-weight: bold; font-size: 0.85em; }
-.dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.1); }
+/* Animations */
+.card-enter { animation: card-enter 0.9s 1.2s ease-out both; }
+@keyframes card-enter { from { opacity: 0; transform: translateY(-24px) scale(0.9); } to { opacity: 1; transform: none; } }
+.no-anim * { animation: none !important; transition: none !important; }
+.anim-controls { position: fixed; right: 16px; bottom: 16px; z-index: 1100; display: flex; gap: 8px; background: rgba(0,0,0,0.7); padding: 6px; border-radius: 8px; }
+@media (prefers-reduced-motion: reduce) { .card-enter { animation: none; } }
 
 .btn-buy { background: #333; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; }
 
@@ -68,14 +63,10 @@
 .player-reserved { margin-top: 12px; }
 .reserved-row { display: flex; gap: 10px; margin-top: 8px; }
 .reserved-card { display: flex; flex-direction: column; align-items: center; gap: 6px; background: rgba(255,255,255,0.03); padding: 8px; border-radius: 8px; }
-.card-mini { width: 90px; height: 120px; background: #fff; border-radius: 8px; padding: 6px; display:flex; flex-direction: column; color: #333; border: 2px solid #ccc; }
-.card-cost-mini { display:flex; gap:6px; margin-top:auto; flex-wrap:wrap; }
-.cost-dot { width:18px; height:18px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:0.75em; color:#fff; }
+.deck-item { align-items: center; }
 
-.card-preview-overlay { position: fixed; left: 0; top: 0; right: 0; bottom: 0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.6); }
-.card-preview { width: 320px; background: #fff; color: #333; border-radius: 12px; padding: 20px; }
-.card-preview .card-top { display:flex; justify-content:space-between; align-items:center; }
-.card-preview .card-cost { display:flex; gap:10px; margin-top:12px; }
+.card-preview-overlay { position: fixed; left: 0; top: 0; right: 0; bottom: 0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.6); z-index: 1200; }
+.card-preview { display: flex; flex-direction: column; align-items: center; gap: 16px; }
 
 /* Shared colors for mini-gems and dots */
 .diamond { background: #fff !important; color: #333 !important; }

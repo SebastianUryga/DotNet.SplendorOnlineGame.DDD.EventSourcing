@@ -1,31 +1,22 @@
-<div class="game-container" *ngIf="game" data-testid="game-container">
+<div class="game-container" *ngIf="game" data-testid="game-container" [class.no-anim]="!anim.enabled">
+  <div class="anim-controls">
+    <button class="btn-small" *ngIf="anim.running > 0" (click)="anim.skip()" data-testid="skip-animation-btn">Skip (Esc)</button>
+    <button class="btn-small" (click)="anim.toggle()" data-testid="toggle-animations-btn">Animations: {{ anim.enabled ? 'on' : 'off' }}</button>
+  </div>
   <!-- Sidebar: Players -->
   <div class="players-sidebar">
     <h2 class="sidebar-title">Players</h2>
-    <div *ngFor="let p of game.players" class="player-card" [class.active]="p.id === game.currentPlayerId">
+    <div *ngFor="let p of game.players" class="player-card" [class.active]="p.id === game.currentPlayerId" [attr.data-player-id]="p.id">
       <div class="player-header">
         <h4>{{ p.name }}</h4>
         <span class="score">{{ calculatePoints(p) }} pts</span>
       </div>
 
       <!-- Card preview modal -->
-      <div *ngIf="selectedCard" class="card-preview-overlay" (click)="selectedCard = undefined; selectedCardId = null">
+      <div *ngIf="selectedCard && selectedCardId" class="card-preview-overlay" (click)="selectedCard = undefined; selectedCardId = null">
         <div class="card-preview" (click)="$event.stopPropagation()">
-          <div class="card-top">
-            <div>
-              <div class="bonus-icon" [class]="selectedCard.bonusType"></div>
-              <h3>{{ selectedCard.prestigePoints }} pts</h3>
-            </div>
-            <button class="btn-small" (click)="selectedCard = undefined; selectedCardId = null">Close</button>
-          </div>
-          <div class="card-cost">
-            <ng-container *ngFor="let c of gemTypesExcludeGold">
-              <div *ngIf="getCardCostValue(selectedCardId || '', c) > 0" class="cost-token">
-                <span class="dot" [class]="c"></span>
-                {{ getCardCostValue(selectedCardId || '', c) }}
-              </div>
-            </ng-container>
-          </div>
+          <app-card size="lg" [bonus]="getCardBonus(selectedCardId)" [points]="getCardPoints(selectedCardId)" [cost]="getCardCost(selectedCardId)" [level]="getCardLevel(selectedCardId)"></app-card>
+          <button class="btn-small" (click)="selectedCard = undefined; selectedCardId = null">Close</button>
         </div>
       </div>
       <!-- Player-owned nobles -->
@@ -46,7 +37,7 @@
       </div>
 
       <div class="mini-gems">
-        <div *ngFor="let g of gemTypes" class="mini-gem" [class]="g">
+        <div *ngFor="let g of gemTypes" class="mini-gem" [class]="g" [attr.data-player-gem]="g">
           {{ getPlayerGemCount(p, g) }}
         </div>
         <span class="mini-gem">Total: {{ getPlayerTotalGems(p) }}</span>
@@ -70,19 +61,7 @@
         <h5 class="subheading">Reserved</h5>
         <div class="reserved-row">
           <div *ngFor="let cardId of p.reservedCardIds" class="reserved-card">
-            <div class="card-mini">
-              <div class="card-top">
-                <div class="bonus-icon" [class]="getCardBonus(cardId)"></div>
-                <span class="points" *ngIf="getCardPoints(cardId)">{{ getCardPoints(cardId) }}</span>
-              </div>
-              <div class="card-cost-mini">
-                <ng-container *ngFor="let c of gemTypesExcludeGold">
-                  <span class="cost-dot" *ngIf="getCardCostValue(cardId, c) > 0" [class]="c">
-                    {{ getCardCostValue(cardId, c) }}
-                  </span>
-                </ng-container>
-              </div>
-            </div>
+            <app-card size="mini" [attr.data-snap]="'card:' + cardId" [bonus]="getCardBonus(cardId)" [points]="getCardPoints(cardId)" [cost]="getCardCost(cardId)" [level]="getCardLevel(cardId)"></app-card>
             <div style="display:flex;gap:6px;">
               <button class="btn-small" (click)="viewCard(cardId)">View</button>
               <button *ngIf="p.id === game.currentPlayerId" class="btn-small" (click)="buyCard(cardId)" [disabled]="!canBuyCard(cardId) || game.isGemReturnPending">Buy</button>
@@ -107,7 +86,7 @@
     <div *ngIf="getAvailableNobles()?.length" class="nobles-bar">
       <h3>Nobles</h3>
       <div class="nobles-row">
-        <div *ngFor="let n of getAvailableNobles()" class="noble-card">
+        <div *ngFor="let n of getAvailableNobles()" class="noble-card" [attr.data-snap]="'noble:' + n.id">
           <div class="noble-top">
             <h4>{{ 'Noble ' }}</h4>
             <span class="points">{{ n.prestigePoints }} pts</span>
@@ -140,7 +119,7 @@
       <h3>Gem Market</h3>
       <div class="gems-row">
         <div *ngFor="let g of gemTypes" class="market-gem">
-          <div class="gem-token" [class]="g">
+          <div class="gem-token" [class]="g" [attr.data-market-gem]="g">
             <span class="market-count">{{ getMarketGemCount(g) }}</span>
           </div>
           <div class="selection-controls" *ngIf="g !== 'gold'">
@@ -160,27 +139,14 @@
     <!-- Card Market -->
     <div class="card-market">
       <div *ngFor="let level of [3, 2, 1]" class="market-level">
-        <div class="level-header">
-          <h4>Level {{ level }}</h4>
-          <span class="deck-count">{{ getDeckCount(level) }} in deck</span>
-          <button (click)="reserveCard(null, level)" class="btn-reserve" [disabled]="getDeckCount(level) === 0 || game.isGemReturnPending" data-testid="reserve-deck-card-btn">Reserve from deck</button>
-        </div>
         <div class="cards-row">
-          <div *ngFor="let cardId of getMarketCards(level)" class="card-item">
-            <div class="card">
-              <div class="card-top">
-                <span class="points" *ngIf="getCardPoints(cardId) > 0">{{ getCardPoints(cardId) }}</span>
-                <div class="bonus-icon" [class]="getCardBonus(cardId)"></div>
-              </div>
-              <div class="card-cost">
-                <ng-container *ngFor="let c of gemTypesExcludeGold">
-                  <div class="cost-token" *ngIf="getCardCostValue(cardId, c) > 0">
-                    <span class="dot" [class]="c"></span>
-                    {{ getCardCostValue(cardId, c) }}
-                  </div>
-                </ng-container>
-              </div>
-            </div>
+          <div class="card-item deck-item">
+            <app-card [faceDown]="true" [level]="level" [attr.data-snap]="'deck:' + level"></app-card>
+            <span class="deck-count">Level {{ level }} · {{ getDeckCount(level) }} in deck</span>
+            <button (click)="reserveCard(null, level)" class="btn-reserve" [disabled]="getDeckCount(level) === 0 || game.isGemReturnPending" data-testid="reserve-deck-card-btn">Reserve from deck</button>
+          </div>
+          <div *ngFor="let cardId of getMarketCards(level)" class="card-item" [class.card-enter]="entering.has(cardId)">
+            <app-card [attr.data-snap]="'card:' + cardId" [bonus]="getCardBonus(cardId)" [points]="getCardPoints(cardId)" [cost]="getCardCost(cardId)" [level]="level"></app-card>
             <div class="card-actions">
               <button (click)="buyCard(cardId)" class="btn-buy" [disabled]="!canBuyCard(cardId) || game.isGemReturnPending" data-testid="buy-card-btn">Purchase</button>
               <button (click)="reserveCard(cardId)" class="btn-reserve" data-testid="reserve-card-btn">Reserve</button>

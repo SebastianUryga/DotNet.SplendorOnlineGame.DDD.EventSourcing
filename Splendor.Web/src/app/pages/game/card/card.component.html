@@ -1,0 +1,13 @@
+<div class="card" [ngClass]="[size, faceDown ? 'back l' + level : 'b-' + bonus]">
+  <div class="art" [style.background-image]="img"></div>
+  <ng-container *ngIf="!faceDown">
+    <div class="top">
+      <span class="pts">{{ points > 0 ? points : '' }}</span>
+      <span class="bonus" [ngClass]="'b-' + bonus"></span>
+    </div>
+    <div class="cost">
+      <span class="chip" *ngFor="let c of costs; trackBy: byType" [ngClass]="'b-' + c.type">{{ c.n }}</span>
+    </div>
+  </ng-container>
+  <span class="lvl" *ngIf="faceDown">{{ 'I'.repeat(level) }}</span>
+</div>
