@@ -64,9 +64,13 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.anim.snapshot([g.market1, g.market2, g.market3, g.nobles ?? []].map(a => a.join(',')).join('|') + reserved);
   }
 
-  // All game state goes through here so market arrivals and new reservations can be diffed.
-  private setGame(view: GameView): void {
-    const prev = this.game;
+  private latest: GameView | null = null;
+  private pending: GameView | null = null;
+
+  // Every incoming state goes through here. Diffs (new market cards, new reservations) run on arrival because
+  // notifications are handled right after; rendering waits until running animations finish.
+  private receive(view: GameView): void {
+    const prev = this.latest;
     if (prev) {
       const old = new Set([...prev.market1, ...prev.market2, ...prev.market3]);
       [...view.market1, ...view.market2, ...view.market3].filter(id => !old.has(id)).forEach(id => this.entering.add(id));
@@ -76,7 +80,11 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
         if (added) this.recentReserved.set(p.id, added);
       }
     }
-    this.game = view;
+    this.latest = this.pending = view;
+    Promise.resolve().then(() => this.anim.whenIdle()).then(() => {
+      if (this.pending) this.game = this.pending;
+      this.pending = null;
+    });
   }
 
   getCardLevel(id: string): number {
@@ -118,7 +126,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
     // Listen for updates
     this.signalrSubscription = this.signalRService.gameUpdated$
       .subscribe(gameView => {
-        this.setGame(gameView);
+        this.receive(gameView);
         this.gameService.updateGameCache(gameView);
       });
     this.signalrSubscription.add(this.signalRService.notifications$.subscribe(n => {
@@ -238,7 +246,6 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
     };
     this.gameService.takeGems(this.gameId, req).subscribe(() => {
       this.resetSelection();
-      this.refresh();
     });
   }
 
@@ -323,7 +330,6 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
     };
     this.gameService.resolveGemLimit(this.gameId, req).subscribe(() => {
       this.resetSelection();
-      this.refresh();
     });
   }
 
@@ -332,9 +338,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
       playerId: this.game?.currentPlayerId || '',
       nobleId: nobleId
     };
-    this.gameService.chooseNoble(this.gameId, req).subscribe(() => {
-      this.refresh();
-    });
+    this.gameService.chooseNoble(this.gameId, req).subscribe();
   }
 
   calculatePoints(p: PlayerView): number {
@@ -354,9 +358,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
       playerId: this.game?.currentPlayerId || '',
       cardId: cardId
     };
-    this.gameService.buyCard(this.gameId, req).subscribe(() => {
-      this.refresh();
-    });
+    this.gameService.buyCard(this.gameId, req).subscribe();
   }
 
   reserveCard(cardId: string | null, level: number | null = null): void {
@@ -365,12 +367,10 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
       cardId,
       level
     };
-    this.gameService.reserveCard(this.gameId, req).subscribe(() => {
-      this.refresh();
-    });
+    this.gameService.reserveCard(this.gameId, req).subscribe();
   }
 
   refresh(): void {
-    this.gameService.getGame(this.gameId).subscribe(game => this.setGame(game));
+    this.gameService.getGame(this.gameId).subscribe(game => this.receive(game));
   }
 }

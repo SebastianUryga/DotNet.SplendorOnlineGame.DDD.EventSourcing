@@ -17,6 +17,7 @@ interface Snap { rect: DOMRect; node: HTMLElement; }
 export class GameAnimationService {
   enabled = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   private active = new Set<Animation>();
+  private waiters: (() => void)[] = [];
   private key = '';
   private prev = new Map<string, Snap>();
   private cur = new Map<string, Snap>();
@@ -29,6 +30,11 @@ export class GameAnimationService {
   }
 
   get running(): number { return this.active.size; }
+
+  // Resolves once no animation is running (immediately when idle).
+  whenIdle(): Promise<void> {
+    return this.active.size ? new Promise(resolve => this.waiters.push(resolve)) : Promise.resolve();
+  }
 
   toggle(): void {
     this.enabled = !this.enabled;
@@ -128,6 +134,7 @@ export class GameAnimationService {
       this.active.delete(a);
       el.remove();
       onEnd?.();
+      if (!this.active.size) this.waiters.splice(0).forEach(resolve => resolve());
     });
     a.onfinish = done;
     a.oncancel = done;

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, tap, of } from 'rxjs';
+import { Observable, map, tap, of, catchError, throwError } from 'rxjs';
 import { GameSummary, GameView } from '../../models/game-view.model';
 import { NobleView } from '../../models/noble.model';
 import { BuyCardRequest, JoinGameRequest, TakeGemsRequest, ResolveGemLimitRequest, ReserveCardRequest, ChooseNobleRequest, InvitePlayerRequest } from '../../models/requests.model';
@@ -85,10 +85,8 @@ export class GameService {
                 }
                 throw new Error('Unexpected empty response from server');
             }),
-            // Catch 304 which might be treated as an error depending on HttpClient config/interceptors,
-            // though usually it's a success if observed as response. 
-            // If it comes through as error (e.g. by an interceptor), we'd handle it here:
-            // catchError(err => err.status === 304 && cachedGame ? of(cachedGame) : throwError(() => err))
+            // A manually set If-None-Match makes the browser pass 304 through and HttpClient treats it as an error
+            catchError(err => err.status === 304 && cachedGame ? of(cachedGame) : throwError(() => err))
         );
     }
 
