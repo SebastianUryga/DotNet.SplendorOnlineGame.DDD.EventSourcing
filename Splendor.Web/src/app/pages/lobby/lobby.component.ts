@@ -61,6 +61,13 @@ export class LobbyComponent implements OnInit, OnDestroy {
         });
     }
 
+    leave(playerId: string): void {
+        this.gameService.leaveGame(this.gameId, playerId).subscribe(() => {
+            this.isJoined = false;
+            this.refresh();
+        });
+    }
+
     start(): void {
         this.gameService.startGame(this.gameId).subscribe(() => {
             this.router.navigate(['/games', this.gameId, 'play']);

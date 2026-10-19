@@ -12,6 +12,7 @@
       <li *ngFor="let player of game.players">
         <span class="player-name" data-testid="player-name">{{ player.name }}</span>
         <span class="player-id">{{ player.id }}</span>
+        <button *ngIf="game.status === 'Created'" (click)="leave(player.id)" class="btn-back" data-testid="leave-btn">Leave</button>
       </li>
     </ul>
   </div>

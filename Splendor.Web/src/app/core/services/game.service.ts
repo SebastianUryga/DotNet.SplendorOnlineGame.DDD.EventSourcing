@@ -94,6 +94,10 @@ export class GameService {
         return this.http.post<void>(`${this.gamesUrl}/${id}/players`, { name });
     }
 
+    leaveGame(id: string, playerId: string): Observable<void> {
+        return this.http.delete<void>(`${this.gamesUrl}/${id}/players/${encodeURIComponent(playerId)}`);
+    }
+
     startGame(id: string): Observable<void> {
         return this.http.post<void>(`${this.gamesUrl}/${id}/start`, {});
     }
