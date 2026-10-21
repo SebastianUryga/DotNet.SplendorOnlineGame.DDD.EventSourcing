@@ -31,6 +31,8 @@ export interface GameView {
     nobles?: string[];
     playerIdAwaitingNobleSelection?: string;
     eligibleNobleIds?: string[];
+    winnerId?: string;
+    winnerName?: string;
 }
 
 export interface GameSummary {

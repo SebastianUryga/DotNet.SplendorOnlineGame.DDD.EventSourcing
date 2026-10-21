@@ -230,7 +230,6 @@ record GemCollection(int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx,
 | GET | `/games` | Lista gier: max 100 ostatnio zmienionych (`PlatformRules.MaxListedGames`); `includeDeleted` tylko dla admina |
 | POST | `/games` | Tworzenie gry (opcjonalne `name` 1-40 znaków i `turnDurationSeconds` 30-300) |
 | GET | `/games/{id}` | Aktualny stan gry |
-| GET | `/games/{id}/history` | Historia zdarzeń gry |
 | DELETE | `/games/{id}` | Usuwanie gry (tylko twórca) |
 | POST | `/games/{id}/players` | Dołączanie gracza |
 | DELETE | `/games/{id}/players/{playerId}` | Opuszczanie lobby |

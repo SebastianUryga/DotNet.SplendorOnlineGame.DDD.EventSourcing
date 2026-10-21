@@ -342,6 +342,18 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.gameService.chooseNoble(this.gameId, req).subscribe();
   }
 
+  endDismissed = false;
+
+  isFinished(): boolean {
+    return this.game?.status?.toLowerCase() === 'finished';
+  }
+
+  // Same tie-break as the backend: more points, then fewer purchased cards
+  getStandings(): PlayerView[] {
+    return [...(this.game?.players ?? [])].sort((a, b) =>
+      this.calculatePoints(b) - this.calculatePoints(a) || a.ownedCardIds.length - b.ownedCardIds.length);
+  }
+
   calculatePoints(p: PlayerView): number {
     return p.ownedCardIds.reduce((sum, id) => sum + this.getCardPoints(id), 0) + this.getNoblesForPlayer(p).reduce((sum, e) => sum + e.prestigePoints, 0);
   }

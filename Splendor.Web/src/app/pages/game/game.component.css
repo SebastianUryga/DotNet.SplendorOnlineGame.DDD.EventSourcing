@@ -87,3 +87,16 @@
 .noble-mini { background: #111; padding:8px; border-radius:8px; display:flex; flex-direction:column; align-items:center; min-width:70px; border:1px solid #222; }
 .noble-mini .req-dot { width:16px; height:16px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:0.7em; color:#fff; }
 .btn-select-noble {  background: #3498db;  color: white;  border: none;  padding: 6px 12px;  border-radius: 6px;  cursor: pointer;  font-weight: bold; }
+
+/* Game over */
+.end-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.75); z-index: 1300; animation: end-fade 0.5s ease-out; }
+.end-panel { background: #1a1a1a; border: 1px solid #f1c40f; border-radius: 20px; padding: 36px 48px; text-align: center; box-shadow: 0 0 40px rgba(241, 196, 15, 0.25); animation: end-pop 0.5s ease-out; }
+.end-panel h2 { font-size: 2.2em; color: #f1c40f; margin: 0 0 24px; }
+.end-table { margin: 0 auto 28px; border-collapse: collapse; min-width: 320px; }
+.end-table th, .end-table td { padding: 8px 16px; text-align: left; border-bottom: 1px solid #333; }
+.end-table th { opacity: 0.6; font-size: 0.85em; text-transform: uppercase; }
+.end-table tr.winner td { color: #f1c40f; font-weight: bold; }
+.end-actions { display: flex; gap: 15px; justify-content: center; }
+@keyframes end-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes end-pop { from { transform: scale(0.85); } to { transform: scale(1); } }
+.no-anim .end-overlay, .no-anim .end-panel { animation: none; }

@@ -1,4 +1,19 @@
 <div class="game-container" *ngIf="game" data-testid="game-container" [class.no-anim]="!anim.enabled">
+  <div *ngIf="isFinished() && !endDismissed" class="end-overlay" data-testid="game-over-overlay">
+    <div class="end-panel">
+      <h2 data-testid="winner-title">{{ game.winnerName }} wins!</h2>
+      <table class="end-table">
+        <tr><th>#</th><th>Player</th><th>Pts</th><th>Cards</th></tr>
+        <tr *ngFor="let p of getStandings(); let i = index" [class.winner]="p.id === game.winnerId">
+          <td>{{ i + 1 }}</td><td>{{ p.name }}</td><td>{{ calculatePoints(p) }}</td><td>{{ p.ownedCardIds.length }}</td>
+        </tr>
+      </table>
+      <div class="end-actions">
+        <button class="btn-action" (click)="endDismissed = true" data-testid="view-board-btn">View board</button>
+        <button class="btn-reset" [routerLink]="['/games']" data-testid="back-to-games-btn">Back to games</button>
+      </div>
+    </div>
+  </div>
   <div class="anim-controls">
     <button class="btn-small" *ngIf="anim.running > 0" (click)="anim.skip()" data-testid="skip-animation-btn">Skip (Esc)</button>
     <button class="btn-small" (click)="anim.toggle()" data-testid="toggle-animations-btn">Animations: {{ anim.enabled ? 'on' : 'off' }}</button>
