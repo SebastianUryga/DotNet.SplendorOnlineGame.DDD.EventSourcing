@@ -52,7 +52,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 | Plik | Opis |
 |------|------|
 | `Domain/Rules/SplendorRules.cs` | Czyste reguły domenowe: bonusy, punkty prestiżu, wymagania arystokratów, walidacja żetonów, płatność za karty, limit rezerwacji, wybór zwycięzcy, limit żetonów (`MaxPlayerGems`), próg końca gry (`EndGamePrestigePoints`) i automatyczny wybór żetonów do zwrotu (`ChooseGemsToReturn`). |
-| `Domain/Rules/PlatformRules.cs` | Reguły platformy (nie gry): kto usuwa grę (twórca lub admin), limity aktywnych (2, dla roli `bot` 40) i utworzonych (2, dla `bot` 20) gier, wiek nieaktywnej gry, granice czasu tury (domyślnie 60 s, 30-300 s). |
+| `Domain/Rules/PlatformRules.cs` | Reguły platformy (nie gry): kto usuwa grę (twórca lub admin), limity aktywnych (2, dla roli `bot` 40) i utworzonych (2, dla `bot` 20) gier, łączny limit utworzonych gier dla gościa (10, `WithinTotalCreatedLimit`; liczy też usunięte i zakończone), wiek nieaktywnej gry, granice czasu tury (domyślnie 60 s, 30-300 s). |
 | `Domain/Rules/Caller.cs` | Kto wywołuje komendę: `UserId` (value object) i role (`admin`, `guest`, `bot`); `Caller.System` dla zadań w tle. |
 | `Domain/Events/GameEvents.cs` | Zdarzenia domenowe: utworzenie i rozpoczęcie gry, tury, żetony, przekroczenie i rozwiązanie limitu żetonów, zakup/rezerwacja/odsłonięcie kart, arystokraci, zakończenie i usunięcie gry. `GameCreated` niesie opcjonalne `Name` i `TurnDurationSeconds` (domyślnie 60). |
 | `Domain/Entities/Player.cs` | Gracz: identyfikatory, nazwa, żetony, kupione i zarezerwowane karty oraz zdobyci arystokraci. |
@@ -86,7 +86,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 | `Application/Behaviors/CommandMetricsBehavior.cs` | MediatR pipeline behavior mierzący czas, aktywne i zakończone operacje. |
 | `Application/Behaviors/EventMetadataBehavior.cs` | Ustawia na sesji Martena `UserName` (z `Caller`, `system` dla komend ze schedulera) i `CorrelationId` zapisywane w metadanych eventów. |
 | `Application/Events/EventTagger.cs` | Jedyne miejsce tagowania eventów (`GameTag`, `PlayerOwnerTag`, `GameCreatorTag`); `GameDeleted`/`GameFinished` dostają twórcę z `state.GameCreatorId`. |
-| `Application/DecisionStates/CreateGameDecisionState.cs` | Granica DCB limitu utworzonych gier (po `GameCreatorTag`). |
+| `Application/DecisionStates/CreateGameDecisionState.cs` | Granica DCB limitu utworzonych gier (po `GameCreatorTag`): `OpenGameIds` (otwarte) i `TotalCreated` (wszystkie kiedykolwiek, dla limitu gościa). |
 
 ### Infrastructure Layer
 | Plik | Opis |
@@ -174,7 +174,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 | `src/app/core/interceptors/auth.interceptor.ts` | Dodaje Bearer token do requestów |
 | `src/app/core/interceptors/error.interceptor.ts` | Toast dla 400; 401 otwiera dialog ponownego logowania (`AuthService.requireLogin`). |
 | `src/app/pages/games-list/` | Lista gier + tworzenie nowej |
-| `src/app/pages/lobby/` | Lobby gry (dołączanie, start) |
+| `src/app/pages/lobby/` | Lobby gry (dołączanie, start, przycisk Leave przy graczach; o możliwości wyjścia decyduje backend, błąd wraca jako toast) |
 | `src/app/pages/game/` | Widok rozgrywki (rynek gemów, karty, gracze). Stan z SignalR jest renderowany dopiero po zakończeniu animacji (`receive()`); po własnych akcjach nie ma `refresh()`, stan przychodzi tylko przez SignalR. |
 | `src/app/pages/game/card/` | `CardComponent` (`app-card`): tło `assets/cards/card-<kolor>-<poziom>.webp` (rewers `card-back-<poziom>.webp`) z fallbackiem gradientem CSS; nakładka: punkty, bonus, koszt. |
 | `src/app/core/services/game-animation.service.ts` | Animacje w DOM (Web Animations API): lot karty/arystokraty do panelu gracza, kropki żetonów (pobranie, płatność), pulsowanie. Elementy po `data-snap`, `data-player-id`, `data-player-gem`, `data-market-gem`. Skip (Esc), przełącznik zapisany w `localStorage`, `whenIdle()`. |
@@ -241,7 +241,6 @@ record GemCollection(int Diamond, int Sapphire, int Emerald, int Ruby, int Onyx,
 | POST | `/games/{id}/actions/buy-card` | Kupowanie karty |
 | POST | `/games/{id}/actions/reserve-card` | Rezerwacja karty |
 | POST | `/games/{id}/actions/choose-noble` | Wybór arystokraty |
-| GET | `/games/{id}/available-actions` | Akcje dostępne dla aktywnego gracza |
 | GET | `/games/{id}/version` | Wersja gry |
 | GET | `/cards` | Definicje kart |
 | GET | `/nobles` | Definicje arystokratów |
@@ -315,6 +314,7 @@ npm start
 - Metadane eventów (`UserName`, `CorrelationId`) oraz sprzątanie gier: logiczne usuwanie po 48 h nieaktywności (fizyczne kasowanie wyłączone).
 - Frontend: `ToastService` (komunikaty 400 z API, ruchy przeciwników z listy powiadomień wysyłanej obok `GameView` przez SignalR; przy `gems_taken` z listą żetonów), toasty u góry na środku.
 - Frontend: komponent karty z obrazkami, animacje (lot karty, płatność, żetony, arystokrata), Skip/Esc i przełącznik animacji; pobranie 1-3 żetonów różnych kolorów; `getGame` obsługuje 304 jako stan z cache.
+- Limit 10 utworzonych gier łącznie dla gościa (create + delete nie omija limitu otwartych gier) oraz opuszczanie lobby z frontu.
 - Nazwa gry i czas tury (30-300 s) jako pola `GameCreated`; czas tury czyta `TurnClockState`.
 - Automatyczne rozstrzyganie wygasłej tury z oczekującym zwrotem żetonów lub wyborem arystokraty (świeży deadline na fazę oczekiwania).
 - Dialog ponownego logowania przy 401 (gość, wklejony token, przeładowanie strony po zalogowaniu).
