@@ -5,6 +5,8 @@
 > [!NOTE]
 > **Status:** Playable Splendor implementation with a complete core ruleset. The wider game platform remains under active development.
 
+![Gameplay: taking gems, reserving and buying a card](docs/gameplay.gif)
+
 ## Live Demo
 
 **[Play online](https://splendoronlinegame-web.onrender.com)**: click **Play as guest**, create a game and use **Add bot** to get an opponent.
@@ -46,9 +48,6 @@ flowchart LR
 
 ### Game Lobby
 ![Game Lobby](docs/screenshots/lobby.png)
-
-### Gameplay
-![Gameplay](docs/screenshots/gameplay.png)
 
 ## Project Goals & Context
 
