@@ -313,6 +313,7 @@ npm start
 - Metadane eventów (`UserName`, `CorrelationId`) oraz sprzątanie gier: logiczne usuwanie po 48 h nieaktywności (fizyczne kasowanie wyłączone).
 - Frontend: `ToastService` (komunikaty 400 z API, ruchy przeciwników z listy powiadomień wysyłanej obok `GameView` przez SignalR; przy `gems_taken` z listą żetonów), toasty u góry na środku.
 - Frontend: komponent karty z obrazkami, animacje (lot karty, płatność, żetony, arystokrata), Skip/Esc i przełącznik animacji; pobranie 1-3 żetonów różnych kolorów; `getGame` obsługuje 304 jako stan z cache.
+- Frontend: przycisk "Replay last move" (`lastMove` = stan sprzed ruchu + powiadomienia; `replayLastMove()` renderuje stary stan i puszcza te same animacje, Esc kończy powtórkę).
 - Frontend: ekran końca gry (overlay ze zwycięzcą i tabelą końcową; `data-testid`: `game-over-overlay`, `winner-title`, `view-board-btn`, `back-to-games-btn`).
 - Limit 10 utworzonych gier łącznie dla gościa (create + delete nie omija limitu otwartych gier) oraz opuszczanie lobby z frontu.
 - Nazwa gry i czas tury (30-300 s) jako pola `GameCreated`; czas tury czyta `TurnClockState`.

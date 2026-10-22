@@ -16,6 +16,7 @@
   </div>
   <div class="anim-controls">
     <button class="btn-small" *ngIf="anim.running > 0" (click)="anim.skip()" data-testid="skip-animation-btn">Skip (Esc)</button>
+    <button class="btn-small" *ngIf="lastMove?.notes?.length && anim.enabled && anim.running === 0" (click)="replayLastMove()" data-testid="replay-move-btn">Replay last move</button>
     <button class="btn-small" (click)="anim.toggle()" data-testid="toggle-animations-btn">Animations: {{ anim.enabled ? 'on' : 'off' }}</button>
   </div>
   <!-- Sidebar: Players -->

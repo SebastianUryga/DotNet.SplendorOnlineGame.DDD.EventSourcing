@@ -66,12 +66,14 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   private latest: GameView | null = null;
   private pending: GameView | null = null;
+  lastMove: { before: GameView; notes: GameNotification[] } | null = null;
 
   // Every incoming state goes through here. Diffs (new market cards, new reservations) run on arrival because
   // notifications are handled right after; rendering waits until running animations finish.
   private receive(view: GameView): void {
     const prev = this.latest;
     if (prev) {
+      if (view.version !== prev.version) this.lastMove = { before: prev, notes: [] };
       const old = new Set([...prev.market1, ...prev.market2, ...prev.market3]);
       [...view.market1, ...view.market2, ...view.market3].filter(id => !old.has(id)).forEach(id => this.entering.add(id));
       for (const p of view.players) {
@@ -85,6 +87,17 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
       if (this.pending) this.game = this.pending;
       this.pending = null;
     });
+  }
+
+  // Renders the state from before the last move and plays its animations again; Esc (anim.skip) ends it early
+  async replayLastMove(): Promise<void> {
+    const move = this.lastMove;
+    if (!move || this.anim.running > 0) return;
+    this.game = move.before;
+    await new Promise(resolve => setTimeout(resolve));
+    move.notes.forEach(n => this.animate(n));
+    await this.anim.whenIdle();
+    this.game = this.latest;
   }
 
   getCardLevel(id: string): number {
@@ -131,6 +144,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
       });
     this.signalrSubscription.add(this.signalRService.notifications$.subscribe(n => {
       this.animate(n);
+      this.lastMove?.notes.push(n);
       const text = GameComponent.notificationTexts[n.type];
       const player = this.game?.players.find(p => p.id === n.playerId);
       if (text && player && player.id !== this.getCurrentPlayer()?.id) {
