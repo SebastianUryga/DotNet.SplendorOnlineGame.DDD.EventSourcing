@@ -17,17 +17,16 @@ public class BotGameMembershipHandler : IBotGameMembershipHandler
         _logger = logger;
     }
 
-    private static bool IsInvitedBot(string? eventData, string botUserId)
-    {
-        if (string.IsNullOrEmpty(eventData)) return false;
-        using var document = JsonDocument.Parse(eventData);
-        return document.RootElement.TryGetProperty("InviteeId", out var invitee) && invitee.GetString() == botUserId;
-    }
+    private record Invitation(string? InviterId, string? InviteeId);
+
+    private static Invitation? ReadInvitation(string? eventData) =>
+        string.IsNullOrEmpty(eventData) ? null : JsonSerializer.Deserialize<Invitation>(eventData);
 
     public async Task HandleInvitationAsync(Guid gameId, string? eventData, CancellationToken cancellationToken)
     {
         var botUserId = await _accessTokenProvider.GetUserIdAsync(cancellationToken);
-        if (!IsInvitedBot(eventData, botUserId))
+        var invitation = ReadInvitation(eventData);
+        if (invitation?.InviteeId != botUserId)
         {
             return;
         }
@@ -42,10 +41,15 @@ public class BotGameMembershipHandler : IBotGameMembershipHandler
 
         if (game.Status == "Created" && !game.Players.Any(p => p.OwnerId == botUserId))
         {
+            // An inviter who is not a player is only watching, so the bot plays both seats
+            var names = game.Players.Any(p => p.OwnerId == invitation.InviterId) ? new[] { "Bot-Player" } : new[] { "Bot-A", "Bot-B" };
             try
             {
-                await _gameApiClient.JoinGameAsync(gameId, new JoinGameRequest("Bot-Player"), cancellationToken);
-                _logger.LogInformation("Successfully joined game {GameId}", gameId);
+                foreach (var name in names)
+                {
+                    await _gameApiClient.JoinGameAsync(gameId, new JoinGameRequest(name), cancellationToken);
+                }
+                _logger.LogInformation("Successfully joined game {GameId} with {Seats} seat(s)", gameId, names.Length);
                 return;
             }
             catch (Exception exception)

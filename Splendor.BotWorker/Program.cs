@@ -22,6 +22,7 @@ builder.Services.AddHttpClient<IGameApiClient, GameApiClient>(client =>
     client.BaseAddress = new Uri(builder.Configuration["Api:BaseUrl"]!);
 });
 
+builder.Services.Configure<BotOptions>(builder.Configuration.GetSection("Bot"));
 builder.Services.AddSingleton<IAccessTokenProvider, Auth0AccessTokenProvider>();
 builder.Services.AddSingleton<IGameDefinitionsProvider, GameDefinitionsProvider>();
 builder.Services.AddScoped<IBotGameMembershipHandler, BotGameMembershipHandler>();
@@ -36,6 +37,8 @@ builder.Services.AddMassTransit(config =>
         {
             o.MessageLimit = 100;
             o.TimeLimit = TimeSpan.FromMilliseconds(100);
+            // One batch at a time: a game appears once per batch, so it is never processed twice concurrently
+            o.ConcurrencyLimit = 1;
         });
     });
 

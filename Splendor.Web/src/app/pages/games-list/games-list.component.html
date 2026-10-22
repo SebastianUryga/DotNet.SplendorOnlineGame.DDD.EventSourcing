@@ -10,6 +10,7 @@
         <option [ngValue]="300">300 s / turn</option>
       </select>
       <button (click)="createNewGame()" class="btn-primary" data-testid="create-game-btn">+ New Game</button>
+      <button (click)="watchBotMatch()" [disabled]="hasBotMatch()" class="btn-secondary" data-testid="watch-bot-match-btn">Watch bot vs bot</button>
     </div>
   </div>
 

@@ -20,17 +20,15 @@ public class BotGameUpdatedConsumer : IConsumer<Batch<GameUpdatedMessage>>
         var latestMessagesByGame = context.Message
             .Select(x => x.Message)
             .GroupBy(x => x.GameId)
-            .Select(g => g.OrderByDescending(x => x.StreamVersion).First());
+            .Select(g => g.OrderByDescending(x => x.StreamVersion).First())
+            .ToList();
 
-        foreach (var message in latestMessagesByGame)
-        {
-            if (message.EventType == GameEventTypes.PlayerInvited)
-            {
-                await _botGameMembershipHandler.HandleInvitationAsync(message.GameId, message.Data, context.CancellationToken);
-                continue;
-            }
-
-            await _processor.ProcessAsync(message.GameId, context.CancellationToken);
-        }
+        // Games run concurrently, so a delayed move in one game does not hold up the others
+        await Task.WhenAll(latestMessagesByGame.Select(message => HandleAsync(message, context.CancellationToken)));
     }
+
+    private Task HandleAsync(GameUpdatedMessage message, CancellationToken cancellationToken) =>
+        message.EventType == GameEventTypes.PlayerInvited
+            ? _botGameMembershipHandler.HandleInvitationAsync(message.GameId, message.Data, cancellationToken)
+            : _processor.ProcessAsync(message.GameId, cancellationToken);
 }

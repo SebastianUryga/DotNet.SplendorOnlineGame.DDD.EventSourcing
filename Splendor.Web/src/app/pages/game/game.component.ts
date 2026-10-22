@@ -14,7 +14,6 @@ import { ChooseNobleRequest } from '../../models/requests.model';
 import { CardComponent } from './card/card.component';
 
 
-
 @Component({
   selector: 'app-game',
   standalone: true,
@@ -357,7 +356,6 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   endDismissed = false;
-
   isFinished(): boolean {
     return this.game?.status?.toLowerCase() === 'finished';
   }

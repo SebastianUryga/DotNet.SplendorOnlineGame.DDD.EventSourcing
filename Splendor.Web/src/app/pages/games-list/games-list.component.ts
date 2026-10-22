@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import { GameService } from '../../core/services/game.service';
 import { GameSummary } from '../../models/game-view.model';
+import { environment } from '../../../environments/environment';
 
 @Component({
     selector: 'app-games-list',
@@ -41,6 +42,24 @@ export class GamesListComponent implements OnInit, OnDestroy {
         this.gameService.createGame(this.newGameName.trim() || undefined, this.turnDurationSeconds).subscribe(res => {
             this.router.navigate(['/games', res.id, 'lobby']);
         });
+    }
+
+    // The creator is not a player, so the bot (invited once) takes both seats and the creator only watches
+    watchBotMatch(): void {
+        this.gameService.createGame(this.botMatchName()).subscribe(res => {
+            this.gameService.invitePlayer(res.id, { inviteeId: environment.botUserId }).subscribe(() => {
+                this.router.navigate(['/games', res.id, 'lobby']);
+            });
+        });
+    }
+
+    hasBotMatch(): boolean {
+        const name = this.botMatchName();
+        return this.games.some(g => g.name === name && g.status !== 'Finished');
+    }
+
+    private botMatchName(): string {
+        return `${localStorage.getItem('splendor_guest_name') ?? 'Player'} bot vs bot`.slice(0, 40);
     }
 
     goToGame(game: GameSummary): void {

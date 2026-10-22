@@ -46,6 +46,8 @@ Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.
 
 Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości służy wyłącznie do wybrania najnowszego eventu w batchu i nie jest porównywana z wersją read modelu. `IBotGameMembershipHandler` obsługuje zaproszenie i dołączenie bota, a `IBotStrategy` wybiera ruch dla aktualnego stanu gry. `GameUpdatedMessage.Data` niesie zdarzenie jako JSON; przy `PlayerInvited` bot dołącza tylko, gdy `InviteeId` to jego identyfikator. Na produkcji bot działa w tym samym kontenerze co API (Api__BaseUrl=http://localhost:10000, konto bota w Auth0 przez `Bot__Username`/`Bot__Password`). Logi Serilog trafiają na konsolę oraz do `Splendor.BotWorker/logs/bot-worker-*.log`.
 
+Przed ruchem bot czeka `Bot:MoveDelayMs` (domyślnie 2000, `0` wyłącza; `BotOptions`), żeby animacje na froncie nadążały; sprawdzenie tury jest przed czekaniem, a dołączanie do gry nie czeka. Konsument batcha (`ConcurrencyLimit = 1`) przetwarza gry z batcha równolegle (`Task.WhenAll`) i nigdy tej samej gry dwa razy naraz. Gdy bot zostanie zaproszony przez kogoś, kto nie jest graczem w tej grze (twórca-widz), zajmuje dwa miejsca (`Bot-A`, `Bot-B`): tak powstaje mecz bot vs bot.
+
 ## Kluczowe pliki
 
 ### Domain Layer
@@ -69,7 +71,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 |------|------|
 | `Application/Commands/CreateGameCommand.cs` | Tworzenie nowej gry |
 | `Application/Commands/JoinGameCommand.cs` | Dołączanie gracza do gry |
-| `Application/Commands/InvitePlayerCommand.cs` | Zapraszanie gracza do lobby |
+| `Application/Commands/InvitePlayerCommand.cs` | Zapraszanie gracza do lobby (twórca gry lub uczestnik) |
 | `Application/Commands/LeaveGameCommand.cs` | Opuszczanie lobby przez gracza |
 | `Application/Commands/StartGameCommand.cs` | Rozpoczęcie gry |
 | `Application/Commands/TakeGemsCommand.cs` | Pobieranie gemów z rynku |
@@ -173,7 +175,7 @@ Worker konsumuje `GameUpdatedMessage` z RabbitMQ. `StreamVersion` wiadomości s�
 | `src/app/core/services/game.service.ts` | Komunikacja z API + cache kart |
 | `src/app/core/interceptors/auth.interceptor.ts` | Dodaje Bearer token do requestów |
 | `src/app/core/interceptors/error.interceptor.ts` | Toast dla 400; 401 otwiera dialog ponownego logowania (`AuthService.requireLogin`). |
-| `src/app/pages/games-list/` | Lista gier + tworzenie nowej |
+| `src/app/pages/games-list/` | Lista gier + tworzenie nowej; "Watch bot vs bot" tworzy grę `<nazwa> bot vs bot`, zaprasza bota i otwiera lobby (wyszarzone, gdy taka niezakończona gra już istnieje). |
 | `src/app/pages/lobby/` | Lobby gry (dołączanie, start, przycisk Leave przy graczach; o możliwości wyjścia decyduje backend, błąd wraca jako toast) |
 | `src/app/pages/game/` | Widok rozgrywki (rynek gemów, karty, gracze). Stan z SignalR jest renderowany dopiero po zakończeniu animacji (`receive()`); po własnych akcjach nie ma `refresh()`, stan przychodzi tylko przez SignalR. Po `status = Finished` overlay końca gry (`isFinished()`, `getStandings()`). |
 | `src/app/pages/game/card/` | `CardComponent` (`app-card`): tło `assets/cards/card-<kolor>-<poziom>.webp` (rewers `card-back-<poziom>.webp`) z fallbackiem gradientem CSS; nakładka: punkty, bonus, koszt. |

@@ -1,4 +1,5 @@
-﻿using Splendor.BotWorker.Api;
+﻿using Microsoft.Extensions.Options;
+using Splendor.BotWorker.Api;
 using Splendor.BotWorker.Authentication;
 using Splendor.BotWorker.Cards;
 using Splendor.BotWorker.Strategies;
@@ -13,9 +14,11 @@ namespace Splendor.BotWorker.Processing
         private readonly IAccessTokenProvider _tokenProvider;
         private readonly IGameDefinitionsProvider _gameDefinitionsProvider;
         private readonly ILogger<BotTurnProcessor> _logger;
+        private readonly BotOptions _options;
 
-        public BotTurnProcessor(IGameApiClient gameApi, IBotStrategy strategy, IAccessTokenProvider tokenProvider, IGameDefinitionsProvider gameDefinitionsProvider, ILogger<BotTurnProcessor> logger)
+        public BotTurnProcessor(IGameApiClient gameApi, IBotStrategy strategy, IAccessTokenProvider tokenProvider, IGameDefinitionsProvider gameDefinitionsProvider, ILogger<BotTurnProcessor> logger, IOptions<BotOptions> options)
         {
+            _options = options.Value;
             _gameApi = gameApi;
             _strategy = strategy;
             _tokenProvider = tokenProvider;
@@ -46,6 +49,12 @@ namespace Splendor.BotWorker.Processing
             {
                 _logger.LogDebug("Skipping processing for game {GameId}: bot player not found or not current player", gameId);
                 return;
+            }
+
+            // Checked after the turn test, so messages that are not for the bot never wait
+            if (_options.MoveDelayMs > 0)
+            {
+                await Task.Delay(_options.MoveDelayMs, cancellationToken);
             }
 
             var cards = await _gameDefinitionsProvider.GetCardsAsync(cancellationToken);

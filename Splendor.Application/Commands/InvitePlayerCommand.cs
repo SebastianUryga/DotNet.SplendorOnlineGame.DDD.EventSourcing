@@ -45,8 +45,10 @@ public class InvitePlayerCommandHandler : IRequestHandler<InvitePlayerCommand>
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game is already finished.");
         if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game has been deleted.");
 
-        if (!state.Players.Values.Any(player => player.PlayerOwnerId == command.Caller.UserId.Value))
-            throw new InvalidOperationException("You do not control a player in this game");
+        var isCreator = state.GameCreatorId == command.Caller.UserId.Value;
+        var isParticipant = state.Players.Values.Any(player => player.PlayerOwnerId == command.Caller.UserId.Value);
+        if (!isCreator && !isParticipant)
+            throw new InvalidOperationException("Only the creator or a participant can invite.");
 
         if (state.Players.Values.Any(player => player.PlayerOwnerId == command.InviteeId.Value))
             throw new InvalidOperationException("Player already in game");
