@@ -46,5 +46,4 @@ services:
 
 volumes:
   postgres-data:
-    external: true
     name: splendor_postgres-data
