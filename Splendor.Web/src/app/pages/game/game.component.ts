@@ -41,8 +41,8 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
   private clockSubscription?: Subscription;
   selectedCardId?: string | null = null;
   selectedCard?: Card | undefined;
-  entering = new Set<string>();
-  private recentReserved = new Map<string, string>();
+  enteringCardIds = new Set<string>();
+  private lastReservedCardByPlayer = new Map<string, string>();
 
   constructor(
     private route: ActivatedRoute,
@@ -64,28 +64,28 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.anim.snapshot([g.market1, g.market2, g.market3, g.nobles ?? []].map(a => a.join(',')).join('|') + reserved);
   }
 
-  private latest: GameView | null = null;
-  private pending: GameView | null = null;
+  private latestView: GameView | null = null;
+  private viewAwaitingRender: GameView | null = null;
   lastMove: { before: GameView; notes: GameNotification[] } | null = null;
 
   // Every incoming state goes through here. Diffs (new market cards, new reservations) run on arrival because
   // notifications are handled right after; rendering waits until running animations finish.
   private receive(view: GameView): void {
-    const prev = this.latest;
+    const prev = this.latestView;
     if (prev) {
       if (view.version !== prev.version) this.lastMove = { before: prev, notes: [] };
       const old = new Set([...prev.market1, ...prev.market2, ...prev.market3]);
-      [...view.market1, ...view.market2, ...view.market3].filter(id => !old.has(id)).forEach(id => this.entering.add(id));
+      [...view.market1, ...view.market2, ...view.market3].filter(id => !old.has(id)).forEach(id => this.enteringCardIds.add(id));
       for (const p of view.players) {
         const was = new Set(prev.players.find(x => x.id === p.id)?.reservedCardIds ?? []);
         const added = (p.reservedCardIds ?? []).find(id => !was.has(id));
-        if (added) this.recentReserved.set(p.id, added);
+        if (added) this.lastReservedCardByPlayer.set(p.id, added);
       }
     }
-    this.latest = this.pending = view;
+    this.latestView = this.viewAwaitingRender = view;
     Promise.resolve().then(() => this.anim.whenIdle()).then(() => {
-      if (this.pending) this.game = this.pending;
-      this.pending = null;
+      if (this.viewAwaitingRender) this.game = this.viewAwaitingRender;
+      this.viewAwaitingRender = null;
     });
   }
 
@@ -97,7 +97,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
     await new Promise(resolve => setTimeout(resolve));
     move.notes.forEach(n => this.animate(n));
     await this.anim.whenIdle();
-    this.game = this.latest;
+    this.game = this.latestView;
   }
 
   getCardLevel(id: string): number {
@@ -118,7 +118,7 @@ export class GameComponent implements OnInit, OnDestroy, AfterViewChecked {
         break;
       }
       case 'card_reserved': { // notification has no cardId by design; the view diff tells which card it was
-        const id = this.recentReserved.get(p);
+        const id = this.lastReservedCardByPlayer.get(p);
         if (id) this.anim.card(this.anim.has('card:' + id) ? 'card:' + id : 'deck:' + this.getCardLevel(id), p);
         break;
       }
