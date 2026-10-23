@@ -3,6 +3,10 @@
 ## Preferencje użytkownika
 - **Oszczędzanie tokenów**: Przed edycją plików najpierw pokaż planowane zmiany w całości i zapytaj o akceptację. Nie rób wielu małych edycji - grupuj zmiany.
 
+## Wartości projektu
+- Generyczność i rozszerzalność: nowe reguły, dodatki i kolejne gry przez dodawanie kodu, nie modyfikację istniejącego. Stan obecny nie jest docelowy, więc oceniaj rozwiązania konkretnymi scenariuszami zmian, a nie tylko dzisiejszym Splendorem. Nie uogólniaj z jednego przykładu.
+- Szczegóły i otwarte pytania: notatka Obsidian "Wartości i założenia architektoniczne".
+
 ## Opis projektu
 Implementacja gry planszowej **Splendor** jako część platformy SplendorOnlineGame.
 Backend w .NET z wykorzystaniem **Event Sourcing**, **CQRS** i **DDD**.

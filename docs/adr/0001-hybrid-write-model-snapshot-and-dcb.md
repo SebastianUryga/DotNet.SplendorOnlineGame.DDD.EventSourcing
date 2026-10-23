@@ -20,6 +20,13 @@ What the spike and the follow-up experiments showed:
 
 - Events of one game were being spread over several physical streams (`boundary.AppendMany` routes by tags), so a single-stream snapshot did not see the whole history. Appending explicitly to the game stream while keeping the tags fixed this.
 
+## Decision drivers
+
+- **Extensibility.** New rules, expansions and, later, other games should be added by adding code, not by changing existing code. The current Splendor implementation is not the target shape.
+- **Rules stay pure and testable:** `Decide(command, state)` works without Marten.
+- **Correct concurrency** for rules that span games (for example the per-owner active-games limit).
+- **Cost of loading state.** Secondary driver: at 100 to 1,000 events the benchmark gap between DCB and a snapshot is about 4 to 11 ms; only the 10,000-event point (far beyond a real game) is dramatic. It shows the trend, not a hard requirement.
+
 ## Decision
 
 - Gameplay commands load one `SplendorGameState` (an **async snapshot** of the game's single stream) with `FetchForWriting` and append tagged events to that stream. Stream version gives optimistic concurrency.
@@ -37,4 +44,5 @@ What the spike and the follow-up experiments showed:
 - Command load time is roughly flat in history length; concurrency conflicts are covered by integration tests (stream version and DCB tag version).
 - Snapshot state needs a JSON round-trip test, because get-only collections are not populated by default.
 - The benchmark numbers come from a simplified state and an *inline* snapshot; the API uses an *async* snapshot, which was not benchmarked. Re-measure only if a performance target or a regression appears.
+- Extensibility is only partly served: with one shared `SplendorGameState`, a new event type means a change in its shared `Apply`, and turn completion is a fixed static sequence. Splitting turn completion into pluggable steps and per-command or composable state are open questions, to be examined with concrete change scenarios (new expansion rule, new victory condition, another clock, per-player views, another game).
 - Stored event and snapshot JSON must stay readable when C# names change (`[JsonPropertyName]`, `StoredJsonCompatibilityTests`).
