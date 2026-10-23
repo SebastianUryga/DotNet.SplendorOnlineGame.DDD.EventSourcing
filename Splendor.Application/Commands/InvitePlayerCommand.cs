@@ -37,7 +37,7 @@ public class InvitePlayerCommandHandler : IRequestHandler<InvitePlayerCommand>
         await _session.SaveChangesAsync(cancellationToken);
     }
 
-    private static IEnumerable<IDomainEvent> Decide(InvitePlayerCommand command, SplendorGameState state)
+    internal static IEnumerable<IDomainEvent> Decide(InvitePlayerCommand command, SplendorGameState state)
     {
         if (state.Id == Guid.Empty) throw new InvalidOperationException("GameId missing in history");
 

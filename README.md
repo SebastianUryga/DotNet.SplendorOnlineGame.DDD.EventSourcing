@@ -9,7 +9,7 @@
 
 ## Live Demo
 
-**[Play online](https://splendoronlinegame-web.onrender.com)**: click **Play as guest**, create a game and use **Add bot** to get an opponent.
+**[Play online](https://splendoronlinegame-web.onrender.com)**: click **Play as guest**, create a game and use **Add bot** to get an opponent. Or click **Watch bot vs bot**, then **Start** in the lobby, to just watch two bots play.
 
 > [!WARNING]
 > **The first load can take up to a minute.** The app runs on free tiers: after 15 minutes of inactivity Render puts the API to sleep, and the first request has to wake it up. Please be patient, later requests are fast. Guest sessions last 60 minutes, and up to 10 guests can be active at once.

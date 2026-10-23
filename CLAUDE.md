@@ -349,3 +349,4 @@ npm start
 - Elementy UI testowalne oznaczane atrybutem `data-testid` w szablonach Angular
 - Dane ustalane przy tworzeniu gry są polami `GameCreated` z wartościami domyślnymi, żeby stare eventy się deserializowały
 - Liczby reguł gry (limit żetonów, próg końca gry) żyją w `SplendorRules`, nie jako literały
+- Decyzje architektoniczne zapisujemy jako ADR w `docs/adr/` (po angielsku, numerowane; sekcje: Context, Decision, Alternatives, Consequences). Zmiana decyzji to nowy ADR i status starego "Superseded".
