@@ -41,7 +41,7 @@ public class ResolveGemLimitCommandHandler : IRequestHandler<ResolveGemLimitComm
             TurnClockState.Query(command.GameId), cancellationToken);
         var clock = turnClock.Aggregate ?? throw new InvalidOperationException("Game not found.");
 
-        var events = Decide(command, state).ToList();
+        var events = Decide(command, state, clock).ToList();
 
         // Apply decision events to local state
         state.Apply(events);
@@ -55,7 +55,7 @@ public class ResolveGemLimitCommandHandler : IRequestHandler<ResolveGemLimitComm
         await _session.SaveChangesAsync(cancellationToken);
     }
 
-    private static IReadOnlyList<IDomainEvent> Decide(ResolveGemLimitCommand command, SplendorGameState state)
+    internal static IReadOnlyList<IDomainEvent> Decide(ResolveGemLimitCommand command, SplendorGameState state, TurnClockState turnClock)
     {
         if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game deleted.");
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game finished.");
@@ -63,6 +63,7 @@ public class ResolveGemLimitCommandHandler : IRequestHandler<ResolveGemLimitComm
         if (!state.Players.TryGetValue(command.PlayerId, out var player)) throw new InvalidOperationException("Player not found.");
         if (player.PlayerOwnerId != command.Caller.UserId.Value) throw new InvalidOperationException("You do not control this player.");
         if (state.PendingGemReturnPlayerId != command.PlayerId) throw new InvalidOperationException("No gem return is required for this player.");
+        if (!turnClock.CanStartAction(command.PlayerId)) throw new InvalidOperationException("Turn deadline has passed.");
 
         var returnedGems = new GemCollection(command.Diamond, command.Sapphire, command.Emerald, command.Ruby, command.Onyx, command.Gold);
         if (returnedGems.Diamond > player.Gems.Diamond) throw new InvalidOperationException("Cannot return more diamonds than owned.");

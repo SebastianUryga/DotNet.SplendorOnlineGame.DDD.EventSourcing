@@ -37,6 +37,55 @@ public class TurnClockTests
     }
 
     [Fact]
+    public void ResolveGemLimit_RejectsActionAfterDeadline()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var (gameId, ownerId, _, playerId, _, history) = TestHelpers.CreateStartedGame();
+        history.Add(new GemsTaken(gameId, playerId, new GemCollection(1, 1, 1, 1, 1, 4), now));
+        history.Add(new GemsTaken(gameId, playerId, new GemCollection(1, 1, 0, 0, 0, 0), now));
+        history.Add(new GemsOverflowDetected(gameId, playerId, new GemCollection(2, 2, 1, 1, 1, 4), 1, now));
+        var state = new SplendorGameState();
+        TestHelpers.ApplyHistory(state, history);
+        var clock = StartedClock(gameId, playerId, now.AddSeconds(-1));
+
+        var act = () => ResolveGemLimitCommandHandler.Decide(new ResolveGemLimitCommand
+        {
+            GameId = gameId,
+            Caller = Caller.User(ownerId),
+            PlayerId = playerId,
+            Diamond = 1
+        }, state, clock);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("Turn deadline has passed.");
+    }
+
+    [Fact]
+    public void ChooseNoble_RejectsActionAfterDeadline()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var (gameId, ownerId, _, playerId, _, history) = TestHelpers.CreateStartedGame(["N_06", "N_07"]);
+        TestHelpers.AddPurchasedCardsWithBonus(history, gameId, playerId, GemType.Diamond, 4);
+        TestHelpers.AddPurchasedCardsWithBonus(history, gameId, playerId, GemType.Onyx, 4);
+        TestHelpers.AddPurchasedCardsWithBonus(history, gameId, playerId, GemType.Sapphire, 4);
+        history.Add(new NobleSelectionRequired(gameId, playerId, ["N_06", "N_07"], now));
+        var state = new SplendorGameState();
+        TestHelpers.ApplyHistory(state, history);
+        var clock = StartedClock(gameId, playerId, now.AddSeconds(-1));
+
+        var act = () => ChooseNobleCommandHandler.Decide(new ChooseNobleCommand
+        {
+            GameId = gameId,
+            Caller = Caller.User(ownerId),
+            PlayerId = playerId,
+            NobleId = "N_06"
+        }, state, clock);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("Turn deadline has passed.");
+    }
+
+    [Fact]
     public void ExpireTurn_EndsCurrentTurnAndStartsNextTurn()
     {
         var now = new DateTimeOffset(2026, 9, 29, 12, 0, 0, TimeSpan.Zero);

@@ -37,7 +37,7 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
             TurnClockState.Query(command.GameId), cancellationToken);
         var clock = turnClock.Aggregate ?? throw new InvalidOperationException("Game not found.");
 
-        var events = Decide(command, state).ToList();
+        var events = Decide(command, state, clock).ToList();
 
         // Apply decision events to local state
         state.Apply(events);
@@ -51,7 +51,7 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
         await _session.SaveChangesAsync(cancellationToken);
     }
 
-    internal static IReadOnlyList<IDomainEvent> Decide(ChooseNobleCommand command, SplendorGameState state)
+    internal static IReadOnlyList<IDomainEvent> Decide(ChooseNobleCommand command, SplendorGameState state, TurnClockState turnClock)
     {
         if (state.Status == GameStatus.Deleted) throw new InvalidOperationException("Game deleted.");
         if (state.Status == GameStatus.Finished) throw new InvalidOperationException("Game finished.");
@@ -61,6 +61,7 @@ public class ChooseNobleCommandHandler : IRequestHandler<ChooseNobleCommand>
         if (player.PlayerOwnerId != command.Caller.UserId.Value) throw new InvalidOperationException("You do not control this player.");
         if (state.PendingNobleSelectionPlayerId != command.PlayerId)
             throw new InvalidOperationException("No noble selection is pending for this player.");
+        if (!turnClock.CanStartAction(command.PlayerId)) throw new InvalidOperationException("Turn deadline has passed.");
         if (!state.EligibleNobleIds.Contains(command.NobleId))
             throw new InvalidOperationException("Selected noble is not eligible.");
         if (!state.Nobles.Contains(command.NobleId))

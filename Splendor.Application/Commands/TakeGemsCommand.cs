@@ -72,20 +72,9 @@ public class TakeGemsCommandHandler : IRequestHandler<TakeGemsCommand>
         SplendorRules.EnsureValidGemSelection(gems);
         SplendorRules.EnsureGemsAvailable(state.MarketGems, gems);
 
-        var now = DateTimeOffset.UtcNow;
-        var events = new List<IDomainEvent>
+        return new List<IDomainEvent>
         {
-            new GemsTaken(command.GameId, command.PlayerId, gems, now)
+            new GemsTaken(command.GameId, command.PlayerId, gems, DateTimeOffset.UtcNow)
         };
-
-        // TODO: this check should be done in TrunCompletion.Decide, not here, add a test for this
-        var newTotal = player.Gems + gems;
-        if (newTotal.Total > SplendorRules.MaxPlayerGems)
-        {
-            events.Add(new GemsOverflowDetected(command.GameId, command.PlayerId, newTotal, newTotal.Total - SplendorRules.MaxPlayerGems, now));
-            return events;
-        }
-
-        return events;
     }
 }

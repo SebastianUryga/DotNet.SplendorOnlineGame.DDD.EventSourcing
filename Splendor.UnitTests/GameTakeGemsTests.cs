@@ -35,11 +35,14 @@ public class GameTakeGemsTests
         var now = DateTimeOffset.UtcNow;
         var produced = TakeGemsCommandHandler.Decide(
             command, game, TestHelpers.CreateActiveTurnClock(gameId, player1Id, now)).ToList();
+        game.Apply(produced);
+        produced.AddRange(TurnCompletion.DecideAfterAction(game, new TurnClockState(), now));
 
-        // assert - expect GemsTaken then GemsOverflowDetected, with excess = 1
-        produced.Should().HaveCount(2);
+        // assert - expect GemsTaken, GemsOverflowDetected (excess = 1), then a fresh deadline
+        produced.Should().HaveCount(3);
         produced[0].Should().BeOfType<GemsTaken>();
         var overflow = produced[1].Should().BeOfType<GemsOverflowDetected>().Subject;
+        produced[2].Should().BeOfType<TurnDeadlineStarted>();
         overflow.ExcessCount.Should().Be(1);
         overflow.PlayerId.Should().Be(player1Id);
     }

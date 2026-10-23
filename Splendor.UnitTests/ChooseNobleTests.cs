@@ -29,7 +29,7 @@ public class ChooseNobleTests
             Caller = Caller.User(ownerId),
             PlayerId = playerId,
             NobleId = "N_06"
-        }, state).ToList();
+        }, state, TestHelpers.CreateActiveTurnClock(gameId, playerId, DateTimeOffset.UtcNow)).ToList();
         state.Apply(events);
         events.AddRange(TurnCompletion.DecideAfterNobleSelection(state, new TurnClockState(), DateTimeOffset.UtcNow));
 

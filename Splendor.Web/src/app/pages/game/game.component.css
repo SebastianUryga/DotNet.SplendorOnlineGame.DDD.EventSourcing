@@ -36,6 +36,7 @@
 .market-actions { display: flex; gap: 15px; }
 .btn-action { background: #4a90e2; color: white; border: none; padding: 12px 30px; border-radius: 10px; font-weight: bold; cursor: pointer; }
 .btn-action:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn-buy:disabled, .btn-reserve:disabled, .btn-small:disabled { opacity: 0.3; cursor: not-allowed; }
 .btn-reset { background: transparent; border: 1px solid #555; color: #aaa; padding: 12px 20px; border-radius: 10px; cursor: pointer; }
 
 /* Card Market */
